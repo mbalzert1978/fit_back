@@ -47,8 +47,9 @@ async def alembic_migrations(postgres_service: PostgresContainer) -> None:
     password = "test"
     database = "test"
 
-    # Build connection string for alembic
-    db_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+    # Build connection string for alembic - env.py uses an async engine (asyncpg
+    # is this repo's only DB driver), so the +asyncpg dialect is required here too.
+    db_url = f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{database}"
 
     # Copy environment and set SQLALCHEMY_DATABASE_URL (name expected by alembic/env.py)
     env = os.environ.copy()
