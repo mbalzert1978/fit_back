@@ -1,6 +1,6 @@
 """RFC 7807 Problem Details model for structured error responses."""
 
-from typing import Any, final
+from typing import final
 
 from pydantic import BaseModel, Field
 
@@ -27,24 +27,28 @@ class ProblemDetails(BaseModel):
         description="Field-level validation errors: fieldname -> [error messages]",
     )
 
-    model_config = {"json_schema_extra": {"examples": [
-        {
-            "type": "https://api.example/errors/product-not-found",
-            "title": "Produkt nicht gefunden",
-            "status": 404,
-            "detail": "Zu EAN 4008400401027 existiert kein Produkt.",
-            "instance": "/api/v1/catalog/products/by-barcode/4008400401027",
-            "errors": None,
-        },
-        {
-            "type": "https://api.example/errors/validation-failed",
-            "title": "Validierung fehlgeschlagen",
-            "status": 400,
-            "detail": "Die Eingabe erfüllt nicht die erforderlichen Bedingungen.",
-            "instance": "/api/v1/identity/register",
-            "errors": {
-                "password": ["Mindestens 10 Zeichen erforderlich"],
-                "email": ["Ungültiges E-Mail-Format"],
-            },
-        },
-    ]}}
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "type": "https://api.example/errors/product-not-found",
+                    "title": "Produkt nicht gefunden",
+                    "status": 404,
+                    "detail": "Zu EAN 4008400401027 existiert kein Produkt.",
+                    "instance": "/api/v1/catalog/products/by-barcode/4008400401027",
+                    "errors": None,
+                },
+                {
+                    "type": "https://api.example/errors/validation-failed",
+                    "title": "Validierung fehlgeschlagen",
+                    "status": 400,
+                    "detail": "Die Eingabe erfüllt nicht die erforderlichen Bedingungen.",
+                    "instance": "/api/v1/identity/register",
+                    "errors": {
+                        "password": ["Mindestens 10 Zeichen erforderlich"],
+                        "email": ["Ungültiges E-Mail-Format"],
+                    },
+                },
+            ]
+        }
+    }

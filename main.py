@@ -1,11 +1,11 @@
 """Fit-back API entry point."""
 
-import asyncio
 import logging
 import os
 import time
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from typing import Callable, final
+from typing import final
 
 import asyncpg
 from fastapi import FastAPI, Request
@@ -13,6 +13,7 @@ from fastapi.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 from starlette.middleware.csrf import CSRFMiddleware
+from starlette.types import ASGIApp
 
 from src.shared_kernel.exception_handlers import register_exception_handlers
 
@@ -43,44 +44,16 @@ def validate_settings() -> Settings:
         raise RuntimeError("Configuration validation failed: invalid environment variables") from e
 
 
-async def init_db(settings: Settings) -> asyncpg.Pool:
-    """Initialize database connection pool."""
-    try:
-        pool = await asyncpg.create_pool(
-            host=settings.db_host,
-            port=settings.db_port,
-            database=settings.db_name,
-            user=settings.db_user,
-            password=settings.db_password,
-            min_size=1,
-            max_size=10,
-        )
-        logger.info("Database pool initialized successfully")
-        return pool
-    except asyncpg.Error:
-        logger.error("Failed to initialize database pool")
-        raise
-
-
-async def close_db(pool: asyncpg.Pool | None) -> None:
-    """Close database connection pool."""
-    if pool:
-        await pool.close()
-        logger.info("Database pool closed")
-
-
 @final
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Rate limiting middleware to prevent abuse."""
 
-    def __init__(self, app, requests_per_minute: int = 60):
+    def __init__(self, app: ASGIApp, requests_per_minute: int = 60) -> None:
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self.request_times: dict[str, list[float]] = {}
 
-    async def dispatch(
-        self, request: Request, call_next: Callable
-    ) -> JSONResponse:
+    async def dispatch(self, request: Request, call_next: Callable) -> JSONResponse:
         """Rate limit requests based on client IP."""
         client_ip = request.client.host if request.client else "unknown"
         current_time = time.time()
@@ -105,8 +78,34 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
 
+async def init_db(settings: Settings) -> asyncpg.Pool:
+    """Initialize database connection pool."""
+    try:
+        pool = await asyncpg.create_pool(
+            host=settings.db_host,
+            port=settings.db_port,
+            database=settings.db_name,
+            user=settings.db_user,
+            password=settings.db_password,
+            min_size=1,
+            max_size=10,
+        )
+        logger.info("Database pool initialized successfully")
+        return pool
+    except asyncpg.Error:
+        logger.warning("Failed to initialize database pool")
+        raise
+
+
+async def close_db(pool: asyncpg.Pool | None) -> None:
+    """Close database connection pool."""
+    if pool:
+        await pool.close()
+        logger.info("Database pool closed")
+
+
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Manage app lifespan: startup and shutdown."""
     # Startup: validate settings and initialize database
     try:
@@ -114,7 +113,7 @@ async def lifespan(app: FastAPI):
         app.state.settings = settings
         app.state.db_pool = await init_db(settings)
     except RuntimeError as e:
-        logger.error(f"Application startup failed: {str(e)}")
+        logger.error("Application startup failed: %s", str(e))
         app.state.db_pool = None
         raise
     yield
@@ -127,14 +126,13 @@ app = FastAPI(title="Fit-back API", lifespan=lifespan)
 # Register exception handlers for RFC 7807 ProblemDetails
 register_exception_handlers(app)
 
-# Validate CSRF secret key (mandatory, no default)
-_csrf_secret_key = os.getenv("SECRET_KEY")
-if not _csrf_secret_key:
+_secret_key = os.getenv("SECRET_KEY")
+if not _secret_key:
     raise RuntimeError("SECRET_KEY environment variable is required and has no default")
 
 # Add security middleware
 app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
-app.add_middleware(CSRFMiddleware, secret_key=_csrf_secret_key)
+app.add_middleware(CSRFMiddleware, secret_key=_secret_key)
 
 
 @app.get("/api/v1/health")
@@ -158,7 +156,7 @@ async def health_check(request: Request) -> JSONResponse:
             await conn.execute("SELECT 1")
         return JSONResponse({"status": "healthy"})
     except asyncpg.Error:
-        logger.error("Health check: database connection failed")
+        logger.warning("Health check: database connection failed")
         return JSONResponse(
             {"status": "unhealthy"},
             status_code=503,

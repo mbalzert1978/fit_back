@@ -1,8 +1,5 @@
 """Tests for exception handlers."""
 
-import json
-
-import pytest
 from fastapi import FastAPI, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.testclient import TestClient

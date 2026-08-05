@@ -59,6 +59,7 @@ services:
       DB_NAME: ${DB_NAME:-fit_back}
       DB_USER: ${DB_USER:-fit_user}
       DB_PASSWORD: ${DB_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY}
     ports:
       - "8000:8000"
     depends_on:
