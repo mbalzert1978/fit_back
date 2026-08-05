@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import final
 
 from src.shared_kernel.exceptions import DomainException
+from src.shared_kernel.result import Err, Ok, Result
 
 
 @final
@@ -40,26 +41,24 @@ class RowVersion:
         return str(self.xmin)
 
     @classmethod
-    def from_if_match(cls, if_match: str | None) -> RowVersion | None:
+    def from_if_match(cls, if_match: str | None) -> Result[RowVersion, str] | None:
         """Parse RowVersion aus If-Match-Header.
 
         Args:
             if_match: Der Wert des If-Match-Headers, oder None.
 
         Returns:
-            Eine RowVersion falls Header gesetzt, sonst None.
-
-        Raises:
-            ValueError: Falls der Header-Wert keine gültige xmin ist.
+            Ok(RowVersion) falls Header gültig, Err(str) bei Parsing-Fehler,
+            oder None falls Header nicht gesetzt.
         """
         if if_match is None:
             return None
         try:
             xmin = int(if_match)
-            return cls.from_xmin(xmin)
-        except ValueError as e:
+            return Ok(cls.from_xmin(xmin))
+        except ValueError:
             msg = f"Invalid If-Match header: {if_match}"
-            raise ValueError(msg) from e
+            return Err(msg)
 
 
 class ConcurrencyConflictError(DomainException):

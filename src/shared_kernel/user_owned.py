@@ -1,6 +1,5 @@
-"""IUserOwned protocol and mixin for ownership-based data access control."""
+"""IUserOwned protocol for ownership-based data access control."""
 
-from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
@@ -17,13 +16,3 @@ class IUserOwned(Protocol):
     def user_id(self) -> UUID:
         """Die UUID des Benutzers, dem dieses Aggregate gehört."""
         ...
-
-
-@dataclass(frozen=True, slots=True)
-class UserOwnedMixin:
-    """Mixin-Dataclass für user-owned Aggregate.
-
-    Stellt die user_id-Eigenschaft bereit und satisfiest das IUserOwned-Protocol.
-    """
-
-    user_id: UUID

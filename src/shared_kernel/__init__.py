@@ -1,4 +1,4 @@
-"""Shared kernel: cross-cutting primitives (Result, UUIDv7, TimeProvider, etc.)."""
+"""Shared kernel: cross-cutting primitives (Result, TimeProvider, etc.)."""
 
 from src.shared_kernel.concurrency import (
     ConcurrencyConflictError,
@@ -10,8 +10,7 @@ from src.shared_kernel.time_provider import (
     SystemTimeProvider,
     TimeProvider,
 )
-from src.shared_kernel.user_owned import IUserOwned, UserOwnedMixin
-from src.shared_kernel.uuidv7 import uuid7
+from src.shared_kernel.user_owned import IUserOwned
 
 __all__ = [
     "ConcurrencyConflictError",
@@ -23,6 +22,4 @@ __all__ = [
     "RowVersion",
     "SystemTimeProvider",
     "TimeProvider",
-    "UserOwnedMixin",
-    "uuid7",
 ]

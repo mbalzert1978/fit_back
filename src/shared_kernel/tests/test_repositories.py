@@ -2,13 +2,12 @@
 
 from dataclasses import dataclass
 from typing import final
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid7
 
 import pytest
 
 from src.shared_kernel.concurrency import ConcurrencyConflictError, RowVersion
-from src.shared_kernel.user_owned import UserOwnedMixin
-from src.shared_kernel.uuidv7 import uuid7
+from src.shared_kernel.result import Err, Ok
 
 # ============================================================================
 # Test Fixtures: Dummy Aggregate mit User-Ownership
@@ -17,10 +16,15 @@ from src.shared_kernel.uuidv7 import uuid7
 
 @final
 @dataclass(frozen=True, slots=True)
-class DummyNote(UserOwnedMixin):
-    """Dummy-Aggregate zum Testen: eine Notiz mit User-Ownership."""
+class DummyNote:
+    """Dummy-Aggregate zum Testen: eine Notiz mit User-Ownership.
+
+    Erfüllt das IUserOwned-Protocol durch strukturelles Typing
+    (deklariert user_id: UUID direkt als Feld).
+    """
 
     id: UUID
+    user_id: UUID
     title: str
     content: str
     row_version: RowVersion
@@ -373,19 +377,29 @@ class TestRowVersionParsing:
 
     def test_row_version_from_if_match_success(self) -> None:
         """from_if_match parsed gültigen If-Match-Header."""
-        rv = RowVersion.from_if_match("12345")
-        assert rv is not None
-        assert rv.xmin == 12345
+        result = RowVersion.from_if_match("12345")
+        assert result is not None
+        assert isinstance(result, type(result))  # Result type check
+        match result:
+            case Ok(rv):
+                assert rv.xmin == 12345
+            case Err(_):
+                pytest.fail("Expected Ok result")
 
     def test_row_version_from_if_match_none(self) -> None:
         """from_if_match gibt None für None-Header zurück."""
-        rv = RowVersion.from_if_match(None)
-        assert rv is None
+        result = RowVersion.from_if_match(None)
+        assert result is None
 
     def test_row_version_from_if_match_invalid(self) -> None:
         """from_if_match lehnt nicht-numerische Header ab."""
-        with pytest.raises(ValueError, match="Invalid If-Match"):
-            RowVersion.from_if_match("not-a-number")
+        result = RowVersion.from_if_match("not-a-number")
+        assert result is not None
+        match result:
+            case Err(msg):
+                assert "Invalid If-Match" in msg
+            case Ok(_):
+                pytest.fail("Expected Err result")
 
     def test_row_version_str(self) -> None:
         """RowVersion lässt sich zu String für Header serialisieren."""
