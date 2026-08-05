@@ -1,7 +1,8 @@
 """Result[T, E] — Basistyp für Operationen mit Erfolgs- oder Fehlschlag-Ausgang."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, final
+from typing import final
 
 
 @final
@@ -11,11 +12,11 @@ class Ok[T]:
 
     value: T
 
-    def map[U](self, f: Callable[[T], U]) -> "Result[U, E]":
+    def map[U](self, f: Callable[[T], U]) -> Ok[U]:
         """Transformiere den erfolgreichen Wert via Funktion."""
         return Ok(f(self.value))
 
-    def bind[U, E](self, f: Callable[[T], "Result[U, E]"]) -> "Result[U, E]":
+    def bind[U, E](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         """Verkette eine Funktion, die selbst Result[U, E] zurückgibt."""
         return f(self.value)
 
@@ -27,11 +28,11 @@ class Err[E]:
 
     error: E
 
-    def map[T, U](self, f: Callable[[T], U]) -> "Err[E]":
+    def map[T, U](self, f: Callable[[T], U]) -> Err[E]:
         """Ignoriere den Fehler (Transformation auf Erfolgs-Wert nicht möglich)."""
         return self
 
-    def bind[T, U](self, f: Callable[[T], "Result[U, E]"]) -> "Err[E]":
+    def bind[T, U](self, f: Callable[[T], Result[U, E]]) -> Err[E]:
         """Ignoriere den Fehler (Verkettung nicht möglich)."""
         return self
 

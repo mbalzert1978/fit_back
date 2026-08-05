@@ -1,6 +1,6 @@
 """TimeProvider-Protocol für deterministisch testbare Zeitmessung."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Protocol, final
 
 
@@ -18,7 +18,7 @@ class SystemTimeProvider:
 
     def utc_now(self) -> datetime:
         """Liefere die aktuelle Zeit in UTC."""
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 @final
@@ -28,7 +28,7 @@ class FakeTimeProvider:
     def __init__(self, fixed_time: datetime | None = None) -> None:
         """Initialisiere mit optionaler fester Zeit (standard: UTC 2000-01-01 00:00:00)."""
         if fixed_time is None:
-            fixed_time = datetime(2000, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            fixed_time = datetime(2000, 1, 1, 0, 0, 0, tzinfo=UTC)
         elif fixed_time.tzinfo is None:
             raise ValueError("FakeTimeProvider erfordert tz-aware datetime")
         self._time = fixed_time
