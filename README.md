@@ -9,6 +9,16 @@ A fitness and nutrition tracking backend built with Python, FastAPI, and Postgre
 
 ## Quick Start with Docker Compose
 
+### Environment Setup
+
+Create a `.env` file from the template (required before running Docker Compose):
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and replace all `CHANGEME` values with your own secrets. **Never commit `.env` to version control.**
+
 ### Start the Services
 
 Start postgres, minio, and the app in detached mode:
@@ -18,7 +28,7 @@ docker compose up -d
 ```
 
 This will:
-- Start PostgreSQL on port 5432 (credentials: user=`fit_user`, password=`fit_password`, db=`fit_back`)
+- Start PostgreSQL on port 5432 (see `.env.example` for required credentials)
 - Start MinIO on ports 9000 (API) and 9001 (Console)
 - Build and start the Fit-back API on port 8000
 

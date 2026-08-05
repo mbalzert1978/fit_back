@@ -18,7 +18,9 @@ async def init_db() -> asyncpg.Pool:
     db_port = int(os.getenv("DB_PORT", "5432"))
     db_name = os.getenv("DB_NAME", "fit_back")
     db_user = os.getenv("DB_USER", "fit_user")
-    db_password = os.getenv("DB_PASSWORD", "fit_password")
+    db_password = os.getenv("DB_PASSWORD")
+    if not db_password:
+        raise RuntimeError("DB_PASSWORD environment variable is required and must not be empty")
 
     pool = await asyncpg.create_pool(
         host=db_host,
