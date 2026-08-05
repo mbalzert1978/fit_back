@@ -1,4 +1,4 @@
-"""Create shared.idempotency_keys table.
+"""Create shared_kernel.idempotency_keys table.
 
 Revision ID: shared_002
 Revises: shared_001
@@ -30,16 +30,16 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("key", name="uq_idempotency_keys_key"),
-        schema="shared",
+        schema="shared_kernel",
     )
     # Index for TTL cleanup queries
     op.create_index(
         "idx_idempotency_keys_user_created",
         "idempotency_keys",
         ["user_id", "created_utc"],
-        schema="shared",
+        schema="shared_kernel",
     )
 
 
 def downgrade() -> None:
-    op.drop_table("idempotency_keys", schema="shared")
+    op.drop_table("idempotency_keys", schema="shared_kernel")

@@ -1,4 +1,4 @@
-"""Create health schema.
+"""Create health_sync schema.
 
 Revision ID: health_001
 Revises:
@@ -16,8 +16,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE SCHEMA IF NOT EXISTS health")
+    op.execute("CREATE SCHEMA IF NOT EXISTS health_sync")
 
 
 def downgrade() -> None:
-    op.execute("DROP SCHEMA IF EXISTS health")
+    op.execute("DROP SCHEMA IF EXISTS health_sync")
