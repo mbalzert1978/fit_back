@@ -1,7 +1,7 @@
 ---
 id: "0008"
 title: M0: i18n - de-DE/en-US Resource-Files + Accept-Language-Auswertung
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---

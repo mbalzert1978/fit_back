@@ -1,7 +1,7 @@
 ---
 id: "0010"
 title: M0: Shared Kernel - Postgres-Outbox + Event-Relay (SKIP LOCKED / LISTEN NOTIFY)
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---

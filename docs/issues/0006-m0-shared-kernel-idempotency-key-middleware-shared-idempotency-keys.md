@@ -1,7 +1,7 @@
 ---
 id: "0006"
 title: M0: Shared Kernel - Idempotency-Key-Middleware + shared.idempotency_keys
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---

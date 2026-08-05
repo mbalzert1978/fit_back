@@ -1,7 +1,7 @@
 ---
 id: "0009"
 title: M0: pytest + testcontainers-postgres-Fixture
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---

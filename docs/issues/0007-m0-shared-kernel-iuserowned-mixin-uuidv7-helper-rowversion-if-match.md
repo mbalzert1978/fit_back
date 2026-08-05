@@ -1,7 +1,7 @@
 ---
 id: "0007"
 title: M0: Shared Kernel - IUserOwned-Mixin + UUIDv7-Helper + RowVersion/If-Match
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---
