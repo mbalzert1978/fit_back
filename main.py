@@ -1,8 +1,8 @@
 """Fit-back API entry point."""
 
-import asyncio
 import logging
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import asyncpg
@@ -43,7 +43,7 @@ async def close_db(pool: asyncpg.Pool) -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Manage app lifespan: startup and shutdown."""
     # Startup
     try:
