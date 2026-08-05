@@ -3,7 +3,7 @@ schema_version: 1
 name: powershell-set-content-bom
 description: PowerShell 5.1 "Set-Content -Encoding utf8" schreibt eine BOM, die TOML/JSON-Parser (uv, ruff) zum Scheitern bringt
 type: project
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-05
 decay_eligible: false
 ---

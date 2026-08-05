@@ -213,7 +213,7 @@ def load_config(path: Path) -> Config:
     if not path.is_file():
         die(f"config file not found: {path}")
     try:
-        if not isinstance(raw := json.loads(path.read_text()), dict):
+        if not isinstance(raw := json.loads(path.read_text(encoding="utf-8")), dict):
             die(f"config {path} must be a JSON object")
     except json.JSONDecodeError as e:
         die(f"could not parse config {path}: {e}")
@@ -241,7 +241,11 @@ def resolve_repo(cfg: Config) -> Git:
     match cfg.repo:
         case "":
             res = subprocess.run(
-                ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True
+                ["git", "rev-parse", "--show-toplevel"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             if res.returncode != 0:
                 die("not inside a git work tree (and no `repo` set in config)")
@@ -349,7 +353,7 @@ def load_plan(spec: str) -> list[Any]:
             p = Path(spec)
             if not p.is_file():
                 die(f"plan file not found: {spec}")
-            raw = p.read_text()
+            raw = p.read_text(encoding="utf-8")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
@@ -416,7 +420,9 @@ def apply_plan(git: Git, plan: Plan) -> tuple[MadeCommit, ...]:
     made: list[MadeCommit] = []
     for commit in plan.commits:
         git.run("add", "-A", "--", *commit.stage)
-        with tempfile.NamedTemporaryFile("w", suffix=".gitmsg", delete=False) as tf:
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".gitmsg", delete=False, encoding="utf-8"
+        ) as tf:
             tf.write(commit.message)
             msg_path = tf.name
         try:

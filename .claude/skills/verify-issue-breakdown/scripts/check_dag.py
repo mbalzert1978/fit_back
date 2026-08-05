@@ -93,7 +93,7 @@ def load_slices(spec: str) -> list[Any]:
             p = Path(spec)
             if not p.is_file():
                 die(f"slices file not found: {spec}")
-            raw = p.read_text()
+            raw = p.read_text(encoding="utf-8")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:

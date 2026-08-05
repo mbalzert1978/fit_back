@@ -1,5 +1,5 @@
 {
-  "experiences_dir": "experiences",
+  "experiences_dir": ".",
   "archive_after_days": 90,
   "stale_flag_after_days": 60,
   "archive_min_frequency": 3

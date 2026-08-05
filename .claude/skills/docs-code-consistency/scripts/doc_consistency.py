@@ -46,7 +46,7 @@ def _config() -> dict[str, Any]:
     defaults below if the sibling config.json is missing or unreadable — same
     pattern as thermo-nuclear-code-quality-review's configured_threshold()."""
     try:
-        return cast("dict[str, Any]", json.loads(CONFIG.read_text()))
+        return cast("dict[str, Any]", json.loads(CONFIG.read_text(encoding="utf-8")))
     except (OSError, ValueError):
         return {}
 
@@ -286,7 +286,7 @@ def grep_token(token: str, repo: Path, use_rg: bool) -> ProbeResult:
          "--exclude-dir=.git", "--exclude-dir=node_modules",
          "--exclude-dir=target", "--exclude-dir=.venv", token, str(repo)]
     )
-    proc = subprocess.run(argv, capture_output=True, text=True)
+    proc = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if proc.returncode >= 2:
         return Errored(token, proc.stderr.strip()[:160] or "search error")
     hits = proc.stdout.strip().splitlines()

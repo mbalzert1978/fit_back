@@ -7,7 +7,7 @@ description: "End-of-session experience extraction. Scans the conversation for c
 
 Implements the outer loop of the dual-loop agent architecture. Extracts durable lessons from the current conversation and persists them as structured experience memory files.
 
-Before starting, locate this project's memory directory. In Claude Code, this is typically at `~/.claude/projects/<project-hash>/memory/`. In other harnesses, check your configuration for where persistent memory files are stored. All paths below are relative to this memory directory.
+**Repo-local override:** this project's `CLAUDE.md` prohibits using Claude Code's cross-session memory system — no entries under `~/.claude/projects/<project-hash>/memory/`, in this project or any other out-of-repo store. Instead, experiences live under **`docs/reflections/`** in the repo itself (`docs/reflections/exp_<name>.md`, flat, no `experiences/` subfolder), are committed like any other repo file, and the index lives at `docs/reflections/README.md` (not `MEMORY.md`). Everywhere below that says "memory directory" or `memory/experiences/`, read it as `docs/reflections/`. If you ever work in a project without this override, fall back to the generic behavior: locate the harness's memory directory (in Claude Code, typically `~/.claude/projects/<project-hash>/memory/`) and use its `MEMORY.md`/`experiences/` layout instead.
 
 ## Phase 1: EXTRACT
 
@@ -31,16 +31,18 @@ Scan the current conversation for experiences worth persisting. Three categories
 - Discard ephemeral task details, debugging steps, or conversation-specific context
 
 ### Deduplication (two-layer)
-1. **Primary:** Read all files in `memory/experiences/`. Check the `name` field in frontmatter. If a new experience matches an existing `name`, do NOT create a new file — instead update the existing file's `frequency` (increment by 1) and `last_triggered` (set to today's date).
-2. **Secondary:** Search `memory/experiences/` file bodies for keyword overlap. If strong overlap is found with a differently-named experience, flag it in the Phase 4 report with: `"Possible duplicate: <new> overlaps with <existing> — review manually"`. Do NOT auto-merge.
+1. **Primary:** Read all files in `docs/reflections/`. Check the `name` field in frontmatter. If a new experience matches an existing `name`, do NOT create a new file — instead update the existing file's `frequency` (increment by 1) and `last_triggered` (set to today's date).
+2. **Secondary:** Search `docs/reflections/` file bodies for keyword overlap. If strong overlap is found with a differently-named experience, flag it in the Phase 4 report with: `"Possible duplicate: <new> overlaps with <existing> — review manually"`. Do NOT auto-merge.
 3. **Frequency bump:** If the session involved a topic that an existing experience covers — even if no correction happened — bump that experience's `frequency` and `last_triggered`. This keeps relevant experiences alive.
+
+Also skip anything already fully captured in a `docs/decisions/` entry — link to it from `**Why:**` instead of duplicating its narrative (see the existing `exp_*.md` files under `docs/reflections/` for the pattern).
 
 ## Phase 2: PERSIST
 
 For each new experience from Phase 1:
 
 ### File creation
-- **Location:** `memory/experiences/exp_<kebab-case-name>.md`
+- **Location:** `docs/reflections/exp_<kebab-case-name>.md`
 - **Format:** read `assets/experience_template.md` and fill its placeholder tokens — don't reconstruct the format from memory. The tokens:
   - `{{NAME}}` — kebab-case identifier
   - `{{DESCRIPTION}}` — one-line summary, specific enough to judge relevance in future conversations
@@ -52,8 +54,8 @@ For each new experience from Phase 1:
   - `{{HOW_TO_APPLY}}` — when this kicks in and what to do
 
 ### Memory index update
-- If your memory system uses an index file (e.g., `MEMORY.md`), add a pointer to the new file under an `## Experiences` section
-- Format: `- [exp_<name>.md](experiences/exp_<name>.md) — <one-line description>`
+- Add a pointer to the new file under the `## Experiences` section of `docs/reflections/README.md`
+- Format: `- [exp_<name>.md](exp_<name>.md) — <one-line description>` (flat path, no `experiences/` prefix)
 - Keep entries sorted alphabetically within the section
 
 ### For existing experience updates (frequency bumps)
@@ -65,24 +67,24 @@ For each new experience from Phase 1:
 The date arithmetic is **not** done by hand — run the bundled script, then act on its JSON. It scans the experiences dir (and its `archived/` subdir), parses each file's frontmatter, computes `days_since = today - last_triggered`, and applies the configured thresholds:
 
 ```bash
-uv run .claude/skills/reflect/scripts/decay_sweep.py --memory-dir <memory-dir> --pretty
+uv run .claude/skills/reflect/scripts/decay_sweep.py --memory-dir docs/reflections --pretty
 ```
 
-Thresholds and the experiences dir live in the bundled `config.json` (`archive_after_days` 90, `stale_flag_after_days` 60, `archive_min_frequency` 3, `experiences_dir`). The script reads them; don't restate the numbers from prose.
+Thresholds and the experiences dir live in the bundled `config.json` (`archive_after_days` 90, `stale_flag_after_days` 60, `archive_min_frequency` 3, `experiences_dir` — set to `.` for this repo-local override, since `docs/reflections/` files sit flat with no `experiences/` subfolder). The script reads them; don't restate the numbers from prose.
 
 The report has four lists — `archive`, `flag_stale`, `unarchive`, `skipped` (the last two are informational). Files with `decay_eligible: false` never reach an action list (they land in `skipped`). **Act** on each list:
 
 - **`archive`** — for each entry (`days_since > archive_after_days` AND `frequency < archive_min_frequency`):
-  - Move the file to `memory/experiences/archived/`
-  - Remove its pointer from the memory index
+  - Move the file to `docs/reflections/archived/`
+  - Remove its pointer from `docs/reflections/README.md`
   - Add to the Phase 4 report: `"Archived exp_X.md (last relevant N days ago, triggered M times)"`
 - **`flag_stale`** — for each entry (`days_since > stale_flag_after_days`, not archive-bound): if the index entry doesn't already carry a stale marker, prepend a stale warning to it.
 
 ### Recovery
 The script lists archived files that are relevant again under `unarchive`. Also un-archive when Phase 1 extraction surfaces a topic matching an archived experience. For each:
-- Move from `memory/experiences/archived/` back to `memory/experiences/`
+- Move from `docs/reflections/archived/` back to `docs/reflections/`
 - Reset `last_triggered` to today, increment `frequency`
-- Re-add pointer to the memory index
+- Re-add pointer to `docs/reflections/README.md`
 
 ## Phase 4: REPORT
 

@@ -56,7 +56,7 @@ def load_config(path: Path) -> Config:
     if not path.is_file():
         die(f"config file not found: {path}")
     try:
-        if not isinstance(raw := json.loads(path.read_text()), dict):
+        if not isinstance(raw := json.loads(path.read_text(encoding="utf-8")), dict):
             die(f"config {path} must be a JSON object")
     except json.JSONDecodeError as e:
         die(f"could not parse config {path}: {e}")
