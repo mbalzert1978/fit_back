@@ -1,7 +1,7 @@
 ---
 id: "0007"
 title: M0: Shared Kernel - IUserOwned-Mixin + UUIDv7-Helper + RowVersion/If-Match
-status: open
+status: closed
 milestone: M0
 type: AFK
 ---
@@ -26,3 +26,8 @@ IUserOwned-Protocol/Mixin, das jede Repository-Query zwingend auf UserId filtert
 ## Blocked by
 
 - Blocked by [0003](0003-m0-alembic-grundgeruest-mit-7-schemas-identity-catalog-diary-recipes-goals-health-shared.md)
+
+## Abschluss (2026-08-05)
+
+Umgesetzt in PR #7 (gemerged als ebebbfe). QA-Gate und Security-Gate (2 Zyklen) bestanden, 50
+Tests grün.
