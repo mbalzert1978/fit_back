@@ -47,7 +47,7 @@ $targetTable = [ordered]@{
 
     'install' = @{
         Description = 'Sync the uv-managed virtualenv from pyproject.toml/uv.lock'
-        Action      = { Invoke-Step 'install' { uv sync } }
+        Action      = { Invoke-Step 'install' { uv sync --all-extras } }
     }
 
     'run' = @{
