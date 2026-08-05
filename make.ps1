@@ -95,9 +95,11 @@ $targetTable = [ordered]@{
     }
 
     'migrate' = @{
-        # Depends on docs/issues/0003 (Alembic baseline).
-        Description = 'Apply database migrations (alembic upgrade head)'
-        Action      = { Invoke-Step 'migrate' { uv run alembic upgrade head } }
+        # Depends on docs/issues/0003 (Alembic baseline). "heads" (plural) is
+        # required, not "head" - each of the 7 schemas is its own independent
+        # branch/head in this multi-schema Alembic layout.
+        Description = 'Apply database migrations (alembic upgrade heads)'
+        Action      = { Invoke-Step 'migrate' { uv run alembic upgrade heads } }
     }
 
     'compose-up' = @{
