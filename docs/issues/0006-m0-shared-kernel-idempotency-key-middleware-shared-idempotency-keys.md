@@ -1,7 +1,7 @@
 ---
 id: "0006"
 title: M0: Shared Kernel - Idempotency-Key-Middleware + shared.idempotency_keys
-status: open
+status: closed
 milestone: M0
 type: AFK
 ---
@@ -27,3 +27,11 @@ Middleware/Decorator, der den Idempotency-Key-Header (Guid) auf POST/PUT-Endpunk
 
 - Blocked by [0003](0003-m0-alembic-grundgeruest-mit-7-schemas-identity-catalog-diary-recipes-goals-health-shared.md)
 - Blocked by [0004](0004-m0-shared-kernel-result-t-e-timeprovider-protocol.md)
+
+## Abschluss (2026-08-05)
+
+Umgesetzt in PR #6 (gemerged als 1934c76). Zwei Review-Runden: SQLAlchemy-ORM-Modell
+(db_schemas.py) nach `src/shared_infrastructure/` verschoben (eigenes Top-Level-Package statt
+Unterordner von `shared_kernel`, siehe
+docs/decisions/2026-08-05-1245-shared-infrastructure-getrennt-von-shared-kernel.md), SQL-Statements
+als Modul-Konstanten, Walrus-Operator, Magic-String-Konstanten.
