@@ -16,6 +16,8 @@ from starlette.middleware.csrf import CSRFMiddleware
 from starlette.types import ASGIApp
 
 from src.shared_kernel.exception_handlers import register_exception_handlers
+from src.shared_kernel.idempotency import IdempotencyKeyMiddleware
+from src.shared_kernel.time_provider import SystemTimeProvider
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +114,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         settings = validate_settings()
         app.state.settings = settings
         app.state.db_pool = await init_db(settings)
+        # Set up idempotency middleware after db pool is ready
+        setup_idempotency_middleware(app)
     except RuntimeError as e:
         logger.error("Application startup failed: %s", str(e))
         app.state.db_pool = None
@@ -133,6 +137,24 @@ if not _secret_key:
 # Add security middleware
 app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
 app.add_middleware(CSRFMiddleware, secret_key=_secret_key)
+
+
+def setup_idempotency_middleware(app: FastAPI) -> None:
+    """Set up idempotency middleware after database initialization.
+
+    This is called in the lifespan startup after db_pool is initialized.
+    """
+    db_pool: asyncpg.Pool | None = getattr(app.state, "db_pool", None)
+    if db_pool is None:
+        logger.warning("Idempotency middleware skipped: database pool not initialized")
+        return
+
+    time_provider = SystemTimeProvider()
+    app.add_middleware(
+        IdempotencyKeyMiddleware,
+        db_pool=db_pool,
+        time_provider=time_provider,
+    )
 
 
 @app.get("/api/v1/health")

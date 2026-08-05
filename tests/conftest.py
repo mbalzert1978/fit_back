@@ -1,12 +1,26 @@
+"""Pytest configuration and shared fixtures."""
+
 import asyncio
 import os
 import subprocess
 from collections.abc import AsyncGenerator
 
+import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from testcontainers.community.postgres import PostgresContainer
+
+
+@pytest.fixture
+def db_pool() -> None:
+    """Mock database pool fixture.
+
+    In production, this would be a real asyncpg.Pool.
+    For unit tests that don't need DB access, return None.
+    Integration tests can override this fixture.
+    """
+    return
 
 
 @pytest_asyncio.fixture(scope="session")
