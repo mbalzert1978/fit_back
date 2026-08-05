@@ -6,13 +6,10 @@ import os
 from contextlib import asynccontextmanager
 
 import asyncpg
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
-
-# Global database connection pool
-db_pool: asyncpg.Pool | None = None
 
 
 async def init_db() -> asyncpg.Pool:
@@ -44,30 +41,30 @@ async def close_db(pool: asyncpg.Pool) -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ARG001
+async def lifespan(app: FastAPI):
     """Manage app lifespan: startup and shutdown."""
-    global db_pool
     # Startup
     try:
-        db_pool = await init_db()
-    except Exception as e:  # noqa: BLE001
+        app.state.db_pool = await init_db()
+    except asyncpg.Error as e:
         logger.warning(f"Failed to initialize database pool: {e}")
-        db_pool = None
+        app.state.db_pool = None
     yield
     # Shutdown
-    await close_db(db_pool)
+    await close_db(app.state.db_pool)
 
 
 app = FastAPI(title="Fit-back API", lifespan=lifespan)
 
 
 @app.get("/api/v1/health")
-async def health_check() -> JSONResponse:
+async def health_check(request: Request) -> JSONResponse:
     """
     Health check endpoint.
 
     Returns 200 if the database is connected, 503 otherwise.
     """
+    db_pool: asyncpg.Pool | None = getattr(request.app.state, "db_pool", None)
     if db_pool is None:
         logger.warning("Health check: database pool not initialized")
         return JSONResponse(
@@ -80,7 +77,7 @@ async def health_check() -> JSONResponse:
         async with db_pool.acquire() as conn:
             await conn.execute("SELECT 1")
         return JSONResponse({"status": "healthy"})
-    except Exception as e:  # noqa: BLE001
+    except asyncpg.Error as e:
         logger.error(f"Health check failed: {e}")
         return JSONResponse(
             {"status": "unhealthy", "detail": str(e)},
