@@ -1,7 +1,7 @@
 ---
 id: "0001"
 title: M0: Repo-Skeleton, Docker Compose (postgres/minio/app), Health-Endpoint, curl-Smoke-Test
-status: open
+status: closed
 milestone: M0
 type: AFK
 ---
@@ -27,3 +27,11 @@ Grundlegende Ordnerstruktur gemaess docs/milestones/01-technical-decisions.md (s
 ## Blocked by
 
 None - can start immediately
+
+## Abschluss (2026-08-05)
+
+Umgesetzt in PR #1 (gemerged als f42e675). QA/Security bestanden; zwei Security-Findings
+(Rate-Limiting, fehlende Auth auf `GET /api/v1/health`) bewusst gewaived, siehe
+docs/decisions/2026-08-05-0936-security-gate-triage-ticket-0001.md. Postgres auf 18-alpine,
+MinIO auf pgsty/minio-Fork korrigiert, siehe
+docs/decisions/2026-08-05-0956-minio-fork-statt-archiviertem-minio-minio.md.
