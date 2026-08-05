@@ -5,6 +5,7 @@ import os
 import time
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
+from typing import final
 
 import asyncpg
 from fastapi import FastAPI, Request
@@ -13,6 +14,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 from starlette.middleware.csrf import CSRFMiddleware
 from starlette.types import ASGIApp
+
+from src.shared_kernel.exception_handlers import register_exception_handlers
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +44,7 @@ def validate_settings() -> Settings:
         raise RuntimeError("Configuration validation failed: invalid environment variables") from e
 
 
+@final
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Rate limiting middleware to prevent abuse."""
 
@@ -118,6 +122,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 
 app = FastAPI(title="Fit-back API", lifespan=lifespan)
+
+# Register exception handlers for RFC 7807 ProblemDetails
+register_exception_handlers(app)
 
 _secret_key = os.getenv("SECRET_KEY")
 if not _secret_key:
