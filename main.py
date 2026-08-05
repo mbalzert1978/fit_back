@@ -5,7 +5,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import Callable
+from typing import Callable, final
 
 import asyncpg
 from fastapi import FastAPI, Request
@@ -61,18 +61,6 @@ async def init_db(settings: Settings) -> asyncpg.Pool:
         logger.error("Failed to initialize database pool")
         raise
 
-    pool = await asyncpg.create_pool(
-        host=db_host,
-        port=db_port,
-        database=db_name,
-        user=db_user,
-        password=db_password,
-        min_size=1,
-        max_size=10,
-    )
-    logger.info("Database pool initialized successfully")
-    return pool
-
 
 async def close_db(pool: asyncpg.Pool | None) -> None:
     """Close database connection pool."""
@@ -81,6 +69,7 @@ async def close_db(pool: asyncpg.Pool | None) -> None:
         logger.info("Database pool closed")
 
 
+@final
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Rate limiting middleware to prevent abuse."""
 

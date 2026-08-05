@@ -1,10 +1,11 @@
 """RFC 7807 Problem Details model for structured error responses."""
 
-from typing import Any
+from typing import Any, final
 
 from pydantic import BaseModel, Field
 
 
+@final
 class ProblemDetails(BaseModel):
     """RFC 7807 Problem Details response model.
 
