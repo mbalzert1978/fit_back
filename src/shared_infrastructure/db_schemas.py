@@ -1,7 +1,9 @@
-"""Shared kernel ORM models for cross-context tables.
+"""ORM models (SQLAlchemy) for cross-context shared tables.
 
-Infrastructure-only (SQLAlchemy) — kept out of shared_kernel's domain-pure
-modules (result.py, time_provider.py, ...), which must stay stdlib-only.
+Separate top-level package from `shared_kernel`, not a subfolder of it:
+`shared_kernel` (Result[T,E], TimeProvider, ...) must stay free of external
+(SQLAlchemy) dependencies, so its infrastructure counterpart lives here
+instead of nested underneath it.
 """
 
 from typing import ClassVar, final

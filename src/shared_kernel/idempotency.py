@@ -25,6 +25,14 @@ IDEMPOTENCY_KEYS_TABLE = "shared.idempotency_keys"
 IDEMPOTENT_METHODS = frozenset({"POST", "PUT"})
 CACHEABLE_STATUS_CODES = frozenset({200, 201})
 
+SELECT_IDEMPOTENCY_KEY_SQL = f"""SELECT key, user_id, request_hash, response_body, created_utc
+    FROM {IDEMPOTENCY_KEYS_TABLE}
+    WHERE key = $1 AND user_id = $2"""
+
+INSERT_IDEMPOTENCY_KEY_SQL = f"""INSERT INTO {IDEMPOTENCY_KEYS_TABLE}
+    (key, user_id, request_hash, response_body, created_utc)
+    VALUES ($1, $2, $3, $4, $5)"""
+
 
 def calculate_request_hash(method: str, path: str, body: str) -> str:
     """Berechne einen SHA256-Hash aus Methode, Pfad und Body.
@@ -57,9 +65,7 @@ async def get_idempotency_key_from_db(
     try:
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                f"""SELECT key, user_id, request_hash, response_body, created_utc
-                   FROM {IDEMPOTENCY_KEYS_TABLE}
-                   WHERE key = $1 AND user_id = $2""",
+                SELECT_IDEMPOTENCY_KEY_SQL,
                 key,
                 user_id,
             )
@@ -94,9 +100,7 @@ async def save_idempotency_key(
         async with pool.acquire() as conn:
             created_utc = datetime.now(tz=UTC)
             await conn.execute(
-                f"""INSERT INTO {IDEMPOTENCY_KEYS_TABLE}
-                   (key, user_id, request_hash, response_body, created_utc)
-                   VALUES ($1, $2, $3, $4, $5)""",
+                INSERT_IDEMPOTENCY_KEY_SQL,
                 key,
                 user_id,
                 request_hash,
