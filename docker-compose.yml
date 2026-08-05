@@ -68,6 +68,25 @@ services:
     networks:
       - fit_back_network
 
+  outbox_relay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fit_back_outbox_relay
+    environment:
+      PYTHONUNBUFFERED: "1"
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fit_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fit_back}
+      WORKER_ID: ${OUTBOX_RELAY_WORKER_ID:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fit_back_network
+    command:
+      - python
+      - -m
+      - src.shared_kernel.outbox.worker
+
 volumes:
   postgres_data:
   minio_data:
