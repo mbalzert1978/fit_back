@@ -20,6 +20,11 @@ from starlette.types import ASGIApp
 
 logger = logging.getLogger(__name__)
 
+IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
+IDEMPOTENCY_KEYS_TABLE = "shared.idempotency_keys"
+IDEMPOTENT_METHODS = frozenset({"POST", "PUT"})
+CACHEABLE_STATUS_CODES = frozenset({200, 201})
+
 
 def calculate_request_hash(method: str, path: str, body: str) -> str:
     """Berechne einen SHA256-Hash aus Methode, Pfad und Body.
@@ -52,8 +57,8 @@ async def get_idempotency_key_from_db(
     try:
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                """SELECT key, user_id, request_hash, response_body, created_utc
-                   FROM shared.idempotency_keys
+                f"""SELECT key, user_id, request_hash, response_body, created_utc
+                   FROM {IDEMPOTENCY_KEYS_TABLE}
                    WHERE key = $1 AND user_id = $2""",
                 key,
                 user_id,
@@ -89,7 +94,7 @@ async def save_idempotency_key(
         async with pool.acquire() as conn:
             created_utc = datetime.now(tz=UTC)
             await conn.execute(
-                """INSERT INTO shared.idempotency_keys
+                f"""INSERT INTO {IDEMPOTENCY_KEYS_TABLE}
                    (key, user_id, request_hash, response_body, created_utc)
                    VALUES ($1, $2, $3, $4, $5)""",
                 key,
@@ -113,7 +118,7 @@ def is_idempotent_method(method: str) -> bool:
     Returns:
         True für POST und PUT, False sonst
     """
-    return method.upper() in {"POST", "PUT"}
+    return method.upper() in IDEMPOTENT_METHODS
 
 
 @final
@@ -158,8 +163,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         if not is_idempotent_method(request.method):
             return await call_next(request)
 
-        idempotency_key_header = request.headers.get("Idempotency-Key")
-        if not idempotency_key_header:
+        if not (idempotency_key_header := request.headers.get(IDEMPOTENCY_KEY_HEADER)):
             return await call_next(request)
 
         # Versuche, den Header als UUID zu parsen
@@ -170,14 +174,13 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Extrahiere user_id aus Request (z.B. aus JWT oder Context)
-        user_id = getattr(request.state, "user_id", None)
-        if not user_id:
+        if not (user_id := getattr(request.state, "user_id", None)):
             logger.warning("No user_id in request state, skipping idempotency check")
             return await call_next(request)
 
         # Berechne RequestHash aus Methode, Pfad und Body
         body_str = ""
-        if request.method in {"POST", "PUT"}:
+        if is_idempotent_method(request.method):
             try:
                 body_bytes = await request.body()
                 body_str = body_bytes.decode("utf-8")
@@ -206,7 +209,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Speichere Response in Datenbank (nur für erfolgreiche Responses 201, 200)
-        if response.status_code in {200, 201}:
+        if response.status_code in CACHEABLE_STATUS_CODES:
             try:
                 response_body = json.loads(response.body.decode("utf-8"))
             except (json.JSONDecodeError, UnicodeDecodeError, OSError) as e:
