@@ -1,7 +1,7 @@
 """Create shared.idempotency_keys table.
 
-Revision ID: 002
-Revises: 001
+Revision ID: shared_002
+Revises: shared_001
 Create Date: 2026-08-05 12:00:00.000000
 
 """
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "002"
-down_revision = "001"
+revision = "shared_002"
+down_revision = "shared_001"
 branch_labels = None
 depends_on = None
 
