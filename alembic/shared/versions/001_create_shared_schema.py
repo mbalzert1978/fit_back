@@ -1,4 +1,4 @@
-"""Create shared schema.
+"""Create shared_kernel schema.
 
 Revision ID: shared_001
 Revises:
@@ -16,8 +16,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE SCHEMA IF NOT EXISTS shared")
+    op.execute("CREATE SCHEMA IF NOT EXISTS shared_kernel")
 
 
 def downgrade() -> None:
-    op.execute("DROP SCHEMA IF EXISTS shared")
+    op.execute("DROP SCHEMA IF EXISTS shared_kernel")

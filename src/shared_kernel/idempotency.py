@@ -1,7 +1,7 @@
 """Idempotency-Key middleware for POST/PUT deduplication.
 
 Implements RFC 7231 idempotency via Idempotency-Key header.
-Stores (key, user_id, request_hash, response_body, created_utc) in shared.idempotency_keys.
+Stores (key, user_id, request_hash, response_body, created_utc) in shared_kernel.idempotency_keys.
 """
 
 import hashlib
@@ -21,7 +21,7 @@ from starlette.types import ASGIApp
 logger = logging.getLogger(__name__)
 
 IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
-IDEMPOTENCY_KEYS_TABLE = "shared.idempotency_keys"
+IDEMPOTENCY_KEYS_TABLE = "shared_kernel.idempotency_keys"
 IDEMPOTENT_METHODS = frozenset({"POST", "PUT"})
 CACHEABLE_STATUS_CODES = frozenset({200, 201})
 

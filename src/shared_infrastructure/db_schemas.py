@@ -24,7 +24,7 @@ class IdempotencyKey(Base):
     """
 
     __tablename__ = "idempotency_keys"
-    __table_args__: ClassVar = {"schema": "shared"}
+    __table_args__: ClassVar = {"schema": "shared_kernel"}
 
     id: Column[BigInteger] = Column(BigInteger, primary_key=True, autoincrement=True)
     """Synthetic primary key (BIGSERIAL)."""
