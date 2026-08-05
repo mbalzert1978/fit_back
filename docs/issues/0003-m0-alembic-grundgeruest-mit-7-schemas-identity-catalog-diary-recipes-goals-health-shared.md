@@ -1,7 +1,7 @@
 ---
 id: "0003"
 title: M0: Alembic-Grundgeruest mit 7 Schemas (identity/catalog/diary/recipes/goals/health/shared)
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---

@@ -1,7 +1,7 @@
 ---
 id: "0004"
 title: M0: Shared Kernel - Result[T,E] + TimeProvider-Protocol
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---

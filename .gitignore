@@ -12,6 +12,9 @@ wheels/
 # Git worktrees (created by the worktree-erstellen skill; local-only, never committed)
 .claude/worktrees/
 
+# Pipeline working artifact (per-ticket task prompt, local to a worktree, never committed)
+/Task.md
+
 # Environment variables (secrets, local configuration)
 .env
 .env.local

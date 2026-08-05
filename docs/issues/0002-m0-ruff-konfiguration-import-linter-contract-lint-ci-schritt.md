@@ -1,7 +1,7 @@
 ---
 id: "0002"
 title: M0: ruff-Konfiguration + import-linter-Contract + Lint-CI-Schritt
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---

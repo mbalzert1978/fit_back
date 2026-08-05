@@ -1,7 +1,7 @@
 ---
 id: "0005"
 title: M0: Shared Kernel - RFC-7807 ProblemDetails + Exception-Handler
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---
