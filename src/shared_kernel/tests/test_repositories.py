@@ -379,7 +379,6 @@ class TestRowVersionParsing:
         """from_if_match parsed gültigen If-Match-Header."""
         result = RowVersion.from_if_match("12345")
         assert result is not None
-        assert isinstance(result, type(result))  # Result type check
         match result:
             case Ok(rv):
                 assert rv.xmin == 12345

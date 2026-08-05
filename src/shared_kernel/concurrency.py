@@ -61,6 +61,7 @@ class RowVersion:
             return Err(msg)
 
 
+@final
 class ConcurrencyConflictError(DomainException):
     """Fehlgeschlagenes Update aufgrund veralterter RowVersion.
 
