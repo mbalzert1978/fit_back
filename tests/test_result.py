@@ -85,11 +85,7 @@ class TestErr:
     def test_err_chaining(self) -> None:
         """Chaining über Err sollte Err propagieren."""
         result: Result[int, str] = Err("initial error")
-        chained = (
-            result.map(lambda x: x * 3)
-            .bind(lambda x: Ok(x + 4))
-            .map(lambda x: x * 2)
-        )
+        chained = result.map(lambda x: x * 3).bind(lambda x: Ok(x + 4)).map(lambda x: x * 2)
 
         assert isinstance(chained, Err)
         assert chained.error == "initial error"

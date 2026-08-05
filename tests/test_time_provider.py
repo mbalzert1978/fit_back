@@ -1,6 +1,6 @@
 """Unit-Tests für TimeProvider."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.shared_kernel.time_provider import FakeTimeProvider, SystemTimeProvider
 
@@ -15,14 +15,14 @@ class TestSystemTimeProvider:
 
         assert isinstance(now, datetime)
         assert now.tzinfo is not None
-        assert now.tzinfo == timezone.utc
+        assert now.tzinfo == UTC
 
     def test_utc_now_returns_reasonable_time(self) -> None:
         """utc_now() sollte eine aktuelle Zeit zurückgeben."""
         provider = SystemTimeProvider()
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         now = provider.utc_now()
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         assert before <= now <= after
 
@@ -44,11 +44,11 @@ class TestFakeTimeProvider:
         provider = FakeTimeProvider()
         now = provider.utc_now()
 
-        assert now == datetime(2000, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        assert now == datetime(2000, 1, 1, 0, 0, 0, tzinfo=UTC)
 
     def test_custom_initialization(self) -> None:
         """FakeTimeProvider sollte mit einer benutzerdefinierten Zeit initialisierbar sein."""
-        fixed_time = datetime(2025, 8, 5, 12, 30, 45, tzinfo=timezone.utc)
+        fixed_time = datetime(2025, 8, 5, 12, 30, 45, tzinfo=UTC)
         provider = FakeTimeProvider(fixed_time)
         now = provider.utc_now()
 
@@ -56,7 +56,7 @@ class TestFakeTimeProvider:
 
     def test_initialization_rejects_naive_datetime(self) -> None:
         """FakeTimeProvider sollte naïve datetime (ohne Timezone) ablehnen."""
-        naive_time = datetime(2025, 8, 5, 12, 30, 45)
+        naive_time = datetime(2025, 8, 5, 12, 30, 45)  # noqa: DTZ001 - bewusst naiv, testet die Ablehnung
 
         try:
             FakeTimeProvider(naive_time)
@@ -67,7 +67,7 @@ class TestFakeTimeProvider:
     def test_set_time_updates_current_time(self) -> None:
         """set_time() sollte die Zeit aktualisieren."""
         provider = FakeTimeProvider()
-        new_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        new_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         provider.set_time(new_time)
         assert provider.utc_now() == new_time
@@ -75,7 +75,7 @@ class TestFakeTimeProvider:
     def test_set_time_rejects_naive_datetime(self) -> None:
         """set_time() sollte naïve datetime ablehnen."""
         provider = FakeTimeProvider()
-        naive_time = datetime(2025, 8, 5, 12, 30, 45)
+        naive_time = datetime(2025, 8, 5, 12, 30, 45)  # noqa: DTZ001 - bewusst naiv, testet die Ablehnung
 
         try:
             provider.set_time(naive_time)
@@ -85,7 +85,7 @@ class TestFakeTimeProvider:
 
     def test_fake_time_is_deterministic(self) -> None:
         """FakeTimeProvider sollte deterministische Zeit liefern."""
-        fixed_time = datetime(2025, 8, 5, 12, 30, 45, tzinfo=timezone.utc)
+        fixed_time = datetime(2025, 8, 5, 12, 30, 45, tzinfo=UTC)
         provider = FakeTimeProvider(fixed_time)
 
         # Mehrfache Aufrufe sollten exakt dieselbe Zeit zurückgeben
@@ -97,10 +97,10 @@ class TestFakeTimeProvider:
 
     def test_fake_time_sequence(self) -> None:
         """FakeTimeProvider sollte Zeit in einer Sequenz voranschreiten."""
-        provider = FakeTimeProvider(datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+        provider = FakeTimeProvider(datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC))
 
         time1 = provider.utc_now()
-        new_time = datetime(2025, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+        new_time = datetime(2025, 1, 1, 1, 0, 0, tzinfo=UTC)
         provider.set_time(new_time)
         time2 = provider.utc_now()
 

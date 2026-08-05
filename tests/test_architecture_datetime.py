@@ -1,7 +1,6 @@
 """Architektur-Test: kein direkter datetime.utcnow() oder datetime.now() ohne Timezone."""
 
 import ast
-import re
 from pathlib import Path
 
 
@@ -77,7 +76,7 @@ def test_no_direct_datetime_calls_without_timezone() -> None:
                                     "datetime.now() ohne tz-Argument ist verboten — nutze TimeProvider.utc_now() stattdessen",
                                 )
                             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - Architektur-Scan darf an keiner Datei hart abbrechen
             errors.append((py_file, 0, f"Error beim Durchsuchen: {e}"))
 
     if errors:
