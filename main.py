@@ -3,9 +3,8 @@
 import logging
 import os
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from typing import Callable
 
 import asyncpg
 from fastapi import FastAPI, Request
@@ -13,6 +12,7 @@ from fastapi.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 from starlette.middleware.csrf import CSRFMiddleware
+from starlette.types import ASGIApp
 
 logger = logging.getLogger(__name__)
 
@@ -38,22 +38,18 @@ def validate_settings() -> Settings:
             db_password=os.getenv("DB_PASSWORD"),
         )
     except (ValidationError, ValueError) as e:
-        raise RuntimeError(
-            "Configuration validation failed: invalid environment variables"
-        ) from e
+        raise RuntimeError("Configuration validation failed: invalid environment variables") from e
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Rate limiting middleware to prevent abuse."""
 
-    def __init__(self, app, requests_per_minute: int = 60):
+    def __init__(self, app: ASGIApp, requests_per_minute: int = 60) -> None:
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self.request_times: dict[str, list[float]] = {}
 
-    async def dispatch(
-        self, request: Request, call_next: Callable
-    ) -> JSONResponse:
+    async def dispatch(self, request: Request, call_next: Callable) -> JSONResponse:
         """Rate limit requests based on client IP."""
         client_ip = request.client.host if request.client else "unknown"
         current_time = time.time()
@@ -92,8 +88,8 @@ async def init_db(settings: Settings) -> asyncpg.Pool:
         )
         logger.info("Database pool initialized successfully")
         return pool
-    except asyncpg.Error as e:
-        logger.error("Failed to initialize database pool: %s", str(e))
+    except asyncpg.Error:
+        logger.warning("Failed to initialize database pool")
         raise
 
 
@@ -152,8 +148,8 @@ async def health_check(request: Request) -> JSONResponse:
         async with db_pool.acquire() as conn:
             await conn.execute("SELECT 1")
         return JSONResponse({"status": "healthy"})
-    except asyncpg.Error as e:
-        logger.error("Health check: database connection failed: %s", str(e))
+    except asyncpg.Error:
+        logger.warning("Health check: database connection failed")
         return JSONResponse(
             {"status": "unhealthy"},
             status_code=503,
