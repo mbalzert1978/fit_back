@@ -36,9 +36,9 @@ async def alembic_migrations(postgres_service: PostgresContainer) -> None:
     # Build connection string for alembic
     db_url = f"postgresql://{username}:{password}@{host}:{port}/{database}"
 
-    # Copy environment and set SQLALCHEMY_URL
+    # Copy environment and set SQLALCHEMY_DATABASE_URL (name expected by alembic/env.py)
     env = os.environ.copy()
-    env["SQLALCHEMY_URL"] = db_url
+    env["SQLALCHEMY_DATABASE_URL"] = db_url
 
     def _run_migrations() -> None:
         """Run alembic migrations in a blocking call."""
