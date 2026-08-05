@@ -24,7 +24,7 @@ class Locale:
         return f"{self.language}-{self.region}"
 
     @staticmethod
-    def parse(locale_str: str) -> "Locale":
+    def parse(locale_str: str) -> Locale:
         """Parse locale from string format (e.g., 'de-DE', 'en-US').
 
         Args:

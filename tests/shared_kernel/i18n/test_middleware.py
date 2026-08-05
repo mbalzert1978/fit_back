@@ -1,6 +1,7 @@
 """Tests for Accept-Language middleware."""
 
 import pytest
+from fastapi import FastAPI
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.testclient import TestClient
@@ -9,7 +10,6 @@ from src.shared_kernel.i18n.middleware import (
     LocalePreference,
     parse_accept_language_header,
 )
-from fastapi import FastAPI
 
 
 class TestLocalePreference:
