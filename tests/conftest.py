@@ -59,7 +59,9 @@ async def alembic_migrations(postgres_service: PostgresContainer) -> None:
         """Run alembic migrations in a blocking call."""
         try:
             subprocess.run(
-                ["python", "-m", "alembic", "upgrade", "head"],
+                # "heads" (plural): each of the 7 schemas is its own
+                # independent branch/head in this multi-schema Alembic layout.
+                ["python", "-m", "alembic", "upgrade", "heads"],
                 env=env,
                 capture_output=True,
                 text=True,
