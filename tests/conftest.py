@@ -3,6 +3,7 @@
 import asyncio
 import os
 import subprocess
+import sys
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -61,7 +62,7 @@ async def alembic_migrations(postgres_service: PostgresContainer) -> None:
             subprocess.run(
                 # "heads" (plural): each of the 7 schemas is its own
                 # independent branch/head in this multi-schema Alembic layout.
-                ["python", "-m", "alembic", "upgrade", "heads"],
+                [sys.executable, "-m", "alembic", "upgrade", "heads"],
                 env=env,
                 capture_output=True,
                 text=True,
