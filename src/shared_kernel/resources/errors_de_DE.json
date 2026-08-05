@@ -1,0 +1,22 @@
+{
+  "USER_NOT_FOUND": {
+    "title": "Benutzer nicht gefunden",
+    "detail": "Der Benutzer mit der ID {user_id} existiert nicht."
+  },
+  "INVALID_EMAIL": {
+    "title": "Ungültige E-Mail-Adresse",
+    "detail": "Die eingegebene E-Mail-Adresse '{email}' ist nicht gültig."
+  },
+  "CONFLICT": {
+    "title": "Konflikt",
+    "detail": "Die angeforderte Operation konnte nicht ausgeführt werden, da ein Konflikt mit vorhandenen Daten besteht."
+  },
+  "VALIDATION_FAILED": {
+    "title": "Validierung fehlgeschlagen",
+    "detail": "Die eingegebenen Daten erfüllen nicht die erforderlichen Bedingungen."
+  },
+  "INTERNAL_SERVER_ERROR": {
+    "title": "Interner Fehler",
+    "detail": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut."
+  }
+}

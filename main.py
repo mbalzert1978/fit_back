@@ -16,6 +16,7 @@ from starlette.middleware.csrf import CSRFMiddleware
 from starlette.types import ASGIApp
 
 from src.shared_kernel.exception_handlers import register_exception_handlers
+from src.shared_kernel.i18n import AcceptLanguageMiddleware
 from src.shared_kernel.idempotency import IdempotencyKeyMiddleware
 from src.shared_kernel.time_provider import SystemTimeProvider
 
@@ -134,9 +135,13 @@ _secret_key = os.getenv("SECRET_KEY")
 if not _secret_key:
     raise RuntimeError("SECRET_KEY environment variable is required and has no default")
 
-# Add security middleware
-app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
+# Add middleware stack (order matters: last added = first executed)
+# 1. CSRF protection (outermost)
 app.add_middleware(CSRFMiddleware, secret_key=_secret_key)
+# 2. Rate limiting
+app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
+# 3. Accept-Language header parsing (must run before exception handlers)
+app.add_middleware(AcceptLanguageMiddleware)
 
 
 def setup_idempotency_middleware(app: FastAPI) -> None:
