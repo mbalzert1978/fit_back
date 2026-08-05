@@ -3,61 +3,24 @@
 import asyncio
 import logging
 import os
-import time
 from contextlib import asynccontextmanager
-from typing import Callable
 
 import asyncpg
 from fastapi import FastAPI, Request
-from fastapi.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ValidationError
-from starlette.middleware.csrf import CSRFMiddleware
 
 logger = logging.getLogger(__name__)
 
 
-class Settings(BaseModel):
-    """Application settings with validation."""
-
-    db_host: str = Field(default="localhost")
-    db_port: int = Field(default=5432, ge=1, le=65535)
-    db_name: str = Field(default="fit_back")
-    db_user: str = Field(default="fit_user")
-    db_password: str = Field(...)  # Required, no default
-
-
-def validate_settings() -> Settings:
-    """Validate and load settings from environment variables."""
-    try:
-        return Settings(
-            db_host=os.getenv("DB_HOST", "localhost"),
-            db_port=int(os.getenv("DB_PORT", "5432")),
-            db_name=os.getenv("DB_NAME", "fit_back"),
-            db_user=os.getenv("DB_USER", "fit_user"),
-            db_password=os.getenv("DB_PASSWORD"),
-        )
-    except (ValidationError, ValueError) as e:
-        raise RuntimeError("Configuration validation failed: invalid environment variables") from e
-
-
-async def init_db(settings: Settings) -> asyncpg.Pool:
+async def init_db() -> asyncpg.Pool:
     """Initialize database connection pool."""
-    try:
-        pool = await asyncpg.create_pool(
-            host=settings.db_host,
-            port=settings.db_port,
-            database=settings.db_name,
-            user=settings.db_user,
-            password=settings.db_password,
-            min_size=1,
-            max_size=10,
-        )
-        logger.info("Database pool initialized successfully")
-        return pool
-    except asyncpg.Error:
-        logger.error("Failed to initialize database pool")
-        raise
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = int(os.getenv("DB_PORT", "5432"))
+    db_name = os.getenv("DB_NAME", "fit_back")
+    db_user = os.getenv("DB_USER", "fit_user")
+    db_password = os.getenv("DB_PASSWORD")
+    if not db_password:
+        raise RuntimeError("DB_PASSWORD environment variable is required and must not be empty")
 
     pool = await asyncpg.create_pool(
         host=db_host,
@@ -72,70 +35,28 @@ async def init_db(settings: Settings) -> asyncpg.Pool:
     return pool
 
 
-async def close_db(pool: asyncpg.Pool | None) -> None:
+async def close_db(pool: asyncpg.Pool) -> None:
     """Close database connection pool."""
     if pool:
         await pool.close()
         logger.info("Database pool closed")
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Rate limiting middleware to prevent abuse."""
-
-    def __init__(self, app, requests_per_minute: int = 60):
-        super().__init__(app)
-        self.requests_per_minute = requests_per_minute
-        self.request_times: dict[str, list[float]] = {}
-
-    async def dispatch(
-        self, request: Request, call_next: Callable
-    ) -> JSONResponse:
-        """Rate limit requests based on client IP."""
-        client_ip = request.client.host if request.client else "unknown"
-        current_time = time.time()
-        window_start = current_time - 60
-
-        if client_ip not in self.request_times:
-            self.request_times[client_ip] = []
-
-        self.request_times[client_ip] = [
-            t for t in self.request_times[client_ip] if t > window_start
-        ]
-
-        if len(self.request_times[client_ip]) >= self.requests_per_minute:
-            logger.warning(f"Rate limit exceeded for client: {client_ip}")
-            return JSONResponse(
-                {"status": "error", "detail": "Too many requests"},
-                status_code=429,
-            )
-
-        self.request_times[client_ip].append(current_time)
-        response = await call_next(request)
-        return response
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage app lifespan: startup and shutdown."""
-    # Startup: validate settings and initialize database
+    # Startup
     try:
-        settings = validate_settings()
-        app.state.settings = settings
-        app.state.db_pool = await init_db(settings)
-    except RuntimeError as e:
-        logger.error(f"Application startup failed: {str(e)}")
+        app.state.db_pool = await init_db()
+    except asyncpg.Error:
+        logger.warning("Failed to initialize database pool")
         app.state.db_pool = None
-        raise
     yield
     # Shutdown
     await close_db(app.state.db_pool)
 
 
 app = FastAPI(title="Fit-back API", lifespan=lifespan)
-
-# Add security middleware
-app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
-app.add_middleware(CSRFMiddleware, secret_key=os.getenv("SECRET_KEY", "changeme-in-production"))
 
 
 @app.get("/api/v1/health")
@@ -147,9 +68,9 @@ async def health_check(request: Request) -> JSONResponse:
     """
     db_pool: asyncpg.Pool | None = getattr(request.app.state, "db_pool", None)
     if db_pool is None:
-        logger.warning("Health check: database not available")
+        logger.warning("Health check: database pool not initialized")
         return JSONResponse(
-            {"status": "unhealthy"},
+            {"status": "unhealthy", "detail": "database pool not initialized"},
             status_code=503,
         )
 
@@ -159,9 +80,9 @@ async def health_check(request: Request) -> JSONResponse:
             await conn.execute("SELECT 1")
         return JSONResponse({"status": "healthy"})
     except asyncpg.Error:
-        logger.error("Health check: database connection failed")
+        logger.error("Health check failed")
         return JSONResponse(
-            {"status": "unhealthy"},
+            {"status": "unhealthy", "detail": "database connection failed"},
             status_code=503,
         )
 
