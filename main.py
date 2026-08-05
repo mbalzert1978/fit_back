@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
     try:
         app.state.db_pool = await init_db()
     except asyncpg.Error as e:
-        logger.warning(f"Failed to initialize database pool: {e}")
+        logger.warning("Failed to initialize database pool", exc_info=True)
         app.state.db_pool = None
     yield
     # Shutdown
@@ -80,7 +80,7 @@ async def health_check(request: Request) -> JSONResponse:
             await conn.execute("SELECT 1")
         return JSONResponse({"status": "healthy"})
     except asyncpg.Error as e:
-        logger.error(f"Health check failed: {e}")
+        logger.error("Health check failed", exc_info=True)
         return JSONResponse(
             {"status": "unhealthy", "detail": "database connection failed"},
             status_code=503,
