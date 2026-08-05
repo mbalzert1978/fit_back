@@ -58,7 +58,15 @@ $targetTable = [ordered]@{
     'test' = @{
         # Depends on docs/issues/0009 (pytest + testcontainers-postgres fixture).
         Description = 'Run the test suite (uv run pytest)'
-        Action      = { Invoke-Step 'test' { uv run pytest } }
+        Action      = {
+            Write-Host "==> test" -ForegroundColor Cyan
+            uv run pytest
+            # pytest exits 5 when zero tests are collected - a valid state for
+            # tooling-only tickets (e.g. 0002/0003) that add no test files yet.
+            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 5) {
+                throw "target 'test' failed with exit code $LASTEXITCODE"
+            }
+        }
     }
 
     'lint' = @{
