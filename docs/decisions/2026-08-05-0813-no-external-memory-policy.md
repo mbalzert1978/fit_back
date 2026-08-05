@@ -1,28 +1,31 @@
-# No external memory mechanism — decisions live under docs/decisions/
+# Kein externer Memory-Mechanismus — Entscheidungen liegen unter docs/decisions/
 
-**Decided:** 2026-08-05 08:13
+**Entschieden:** 2026-08-05 08:13
 
-## What
+## Was
 
-No persistent memory mechanism outside this repository (Claude Code's cross-session memory
-system, or any other out-of-repo note-taking) is used for decisions or noteworthy changes
-concerning this repository. This applies both to creating new entries and to leaving existing
-ones in place — none should exist.
+Für dieses Repository wird kein persistenter Memory-Mechanismus außerhalb des Repos genutzt
+(weder Claude Codes sitzungsübergreifendes Memory-System noch irgendeine andere Notiz-Ablage
+außerhalb des Repos) — weder für Entscheidungen noch für sonstige relevante Neuerungen. Das gilt
+sowohl für das Anlegen neuer Einträge als auch für das Belassen bestehender — es soll keine
+geben.
 
-Decisions and noteworthy changes are instead recorded exclusively as files under this directory,
-one per decision, named `YYYY-MM-DD-HHMM-<slug>.md`.
+Entscheidungen und relevante Neuerungen werden stattdessen ausschließlich als Dateien unter
+diesem Verzeichnis erfasst, eine Datei je Entscheidung, benannt `YYYY-MM-DD-HHMM-<slug>.md`.
 
-## Why
+## Warum
 
-Keeps the repository the single source of truth for why things are the way they are — anyone
-cloning it (or any assistant working in it in a future session) sees the full decision history
-without depending on a separate, harder-to-share, harder-to-review memory store.
+Hält das Repository als alleinige Quelle der Wahrheit dafür, warum die Dinge so sind, wie sie
+sind — wer es klont (oder als Assistent in einer künftigen Sitzung darin arbeitet), sieht die
+vollständige Entscheidungshistorie, ohne von einer separaten, schwerer teilbaren und schwerer
+überprüfbaren Memory-Ablage abhängig zu sein.
 
-## What it rules out / supersedes
+## Was das ausschließt / ersetzt
 
-- A stray, unrelated `MEMORY.md` (and a sibling note file) belonging to a different, unrelated
-  project had ended up committed under `.claude/projects/` in this repo — removed as part of this
-  decision.
-- `docs/milestones/01-technical-decisions.md` remains as-is (it documents the technical framing of
-  the backend port, not a decision log) — new decisions from this point on go under
-  `docs/decisions/`, not appended there.
+- Eine versehentlich mitcommittete, fachfremde `MEMORY.md` (nebst einer weiteren Notizdatei) eines
+  anderen, unabhängigen Projekts war unter `.claude/projects/` in diesem Repo gelandet — im Zuge
+  dieser Entscheidung entfernt.
+- [`docs/milestones/01-technical-decisions.md`](../milestones/01-technical-decisions.md) bleibt
+  unverändert bestehen (sie dokumentiert die technische Rahmung der Backend-Portierung, kein
+  Entscheidungslog) — neue Entscheidungen ab jetzt gehen unter `docs/decisions/`, nicht dort
+  angehängt.

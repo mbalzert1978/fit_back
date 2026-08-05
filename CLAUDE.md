@@ -1,83 +1,103 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Diese Datei gibt Claude Code (claude.ai/code) Orientierung für die Arbeit in diesem Repository.
 
-## Where things live
+## Wo die Dinge liegen
 
-- [`docs/Draft/BACKEND.md`](docs/Draft/BACKEND.md) — the full functional specification, originally
-  written for ASP.NET Core/C#. This repo is **Python 3.14**, so the spec is ported, not
-  implemented verbatim. Read [`docs/milestones/01-technical-decisions.md`](docs/milestones/01-technical-decisions.md)
-  before assuming any technology choice — it records every decision made to adapt the spec to this
-  stack (web framework, persistence, background jobs, blob storage, cross-context communication,
-  repo layout) and is the tie-breaker whenever the spec and this stack appear to disagree.
-- [`docs/milestones/`](docs/milestones/) — the milestone breakdown (M0–M8) derived from the spec.
-- [`docs/issues/`](docs/issues/) — tracer-bullet issues implementing the milestones, gated by the
-  `verify-issue-breakdown` skill before publish. Implement from the matching issue, not directly
-  from `docs/Draft/BACKEND.md` — the issue already resolves the spec against this repo's stack and
-  layout. Issue progress lives in each issue's own frontmatter (`issue-status` skill), not in a
-  central changelog.
-- [`.rules/`](.rules/) — coding standards (`common/` language-agnostic, `python/` Python-specific).
-  Read `.rules/python/README.md` first — it lists reading order and how conflicts between files
-  resolve.
-- [`docs/decisions/`](docs/decisions/) — see "Decisions and memory policy" below.
+- [`docs/Draft/BACKEND.md`](docs/Draft/BACKEND.md) — die vollständige fachliche Spezifikation,
+  ursprünglich für ASP.NET Core/C# geschrieben. Dieses Repo ist **Python 3.14**, daher wird die
+  Spezifikation portiert, nicht wörtlich umgesetzt. Vor jeder Annahme zu einer Technologie-Wahl
+  erst [`docs/milestones/01-technical-decisions.md`](docs/milestones/01-technical-decisions.md)
+  lesen — dort steht jede Entscheidung, die zur Anpassung der Spezifikation an diesen Stack
+  getroffen wurde (Web-Framework, Persistenz, Hintergrund-Jobs, Blob-Storage,
+  Cross-Context-Kommunikation, Repo-Layout), und sie ist der Tie-Breaker, wann immer sich
+  Spezifikation und Stack scheinbar widersprechen.
+- [`docs/milestones/`](docs/milestones/) — die aus der Spezifikation abgeleitete
+  Meilenstein-Zerlegung (M0–M8).
+- [`docs/issues/`](docs/issues/) — Tracer-Bullet-Issues, die die Meilensteine umsetzen, vor
+  Veröffentlichung durch den Skill `verify-issue-breakdown` gegengeprüft. Implementiert wird aus
+  dem passenden Issue heraus, nicht direkt aus `docs/Draft/BACKEND.md` — das Issue hat die
+  Spezifikation bereits gegen Stack und Layout dieses Repos aufgelöst. Der Fortschritt eines
+  Issues lebt in dessen eigenem Frontmatter (`issue-status`-Skill), nicht in einem zentralen
+  Changelog.
+- [`.rules/`](.rules/) — Coding-Standards (`common/` sprachunabhängig, `python/`
+  Python-spezifisch). Zuerst `.rules/python/README.md` lesen — dort stehen Leseweg und
+  Auflösung von Konflikten zwischen den Dateien.
+- [`docs/decisions/`](docs/decisions/) — siehe „Entscheidungen und Memory-Policy" unten.
 
-## Commands
+## Befehle
 
-`make.ps1` at the repo root is the canonical task runner (PowerShell, no GNU make required) — it
-is tracked in git, so the same `./make.ps1 <target>` commands work identically in the main
-checkout and in every worktree under `.claude/worktrees/`. Run `./make.ps1 help` for the target
-list; `./make.ps1 ci` runs lint + format-check + import-lint + test.
+`make.ps1` im Repo-Root ist der kanonische Task-Runner (PowerShell, kein GNU-Make nötig) — sie ist
+in Git getrackt, sodass dieselben `./make.ps1 <target>`-Befehle im Haupt-Checkout und in jedem
+Worktree unter `.claude/worktrees/` identisch funktionieren. `./make.ps1 help` listet die Targets;
+`./make.ps1 ci` führt lint + format-check + import-lint + test aus.
 
-Prefer the project skill library under `.claude/skills/` (e.g. `to-issues`,
-`verify-issue-breakdown`, `review-against-rules`, `qa-check`, `lint-and-format-check`,
-`run-tests`) over ad-hoc commands for planning, review, lint, and test workflows — several
-`config.json` files there are already wired to this repo's Python/uv/ruff/pytest stack.
+Für Planung, Review, Lint- und Test-Workflows die Skill-Bibliothek unter `.claude/skills/`
+bevorzugen (z. B. `to-issues`, `verify-issue-breakdown`, `review-against-rules`, `qa-check`,
+`lint-and-format-check`, `run-tests`) statt Ad-hoc-Befehlen — mehrere `config.json`-Dateien dort
+sind bereits auf den Python/uv/ruff/pytest-Stack dieses Repos eingerichtet.
 
-## Architecture
+## Architektur
 
-**Modular monolith, one Bounded Context per module**, per
+**Modularer Monolith, ein Bounded Context je Modul**, gemäß
 [`docs/milestones/01-technical-decisions.md`](docs/milestones/01-technical-decisions.md):
 
 ```
-src/contexts/<context>/domain/            # aggregates, value objects, domain ports (Protocol) — stdlib only
-src/contexts/<context>/application/<use_case>/   # one folder per use case: command, handler, mappers, validators
-src/contexts/<context>/infrastructure/    # SQLAlchemy models/repositories, external adapters
-src/contexts/<context>/tests/<use_case>/  # tests through the use case's public test API only
-src/api/<context>/                        # FastAPI routers — HTTP <-> application DTOs only
-src/shared_kernel/                        # Result[T,E], TimeProvider, RFC-7807 ProblemDetails,
-                                           # Idempotency-Key middleware, IUserOwned, UUIDv7, Outbox
+src/contexts/<context>/domain/            # Aggregate, Value Objects, Domain-Ports (Protocol) — nur stdlib
+src/contexts/<context>/application/<use_case>/   # ein Ordner je Use Case: Command, Handler, Mapper, Validatoren
+src/contexts/<context>/infrastructure/    # SQLAlchemy-Modelle/Repositories, externe Adapter
+src/contexts/<context>/tests/<use_case>/  # Tests ausschließlich über die öffentliche Test-API des Use Case
+src/api/<context>/                        # FastAPI-Router — nur HTTP <-> Application-DTOs
+src/shared_kernel/                        # Result[T,E], TimeProvider, RFC-7807-ProblemDetails,
+                                           # Idempotency-Key-Middleware, IUserOwned, UUIDv7, Outbox
 ```
 
-Contexts: `identity`, `catalog`, `diary`, `recipes`, `goals`, `health_sync` — one PostgreSQL schema
-each, no context ever queries another context's tables.
+Contexts: `identity`, `catalog`, `diary`, `recipes`, `goals`, `health_sync` — je ein
+PostgreSQL-Schema, kein Context greift je auf die Tabellen eines anderen zu.
 
-**Cross-context communication is deliberately constrained** (goal: contexts can be extracted into
-separate services later without rewriting their logic):
-- Fire-and-forget reactions (e.g. `UserRegistered` triggering a default Goals profile or Diary's
-  standard meal slots) go through a **Postgres-backed outbox** (`SELECT ... FOR UPDATE SKIP
-  LOCKED` + `LISTEN/NOTIFY`), never a direct in-process event dispatch.
-- Synchronous calls where the caller needs an immediate result (e.g. Recipes calling into Diary)
-  go through a **consumer-owned `Protocol` port** — the calling context defines the narrow
-  interface it needs, and the port implementation calls the target context's application service
-  in-process, never its domain/handler/ORM code directly.
+**Cross-Context-Kommunikation ist bewusst eingeschränkt** (Ziel: Contexts sollen sich später als
+eigene Services herauslösen lassen, ohne ihre Logik umschreiben zu müssen):
+- Fire-and-forget-Reaktionen (z. B. `UserRegistered`, das ein Default-Goals-Profil oder Diarys
+  Standard-Mahlzeiten-Slots auslöst) laufen über eine **Postgres-gestützte Outbox**
+  (`SELECT ... FOR UPDATE SKIP LOCKED` + `LISTEN/NOTIFY`), nie über direktes In-Process-Event-
+  Dispatching.
+- Synchrone Aufrufe, bei denen der Aufrufer ein unmittelbares Ergebnis braucht (z. B. Recipes, das
+  Diary aufruft), laufen über einen **vom Konsumenten definierten `Protocol`-Port** — der
+  aufrufende Context definiert die schmale Schnittstelle, die er braucht, und die
+  Port-Implementierung ruft den Application-Service des Ziel-Contexts in-process auf, nie dessen
+  Domain-/Handler-/ORM-Code direkt.
 
-**Test pyramid** has an explicit Contract-Tests layer for exactly these two boundary kinds, sitting
-between Domain-Unit-Tests and Integration-Tests — see
-[`docs/milestones/02-test-pyramide.md`](docs/milestones/02-test-pyramide.md) before writing tests
-that cross a context boundary.
+Die **Test-Pyramide** hat für genau diese beiden Grenzarten eine explizite
+Contract-Tests-Ebene, zwischen Domain-Unit-Tests und Integrationstests angesiedelt — siehe
+[`docs/milestones/02-test-pyramide.md`](docs/milestones/02-test-pyramide.md), bevor Tests
+geschrieben werden, die eine Context-Grenze überschreiten.
 
-Cross-cutting rules that apply to every context (nutrient values always per 100g, rounding is
-presentation-only, RFC-7807 error format, JWT auth, no primitive obsession, tagged unions instead
-of enums, `DateTimeOffset`-only timestamps, optimistic concurrency via `RowVersion`/`If-Match`) are
-specified in `docs/Draft/BACKEND.md`, section 0, and implemented once in `shared_kernel` rather
-than per context.
+Querschnitts-Regeln, die für jeden Context gelten (Nährwerte immer pro 100 g, Rundung ist reine
+Präsentationssache, RFC-7807-Fehlerformat, JWT-Auth, keine Primitive Obsession, Tagged Unions
+statt Enums, ausschließlich `DateTimeOffset`-Zeitstempel, optimistische Nebenläufigkeit über
+`RowVersion`/`If-Match`) sind in `docs/Draft/BACKEND.md`, Abschnitt 0, spezifiziert und einmalig
+in `shared_kernel` implementiert statt je Context.
 
-## Decisions and memory policy
+## Entscheidungen und Memory-Policy
 
-**No external/persistent memory mechanism is used for this repository** — not Claude Code's
-cross-session memory system, not any other out-of-repo note-taking. This applies both to creating
-new entries and to leaving any that already exist; none should exist here.
+**Für dieses Repository wird kein externer/persistenter Memory-Mechanismus genutzt** — weder
+Claude Codes sitzungsübergreifendes Memory-System noch irgendeine andere Notiz-Ablage außerhalb
+des Repos. Das gilt sowohl für das Anlegen neuer Einträge als auch für das Belassen bestehender;
+es sollten keine existieren.
 
-Decisions and noteworthy changes are recorded **exclusively** under [`docs/decisions/`](docs/decisions/),
-one file per decision, named `YYYY-MM-DD-HHMM-<slug>.md`, dated and timestamped at the moment the
-decision is made. This is binding for all future sessions working in this repository.
+Entscheidungen und relevante Neuerungen werden **ausschließlich** unter
+[`docs/decisions/`](docs/decisions/) erfasst, eine Datei je Entscheidung, benannt
+`YYYY-MM-DD-HHMM-<slug>.md`, datiert und mit Uhrzeit versehen zum Moment der tatsächlichen
+Entscheidung. Das ist verbindlich für alle künftigen Sitzungen in diesem Repository.
+
+## Sprache der Dokumentation
+
+**Alle Dokumentation und Informationen zu diesem Repository werden auf Deutsch verfasst** —
+`docs/` (Milestones, Issues, Decisions, Draft-Spezifikation), diese `CLAUDE.md` sowie jede
+weitere projektbezogene Notiz. Das gilt für neu erstellte Dateien ebenso wie für Überarbeitungen
+bestehender; abweichend englischsprachige Dateien werden bei Gelegenheit der Bearbeitung
+nachgezogen. Ausgenommen sind generische, repo-übergreifend wiederverwendete Infrastruktur, die
+nicht zum fachlichen Inhalt dieses Projekts gehört (z. B. `.claude/skills/`-Definitionen und deren
+`config.json`), sowie Code, Bezeichner und Kommentare selbst, die den üblichen Sprachkonventionen
+für Quellcode folgen. Diese Vorgabe ist verbindlich für alle künftigen Sitzungen in diesem
+Repository.
