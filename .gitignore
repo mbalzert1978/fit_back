@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Git worktrees (created by the worktree-erstellen skill; local-only, never committed)
+.claude/worktrees/
