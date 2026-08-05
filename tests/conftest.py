@@ -13,7 +13,7 @@ from testcontainers.community.postgres import PostgresContainer
 async def postgres_service() -> AsyncGenerator[PostgresContainer]:
     """Start and manage a Testcontainers PostgreSQL service."""
     container = PostgresContainer(
-        image="postgres:17-alpine",
+        image="postgres:18-alpine",
         username="test",
         password="test",
         dbname="test",
