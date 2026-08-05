@@ -14,6 +14,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 from starlette.middleware.csrf import CSRFMiddleware
 
+from src.shared_kernel.exception_handlers import register_exception_handlers
+
 logger = logging.getLogger(__name__)
 
 
@@ -132,6 +134,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Fit-back API", lifespan=lifespan)
+
+# Register exception handlers for RFC 7807 ProblemDetails
+register_exception_handlers(app)
 
 # Add security middleware
 app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
