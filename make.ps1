@@ -66,6 +66,7 @@ $targetTable = [ordered]@{
             if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 5) {
                 throw "target 'test' failed with exit code $LASTEXITCODE"
             }
+            $global:LASTEXITCODE = 0
         }
     }
 
