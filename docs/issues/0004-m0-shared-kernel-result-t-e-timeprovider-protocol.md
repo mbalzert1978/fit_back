@@ -1,7 +1,7 @@
 ---
 id: "0004"
 title: M0: Shared Kernel - Result[T,E] + TimeProvider-Protocol
-status: open
+status: closed
 milestone: M0
 type: AFK
 ---
@@ -26,3 +26,8 @@ Result[T,E]-Basistyp gemaess .rules/python/python-error-handling.md sowie ein Ti
 ## Blocked by
 
 - Blocked by [0001](0001-m0-repo-skeleton-docker-compose-postgres-minio-app-health-endpoint-curl-smoke-test.md)
+
+## Abschluss (2026-08-05)
+
+Umgesetzt in PR #3 (gemerged). Keine Security-Eskalation; fehlende pytest-Dev-Dependency
+nachtraeglich gefixt, siehe docs/decisions/2026-08-05-1110-ci-nacharbeiten-nach-ticket-0002-merge.md.

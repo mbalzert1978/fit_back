@@ -1,7 +1,7 @@
 ---
 id: "0005"
 title: M0: Shared Kernel - RFC-7807 ProblemDetails + Exception-Handler
-status: open
+status: closed
 milestone: M0
 type: AFK
 ---
@@ -26,3 +26,9 @@ ProblemDetails-Modell und ein FastAPI-Exception-Handler, der jeden erwarteten Do
 ## Blocked by
 
 - Blocked by [0001](0001-m0-repo-skeleton-docker-compose-postgres-minio-app-health-endpoint-curl-smoke-test.md)
+
+## Abschluss (2026-08-05)
+
+Umgesetzt in PR #5 (gemerged). Keine Security-Eskalation. Branch musste zweimal auf main
+nachgezogen werden (main.py/pyproject.toml/uv.lock-Konflikte durch parallel gemergte
+Tickets 0002/0003/0004), siehe docs/decisions/2026-08-05-1045-... und -1110-....
