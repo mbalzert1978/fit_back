@@ -1,0 +1,7 @@
+{
+  "rules_dirs": [
+    ".rules/common",
+    ".rules/python"
+  ],
+  "_note": "reference_implementation bewusst nicht gesetzt: es existiert noch kein implementiertes Feature in diesem frischen Repo. Sobald M1 (Identity/register_user) fertig ist, hier auf dieses Feature als Referenzimplementierung verweisen (analog .rules/python/python-rule-pattern.md, das denselben Schritt fuer sich selbst vermerkt)."
+}

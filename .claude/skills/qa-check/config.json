@@ -1,0 +1,12 @@
+{
+  "specs_suffix": "n/a",
+  "feature_project_prefix": "n/a",
+  "reference_feature_project": "n/a",
+  "test_facade_glob": "tests/test_api.py",
+  "adr_reference": null,
+  "checks": {
+    "coverage_gap": false,
+    "test_api_shape": false
+  },
+  "_note": "Beide Checks vorerst deaktiviert: coverage_gap.py/test_api_shape.py setzen eine C#-Konvention voraus (Top-Level-Projekt src/<Project> mit separatem Sibling-Projekt src/<Project><specs_suffix>). Dieses Repo folgt stattdessen .rules/python/python-feature-slices.md: Tests liegen als tests/<use_case>/ *innerhalb* desselben Feature-Pakets, kein separates Top-Level-Specs-Projekt. Sobald M0/M1 die konkrete Paketstruktur (docs/milestones/01-technical-decisions.md) etabliert haben, hier reaktivieren und specs_suffix/feature_project_prefix/test_facade_glob/reference_feature_project auf die reale Struktur setzen (z. B. test_facade_glob auf ein pro Use-Case erwartetes tests/test_api.py). Der Test-Lauf selbst (run-tests) ist davon unberuehrt und bleibt aktiv/verpflichtend."
+}

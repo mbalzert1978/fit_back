@@ -1,0 +1,4 @@
+{
+  "linter": { "command": "uv", "args": ["run", "ruff", "check", "."] },
+  "formatter": { "command": "uv", "args": ["run", "ruff", "format", "--check", "."] }
+}

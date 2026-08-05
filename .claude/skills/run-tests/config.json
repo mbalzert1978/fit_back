@@ -1,0 +1,10 @@
+{
+  "test_command": { "command": "uv", "args": ["run", "pytest"] },
+  "selectors": {
+    "path": ["{}"],
+    "marker": ["-m", "{}"]
+  },
+  "name_filter": ["-k", "{}"],
+  "exact_args": [],
+  "ignore_exit_codes_when_filtered": [5]
+}
