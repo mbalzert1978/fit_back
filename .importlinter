@@ -1,0 +1,23 @@
+[importlinter:contract:forbidden]
+name = Bounded Context Import Boundaries
+type = forbidden
+source_modules =
+    src.contexts.identity
+    src.contexts.catalog
+    src.contexts.diary
+    src.contexts.recipes
+    src.contexts.goals
+    src.contexts.health_sync
+forbidden_modules =
+    src.contexts.identity.domain
+    src.contexts.identity.infrastructure
+    src.contexts.catalog.domain
+    src.contexts.catalog.infrastructure
+    src.contexts.diary.domain
+    src.contexts.diary.infrastructure
+    src.contexts.recipes.domain
+    src.contexts.recipes.infrastructure
+    src.contexts.goals.domain
+    src.contexts.goals.infrastructure
+    src.contexts.health_sync.domain
+    src.contexts.health_sync.infrastructure

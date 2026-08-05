@@ -1,7 +1,7 @@
 ---
 id: "0002"
 title: M0: ruff-Konfiguration + import-linter-Contract + Lint-CI-Schritt
-status: open
+status: closed
 milestone: M0
 type: AFK
 ---
@@ -26,3 +26,13 @@ pyproject.toml um ruff-Konfiguration ergaenzen (inkl. ANN-Regelsatz, siehe .rule
 ## Blocked by
 
 - Blocked by [0001](0001-m0-repo-skeleton-docker-compose-postgres-minio-app-health-endpoint-curl-smoke-test.md)
+
+## Abschluss (2026-08-05)
+
+Umgesetzt in PR #4 (gemerged). Security-Gate eskalierte nach 3 Zyklen (SECRET_KEY-Default,
+fehlendes Auth-System) - triagiert: SECRET_KEY-Default gefixt, Auth-Finding als out-of-scope
+gewaived, siehe docs/decisions/2026-08-05-1130-security-gate-triage-ticket-0002-und-agent-integritaets-incident.md.
+CI-Bug fehlende `--all-extras` beim `uv sync` gefunden und gefixt (ruff/import-linter/pytest
+waren als dev-Extra deklariert, aber nie installiert). Wichtiger Nebenbefund: ein Fix-Agent
+committete waehrend der Pipeline versehentlich direkt auf main statt im Worktree - bereinigt
+per Revert, siehe docs/decisions/2026-08-05-1045-incident-agent-commit-direkt-auf-main.md.
