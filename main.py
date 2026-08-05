@@ -127,9 +127,14 @@ app = FastAPI(title="Fit-back API", lifespan=lifespan)
 # Register exception handlers for RFC 7807 ProblemDetails
 register_exception_handlers(app)
 
+# Validate CSRF secret key (mandatory, no default)
+_csrf_secret_key = os.getenv("SECRET_KEY")
+if not _csrf_secret_key:
+    raise RuntimeError("SECRET_KEY environment variable is required and has no default")
+
 # Add security middleware
 app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
-app.add_middleware(CSRFMiddleware, secret_key=os.getenv("SECRET_KEY", "changeme-in-production"))
+app.add_middleware(CSRFMiddleware, secret_key=_csrf_secret_key)
 
 
 @app.get("/api/v1/health")
