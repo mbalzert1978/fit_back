@@ -20,9 +20,10 @@ ausgegeben wird.
    implementiert nie — die dabei erzeugte `Task.md` ist das, womit der Entwickler-Agent aus
    Schritt 3 tatsächlich gebrieft wird.
 3. **Entwickler-Rolle** — ein Entwickler-Agent implementiert das Ticket im Worktree gemäß
-   `Task.md`. **Ich starte diesen Agenten nicht.** Der Nutzer startet ihn manuell, sobald
-   Worktree und `Task.md` vorliegen. Dieser Schritt endet mit einem Kandidaten-Diff auf dem
-   Ticket-Branch.
+   `Task.md`. Wer diesen Agenten startet, ist in
+   [`2026-08-05-0851-pipeline-vollautomatisiert-inkl-entwicklerrolle.md`](2026-08-05-0851-pipeline-vollautomatisiert-inkl-entwicklerrolle.md)
+   geregelt (ersetzt den ursprünglichen Stand dieses Punktes). Dieser Schritt endet mit einem
+   Kandidaten-Diff auf dem Ticket-Branch.
 4. **QA-Rolle** — sobald der Entwickler die Implementierung als fertig meldet, wird der Worktree
    an eine QA-Prüfung delegiert:
    - `review-against-rules` — Diff gegen `.rules/common/` + `.rules/python/` (bereits die
