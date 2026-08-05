@@ -123,11 +123,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 app = FastAPI(title="Fit-back API", lifespan=lifespan)
 
+_secret_key = os.getenv("SECRET_KEY")
+if not _secret_key:
+    raise RuntimeError("SECRET_KEY environment variable is required and has no default")
+
 # Add security middleware
 app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
-app.add_middleware(
-    CSRFMiddleware, secret_key=os.getenv("SECRET_KEY", "changeme-in-production")
-)
+app.add_middleware(CSRFMiddleware, secret_key=_secret_key)
 
 
 @app.get("/api/v1/health")
