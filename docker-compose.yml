@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: fit_back_postgres
+    environment:
+      POSTGRES_DB: fit_back
+      POSTGRES_USER: fit_user
+      POSTGRES_PASSWORD: fit_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U fit_user -d fit_back
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fit_back_network
+
+  minio:
+    image: minio/minio:latest
+    container_name: fit_back_minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/minio_data
+    command:
+      - server
+      - /minio_data
+      - --console-address
+      - :9001
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:9000/minio/health/live
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fit_back_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fit_back_app
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fit_back
+      DB_USER: fit_user
+      DB_PASSWORD: fit_password
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fit_back_network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  fit_back_network:
+    driver: bridge
