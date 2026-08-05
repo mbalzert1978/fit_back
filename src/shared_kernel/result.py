@@ -1,9 +1,10 @@
 """Result[T, E] — Basistyp für Operationen mit Erfolgs- oder Fehlschlag-Ausgang."""
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, final
 
 
+@final
 @dataclass(frozen=True, slots=True)
 class Ok[T]:
     """Erfolgreicher Ausgang mit Wert."""
@@ -19,6 +20,7 @@ class Ok[T]:
         return f(self.value)
 
 
+@final
 @dataclass(frozen=True, slots=True)
 class Err[E]:
     """Fehlschlag-Ausgang mit Fehler."""

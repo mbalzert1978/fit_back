@@ -1,7 +1,7 @@
 """TimeProvider-Protocol für deterministisch testbare Zeitmessung."""
 
 from datetime import datetime, timezone
-from typing import Protocol
+from typing import Protocol, final
 
 
 class TimeProvider(Protocol):
@@ -12,6 +12,7 @@ class TimeProvider(Protocol):
         ...
 
 
+@final
 class SystemTimeProvider:
     """Standard-Implementierung: liefert die echte aktuelle System-Zeit."""
 
@@ -20,6 +21,7 @@ class SystemTimeProvider:
         return datetime.now(timezone.utc)
 
 
+@final
 class FakeTimeProvider:
     """Test-Implementierung: Zeit ist setzbar für deterministische Tests."""
 
