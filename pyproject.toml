@@ -12,5 +12,19 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "ruff>=0.9.0",
+    "import-linter>=2.1.0",
     "pytest>=8.0.0",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+exclude = [".claude", ".rules"]
+
+[tool.ruff.lint]
+extend-select = ["ANN"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN001", "ANN002", "ANN003"]
+"**/test_*.py" = ["ANN001", "ANN002", "ANN003"]
