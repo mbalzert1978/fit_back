@@ -82,7 +82,7 @@ async def health_check(request: Request) -> JSONResponse:
     except asyncpg.Error as e:
         logger.error(f"Health check failed: {e}")
         return JSONResponse(
-            {"status": "unhealthy", "detail": str(e)},
+            {"status": "unhealthy", "detail": "database connection failed"},
             status_code=503,
         )
 
