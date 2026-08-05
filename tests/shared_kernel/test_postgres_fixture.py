@@ -25,7 +25,7 @@ async def test_alembic_migration_applied(postgres_session: AsyncSession) -> None
     }
 
     query = text(
-        "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN (:schemas)"
+        "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY(:schemas)"
     )
     result = await postgres_session.execute(
         query,
