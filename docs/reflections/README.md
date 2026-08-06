@@ -16,13 +16,17 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 
 ## Experiences
 
+- [exp_agent-credential-scanning-incident.md](exp_agent-credential-scanning-incident.md) — Subagent darf bei fehlendem `gh` nie selbst nach Credentials suchen, nur stoppen und melden
+- [exp_alembic-ini-path-separator-windows.md](exp_alembic-ini-path-separator-windows.md) — `path_separator = os` bricht unter Windows still, wenn `version_locations` mit `":"` authored ist
 - [exp_alembic-multi-schema-pitfalls.md](exp_alembic-multi-schema-pitfalls.md) — Revision-IDs global eindeutig halten, `alembic upgrade heads` (Plural) verwenden
 - [exp_first-live-execution-surfaces-latent-bugs.md](exp_first-live-execution-surfaces-latent-bugs.md) — erster echter Lauf einer bislang nur "auf dem Papier" existierenden Infrastruktur deckt Bug-Kaskaden auf
+- [exp_gh-cli-full-path-required.md](exp_gh-cli-full-path-required.md) — `gh` im Bash-Tool nie ueber PATH aufrufbar, immer vollen Windows-Pfad nutzen
 - [exp_pipeline-artefakte-gitignore.md](exp_pipeline-artefakte-gitignore.md) — Pipeline-Arbeitsdateien (Task.md) von Anfang an gitignored halten
 - [exp_powershell-set-content-bom.md](exp_powershell-set-content-bom.md) — PowerShell `Set-Content -Encoding utf8` schreibt eine BOM, bricht TOML-Parser
 - [exp_push-main-before-worktree-fanout.md](exp_push-main-before-worktree-fanout.md) — `main` vor dem Erstellen neuer Worktrees pushen, sonst Scope-Creep in jedem PR-Diff
 - [exp_pytest-exit-5-lastexitcode-reset.md](exp_pytest-exit-5-lastexitcode-reset.md) — pytest exit 5 tolerieren UND `$global:LASTEXITCODE` zuruecksetzen
 - [exp_security-gate-triage-teamlead.md](exp_security-gate-triage-teamlead.md) — generische Security-Findings ohne Spezifikations-Basis selbst triagieren
+- [exp_subprocess-python-literal-vs-sys-executable.md](exp_subprocess-python-literal-vs-sys-executable.md) — `subprocess.run(["python", ...])` loest ueber PATH auf, nicht zum aktiven Venv - `sys.executable` verwenden
 - [exp_sqlalchemy-list-bind-needs-any.md](exp_sqlalchemy-list-bind-needs-any.md) — Python-list als SQL-Bind-Param braucht `= ANY(:param)`, nicht `IN (:param)`
 - [exp_uv-sync-all-extras.md](exp_uv-sync-all-extras.md) — `uv sync` installiert Extras nicht automatisch, `--all-extras` noetig
 - [exp_verify-subagent-progress-claims.md](exp_verify-subagent-progress-claims.md) — Fortschrittsmeldungen von Orchestrator-Agenten per git/gh selbst verifizieren, nie ungeprueft weiterreichen

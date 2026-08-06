@@ -3,8 +3,8 @@ schema_version: 1
 name: verify-subagent-progress-claims
 description: Ein Team-Lead-/Orchestrator-Agent kann "erledigt"/"laeuft im Hintergrund" melden, ohne dass reale Commits/PRs/Worktrees existieren - vor dem Weiterreichen an den Nutzer immer per git/gh selbst verifizieren
 type: feedback
-frequency: 1
-last_triggered: 2026-08-05
+frequency: 2
+last_triggered: 2026-08-06
 decay_eligible: false
 ---
 
