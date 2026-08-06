@@ -1,9 +1,9 @@
-"""Outbox relay worker entry point for Docker/background process.
+"""Outbox-Relay-Worker — Einstiegspunkt für Docker-Container oder Hintergrund-Prozess.
 
-This module is the __main__ entry point for the relay worker when running
-in a separate container or process (e.g., via `docker compose up`).
+Dieses Modul ist der __main__-Einstiegspunkt, wenn der Relay-Worker in einem separaten
+Container oder Prozess läuft (z.B. via `docker compose up`).
 
-Usage:
+Aufruf:
     python -m src.shared_kernel.outbox.worker
 """
 

@@ -189,23 +189,24 @@ class TestRelayOutboxEvents:
         worker2_id = uuid4()
         config = RelayConfig(batch_size=10, poll_interval_ms=50)
 
-        task1 = asyncio.create_task(
-            relay_outbox_events(async_session(), worker_id=worker1_id, config=config)
-        )
-        task2 = asyncio.create_task(
-            relay_outbox_events(async_session(), worker_id=worker2_id, config=config)
-        )
+        async with async_session() as session1, async_session() as session2:
+            task1 = asyncio.create_task(
+                relay_outbox_events(session1, worker_id=worker1_id, config=config)
+            )
+            task2 = asyncio.create_task(
+                relay_outbox_events(session2, worker_id=worker2_id, config=config)
+            )
 
-        # Let them run briefly
-        await asyncio.sleep(0.5)
-        task1.cancel()
-        task2.cancel()
+            # Let them run briefly
+            await asyncio.sleep(0.5)
+            task1.cancel()
+            task2.cancel()
 
-        for task in [task1, task2]:
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+            for task in [task1, task2]:
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
         # Verify event was processed by exactly one worker
         async with async_session() as session:

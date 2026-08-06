@@ -209,7 +209,7 @@ async def _notify_subscribers(
     )
 
     # NOTIFY mit Escaping (Payload muss mit einfachen Anführungszeichen escaped werden)
-    # Escape single quotes in the JSON by doubling them (SQL standard)
+    # Escape durch Verdopplung (SQL-Standard)
     escaped_payload = payload_json.replace("'", "''")
     notify_sql = f"NOTIFY {OUTBOX_NOTIFY_CHANNEL}, '{escaped_payload}'"
     await session.execute(text(notify_sql))
