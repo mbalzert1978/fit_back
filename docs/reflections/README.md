@@ -32,6 +32,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_referenzimplementierung-schlaegt-prosa.md](exp_referenzimplementierung-schlaegt-prosa.md) — ohne gebautes Referenz-Feature erfindet jeder Agent die Zielform neu
 - [exp_regel-lesen-bevor-referenzieren.md](exp_regel-lesen-bevor-referenzieren.md) — eine Regel-Datei, auf die ich verweise, muss ich selbst gelesen haben
 - [exp_security-gate-triage-teamlead.md](exp_security-gate-triage-teamlead.md) — generische Security-Findings ohne Spezifikations-Basis selbst triagieren
+- [exp_spec-prueft-ergebnis-nicht-implementierung.md](exp_spec-prueft-ergebnis-nicht-implementierung.md) — viele Eingabefaelle rechtfertigen keine tiefere Testebene; fremde Bibliotheken werden nie mitgetestet
 - [exp_subprocess-python-literal-vs-sys-executable.md](exp_subprocess-python-literal-vs-sys-executable.md) — `subprocess.run(["python", ...])` loest ueber PATH auf, nicht zum aktiven Venv - `sys.executable` verwenden
 - [exp_sqlalchemy-list-bind-needs-any.md](exp_sqlalchemy-list-bind-needs-any.md) — Python-list als SQL-Bind-Param braucht `= ANY(:param)`, nicht `IN (:param)`
 - [exp_uv-sync-all-extras.md](exp_uv-sync-all-extras.md) — `uv sync` installiert Extras nicht automatisch, `--all-extras` noetig

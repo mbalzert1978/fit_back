@@ -20,14 +20,41 @@ Jedes Feature ist ein eigenes Python-Paket, intern geschichtet:
 |--------|--------|--------------------------|
 | `domain/` | Value Objects (`@dataclass(frozen=True, slots=True)`), Entitaeten, Aggregatwurzel, interne Ports (`Protocol`), interne Domaenen-Regeln (`ResultRule`, fail-fast, ein typisierter Fehler je Invariante) | **nur stdlib** — kein Drittanbieter-Paket, kein DI-Framework |
 | `application/` | public Request-/Response-DTOs, public Ports (Gateway/Datenquelle) + deren Ergebnis-Typen, interner **Command** (VOs, ggf. unter `shared/` geteilt), interne **Handler** (Orchestrator), interne **Port-Adapter** (Domain-Port-Implementierung, Anti-Corruption-Layer), **Mapper** (je Richtung eine Funktion/Klasse), **Eingabe-Validierungsregeln** (`Rule Pattern`, collect-all, unter `validators/`), **Test-API + In-Memory-Fakes** (siehe unten — Teil des Slice, nicht des Testprojekts), Wiring | `domain`, gemeinsames `common`-Paket, minimales DI (z. B. reine Funktionen/`functools.partial`, kein Framework noetig) |
-| `specs/<use_case>/` | Verhaltens-Specs, ausschliesslich ueber die public Test-API des Use Case | nur das Feature-Paket selbst (keine `_private`-Importe quer durchs Paket) |
-| `specs/domain/` | Domain-Unit-Tests je Aggregat/Value Object/Union (BACKEND.md Abschnitt 9) | die Domaene direkt — das ist genau ihr Zweck |
+| `specs/<use_case>/` | Verhaltens-Specs, ausschliesslich ueber die public Test-API des Use Case — **der Regelfall** | nur das Feature-Paket selbst (keine `_private`-Importe quer durchs Paket) |
+| `specs/domain/` | Domain-Unit-Test je Aggregat/Value Object/Union, **nur wenn das Verhalten ueber die Test-API nicht ausdrueckbar ist** | die Domaene direkt |
 | `specs/contracts/` | Contract-Tests an Context-Grenzen ([`02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md), Form A) | das eigene Port-`Protocol` |
 
 Der Ordner heisst `specs/`, nicht `tests/`: er enthaelt nicht nur Tests im engeren Sinn, sondern
 die **ausfuehrbare Spezifikation** des Verhaltens. `slice-shape-check` prueft nur `specs/<use_case>/`
 gegen die Test-API-Regel; die beiden anderen Unterordner sind davon ausgenommen, weil sie
-per Definition tiefer greifen.
+per Definition tiefer greifen — und genau deshalb sind sie die Ausnahme, nicht die zweite
+Standardebene.
+
+### Ein Spec prueft das Ergebnis, nicht den Weg dorthin
+
+**Viele Eingabefaelle sind kein Grund, tiefer zu testen.** Eine Tabelle mit vierzig gueltigen und
+ungueltigen E-Mail-Adressen gehoert durch die Test-API, nicht gegen `Email.parse` — die Faelle sind
+Eingaben, keine neue Testebene. Der Unterschied zeigt sich beim ersten Umbau: ein Spec gegen
+`Email.parse(candidate, idn)` bindet an Klasse, Methodennamen und Parameterliste und muss jedes Mal
+mitgeaendert werden; ein Spec gegen die Test-API sagt „diese Adresse wird angenommen / mit
+`errors.email` abgelehnt" und ueberlebt jede interne Umstellung.
+
+Der Preis ist geringere Aufloesung — sichtbar ist „ungueltig", nicht „welche Regel gefeuert hat".
+Das ist richtig so: *welche* Regel gegriffen hat, ist Implementierung.
+
+Ein Domain-Unit-Test ist erst dann gerechtfertigt, wenn ein Verhalten ueber keinen Use Case
+erreichbar ist — nicht, wenn es ueber einen Use Case bloss umstaendlicher zu formulieren waere.
+
+### Fremde Bibliotheken werden nicht mitgetestet
+
+Was hinter einem Port eine **externe Bibliothek** entscheidet (IDNA-Gueltigkeit, Zeitzonen-Daten,
+Hash-Verfahren), ist deren Zusage, nicht unsere Fachregel. Ein Spec, der dafuer die echte
+Bibliothek verdrahtet, prueft fremden Code, bricht bei deren naechstem Release und lehrt uns
+nichts ueber unsere Domaene — so wenig, wie jemand testet, ob `open()` Dateien oeffnen kann.
+
+Der Fake hinter der Naht sagt in dem Fall ehrlich, dass er es nicht kann, statt das Verhalten der
+Bibliothek nachzubauen — ein nachgebauter Fake wuerde die Spezifikation gegen sich selbst pruefen.
+Ein Testimport von `infrastructure/` in einem Spec ist das Warnsignal, dass genau das passiert.
 
 Innerhalb eines Use Case gliedert sich `application/<use_case>/` weiter:
 
