@@ -26,28 +26,41 @@ async def domain_exception_handler(
     instance = exc.instance or str(request.url.path)
 
     # Extract locale from request state (set by AcceptLanguageMiddleware)
-    locale = getattr(request.state, "locale", "de-DE")
+    locale = getattr(request.state, "locale", "en-US")
 
-    # Get resource provider from app state or create a new one
+    # Get resource provider from app state (required to be initialized by register_exception_handlers)
     resource_provider: ResourceProvider | None = getattr(
         request.app.state, "resource_provider", None
     )
 
+    if not resource_provider:
+        logger.error(
+            "ResourceProvider not initialized in app state. "
+            "Ensure register_exception_handlers() is called during app startup."
+        )
+        raise RuntimeError(
+            "ResourceProvider not initialized. Call register_exception_handlers(app) during app startup."
+        )
+
     # Extract error code from error_type (format: https://api.example/errors/error-code)
-    # Convert from kebab-case to UPPERCASE_WITH_UNDERSCORES for resource lookup
+    # Validate format and convert from kebab-case to UPPERCASE_WITH_UNDERSCORES
+    if not exc.error_type or "/" not in exc.error_type:
+        raise ValueError(
+            f"Invalid error_type format. Expected 'https://.../errors/<kebab-case>', "
+            f"got: {exc.error_type!r}"
+        )
     error_code_kebab = exc.error_type.split("/")[-1]
+    if not error_code_kebab or not all(c.islower() or c == "-" for c in error_code_kebab):
+        raise ValueError(
+            f"error_type must end with kebab-case error code, "
+            f"got: {error_code_kebab!r} from {exc.error_type!r}"
+        )
     error_code = error_code_kebab.upper().replace("-", "_")
 
-    # Get localized title and detail, or use exception values as fallback
-    title = exc.title
-    detail = exc.detail
-
-    if resource_provider:
-        localized = resource_provider.get_message(error_code, locale)
-        if localized.get("title"):
-            title = localized["title"]
-        if localized.get("detail"):
-            detail = localized["detail"]
+    # Get localized title and detail; fall back to English if resource not found (locale-neutral)
+    localized = resource_provider.get_message(error_code, locale)
+    title = localized.get("title", exc.title)
+    detail = localized.get("detail", exc.detail)
 
     problem = ProblemDetails(
         type=exc.error_type,
@@ -89,23 +102,27 @@ async def validation_exception_handler(
         errors_dict[field].append(message)
 
     # Extract locale from request state (set by AcceptLanguageMiddleware)
-    locale = getattr(request.state, "locale", "de-DE")
+    locale = getattr(request.state, "locale", "en-US")
 
-    # Get resource provider from app state or use defaults
+    # Get resource provider from app state (required to be initialized by register_exception_handlers)
     resource_provider: ResourceProvider | None = getattr(
         request.app.state, "resource_provider", None
     )
 
-    # Try to get localized title and detail for VALIDATION_FAILED
-    title = "Validierung fehlgeschlagen"
-    detail = "Die Eingabe erfüllt nicht die erforderlichen Bedingungen."
+    if not resource_provider:
+        logger.error(
+            "ResourceProvider not initialized in app state. "
+            "Ensure register_exception_handlers() is called during app startup."
+        )
+        raise RuntimeError(
+            "ResourceProvider not initialized. Call register_exception_handlers(app) during app startup."
+        )
 
-    if resource_provider:
-        localized = resource_provider.get_message("VALIDATION_FAILED", locale)
-        if localized.get("title"):
-            title = localized["title"]
-        if localized.get("detail"):
-            detail = localized["detail"]
+    # Try to get localized title and detail for VALIDATION_FAILED
+    # Fall back to English if resource not found (locale-neutral)
+    localized = resource_provider.get_message("VALIDATION_FAILED", locale)
+    title = localized.get("title", "Validation failed")
+    detail = localized.get("detail", "Input does not meet the required conditions.")
 
     problem = ProblemDetails(
         type="https://api.example/errors/validation-failed",
@@ -130,14 +147,25 @@ async def validation_exception_handler(
 def register_exception_handlers(app: FastAPI) -> None:
     """Register exception handlers in FastAPI app.
 
-    Also initializes ResourceProvider and stores it in app state
-    for use in exception handlers.
+    Initializes ResourceProvider and stores it in app state for use in exception handlers.
+    This function MUST be called during app startup before any requests are processed,
+    as both domain_exception_handler and validation_exception_handler depend on
+    ResourceProvider being available in app.state.resource_provider.
 
     Args:
         app: FastAPI application instance.
+
+    Raises:
+        RuntimeError: If resources directory cannot be initialized.
     """
     # Initialize ResourceProvider with default resources directory
     resources_dir = Path(__file__).parent / "resources"
+    if not resources_dir.exists():
+        raise RuntimeError(
+            f"Resources directory not found: {resources_dir}. "
+            "Exception handlers require resource files for localization."
+        )
+
     resource_provider = ResourceProvider(resources_dir)
     app.state.resource_provider = resource_provider
 

@@ -127,37 +127,52 @@ class AcceptLanguageMiddleware(BaseHTTPMiddleware):
 def _normalize_locale(locale: str) -> str:
     """Normalize locale format to language-REGION.
 
-    Maps common language codes to their default regions:
-    - 'de' -> 'de-DE'
-    - 'en' -> 'en-US'
-    - 'fr' -> 'fr-FR'
-    - etc.
+    Maps language codes to their default regions per RFC 5646.
+    If a language code is not mapped, raises ValueError with clear message.
+
+    Supported languages and default regions:
+    - 'de' -> 'de-DE', 'en' -> 'en-US', 'fr' -> 'fr-FR', 'es' -> 'es-ES',
+    - 'it' -> 'it-IT', 'nl' -> 'nl-NL', 'pt' -> 'pt-PT', 'ru' -> 'ru-RU',
+    - 'ja' -> 'ja-JP', 'zh' -> 'zh-CN', 'ko' -> 'ko-KR', 'tr' -> 'tr-TR',
+    - 'pl' -> 'pl-PL', 'vi' -> 'vi-VN'
 
     Args:
         locale: Input locale string (e.g., 'de', 'en-US', 'de-DE')
 
     Returns:
         Normalized locale string (e.g., 'de-DE', 'en-US')
+
+    Raises:
+        ValueError: If language code is not supported.
     """
-    # If already in format language-REGION, return as-is
+    # If already in format language-REGION, validate and return as-is
     if len(locale.split("-")) == 2:
         parts = locale.split("-")
         return f"{parts[0].lower()}-{parts[1].upper()}"
 
-    # Map language codes to default regions
+    # Map language codes to default regions (RFC 5646 compliant)
     language_to_region = {
-        "de": "DE",
-        "en": "US",
-        "fr": "FR",
-        "es": "ES",
-        "it": "IT",
-        "nl": "NL",
-        "pt": "PT",
-        "ru": "RU",
-        "ja": "JP",
-        "zh": "CN",
+        "de": "DE",  # German (Germany)
+        "en": "US",  # English (United States)
+        "fr": "FR",  # French (France)
+        "es": "ES",  # Spanish (Spain)
+        "it": "IT",  # Italian (Italy)
+        "nl": "NL",  # Dutch (Netherlands)
+        "pt": "PT",  # Portuguese (Portugal)
+        "ru": "RU",  # Russian (Russia)
+        "ja": "JP",  # Japanese (Japan)
+        "zh": "CN",  # Chinese (Mainland China)
+        "ko": "KR",  # Korean (South Korea)
+        "tr": "TR",  # Turkish (Turkey)
+        "pl": "PL",  # Polish (Poland)
+        "vi": "VN",  # Vietnamese (Vietnam)
     }
 
     language = locale.split("-")[0].lower()
-    region = language_to_region.get(language, language.upper())
+    if language not in language_to_region:
+        raise ValueError(
+            f"Unsupported language code: {language!r}. "
+            f"Supported languages: {sorted(language_to_region.keys())}"
+        )
+    region = language_to_region[language]
     return f"{language}-{region}"
