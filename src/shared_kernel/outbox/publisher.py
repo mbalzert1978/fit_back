@@ -1,4 +1,4 @@
-"""Event publisher: writes events to outbox transactionally with aggregate writes."""
+"""Event-Publisher: Schreibt Events transaktional mit Aggregat-Writes in Outbox."""
 
 from typing import Any
 from uuid import UUID, uuid4
@@ -15,21 +15,21 @@ async def publish_outbox_event(
     aggregate_type: str,
     payload: dict[str, Any],
 ) -> None:
-    """Publish an event to the outbox for later relay.
+    """Veröffentliche ein Event in der Outbox zur späteren Relay-Verarbeitung.
 
-    Called transactionally alongside the aggregate write that emitted the event.
-    The relay worker (relay_outbox_events) will pick up unprocessed events
-    and notify subscribers via LISTEN/NOTIFY.
+    Wird transaktional zusammen mit dem Aggregat-Write aufgerufen, der das Event emittiert.
+    Der Relay-Worker (relay_outbox_events) holt unverarbeitete Events
+    und benachrichtigt Subscribers via LISTEN/NOTIFY.
 
     Args:
-        session: Async SQLAlchemy session (will be committed by the caller).
-        event_type: Event type name (e.g., 'UserRegistered').
-        aggregate_id: UUID of the aggregate that emitted the event.
-        aggregate_type: Type of aggregate (e.g., 'User').
-        payload: Event data as a dict (will be serialized to JSONB).
+        session: Async SQLAlchemy-Session (wird vom Aufrufer committed).
+        event_type: Event-Typ-Name (z.B. 'UserRegistered').
+        aggregate_id: UUID des Aggregats, das das Event emittiert hat.
+        aggregate_type: Typ des Aggregats (z.B. 'User').
+        payload: Event-Daten als Dict (wird zu JSONB serialisiert).
 
     Raises:
-        ValueError: If any required parameter is invalid.
+        ValueError: Falls ein erforderlicher Parameter ungültig ist.
     """
     if not event_type or not isinstance(event_type, str):
         raise ValueError("event_type must be a non-empty string")
@@ -38,8 +38,7 @@ async def publish_outbox_event(
     if not aggregate_type or not isinstance(aggregate_type, str):
         raise ValueError("aggregate_type must be a non-empty string")
     if not isinstance(payload, dict):
-        msg = "payload must be a dict"
-        raise TypeError(msg)
+        raise TypeError("payload must be a dict")
 
     event = OutboxEvent(
         id=uuid4(),

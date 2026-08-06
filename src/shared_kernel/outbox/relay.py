@@ -1,6 +1,7 @@
 """Relay worker: fetches events from outbox and notifies subscribers via LISTEN/NOTIFY."""
 
 import asyncio
+import json
 import logging
 from dataclasses import dataclass
 from uuid import UUID, uuid4
@@ -18,19 +19,19 @@ OUTBOX_NOTIFY_CHANNEL = "outbox_events"
 
 @dataclass(frozen=True, slots=True)
 class RelayConfig:
-    """Configuration for the relay worker."""
+    """Konfiguration für den Relay-Worker."""
 
     batch_size: int = 10
-    """Maximum events to fetch and process in one iteration."""
+    """Maximale Anzahl von Events, die in einer Iteration geholt und verarbeitet werden."""
 
     max_retries: int = 3
-    """Maximum retry attempts per event."""
+    """Maximale Retry-Versuche pro Event."""
 
     backoff_base_ms: float = 100.0
-    """Base delay in milliseconds for exponential backoff (2^attempt * base)."""
+    """Basisverzögerung in Millisekunden für exponentiellen Backoff (2^attempt * base)."""
 
     poll_interval_ms: float = 1000.0
-    """Interval in milliseconds to check for new events."""
+    """Intervall in Millisekunden zum Prüfen auf neue Events."""
 
 
 async def relay_outbox_events(
@@ -38,22 +39,22 @@ async def relay_outbox_events(
     worker_id: UUID | None = None,
     config: RelayConfig | None = None,
 ) -> None:
-    """Relay unprocessed events from the outbox to subscribers via LISTEN/NOTIFY.
+    """Leite unverarbeitete Events aus der Outbox an Subscribers via LISTEN/NOTIFY weiter.
 
-    Fetches unprocessed events using SELECT...FOR UPDATE SKIP LOCKED (write-lock
-    to prevent duplicate processing), marks them as processed, and notifies
-    subscribers on the OUTBOX_NOTIFY_CHANNEL.
+    Holt unverarbeitete Events mit SELECT...FOR UPDATE SKIP LOCKED
+    (Schreibsperre zur Verhinderung doppelter Verarbeitung), markiert sie als verarbeitet
+    und benachrichtigt Subscribers auf OUTBOX_NOTIFY_CHANNEL.
 
-    Implements idempotent retry logic: events with retry_count >= max_retries
-    are marked as processed but logged for manual inspection.
+    Implementiert idempotente Retry-Logik: Events mit retry_count >= max_retries
+    werden als verarbeitet markiert, aber für manuelle Überprüfung geloggt.
 
     Args:
-        session: Async SQLAlchemy session (must be connected to Postgres).
-        worker_id: Unique identifier for this worker instance (UUID); if None, a new UUID is generated.
-        config: Relay configuration; uses defaults if None.
+        session: Async SQLAlchemy-Session (muss zu Postgres verbunden sein).
+        worker_id: Eindeutige Kennung für diese Worker-Instanz (UUID); wenn None, wird eine neue UUID generiert.
+        config: Relay-Konfiguration; nutzt Standardwerte wenn None.
 
     Raises:
-        RuntimeError: If the database is not Postgres or if connection fails.
+        RuntimeError: Falls die Datenbank nicht Postgres ist oder Verbindung fehlschlägt.
     """
     if worker_id is None:
         worker_id = uuid4()
@@ -66,7 +67,7 @@ async def relay_outbox_events(
         while True:
             events_processed = await _relay_batch(session, worker_id, config)
             if events_processed == 0:
-                # No events to process; sleep before next check
+                # Keine Events zu verarbeiten; Warten vor nächster Prüfung
                 await asyncio.sleep(config.poll_interval_ms / 1000.0)
     except asyncio.CancelledError:
         logger.info(f"Relay worker {worker_id} cancelled")
@@ -78,16 +79,16 @@ async def _relay_batch(
     worker_id: UUID,
     config: RelayConfig,
 ) -> int:
-    """Fetch and process one batch of unprocessed events.
+    """Hole und verarbeite einen Batch unverarbeiteter Events.
 
-    Returns the number of events processed in this batch.
+    Gibt die Anzahl der in diesem Batch verarbeiteten Events zurück.
     """
     try:
-        # Use raw connection to set isolation level and issue raw SQL
-        if await session.connection() is None:
+        # Prüfe, ob Session verbunden ist
+        if session is None:
             raise RuntimeError("Session not connected; cannot relay events")
 
-        # Fetch unprocessed events with write lock (SKIP LOCKED prevents blocking)
+        # Hole unverarbeitete Events mit Schreibsperre (SKIP LOCKED verhindert Blockierung)
         # Query: SELECT * FROM shared.outbox
         #        WHERE processed_at IS NULL
         #        ORDER BY created_at ASC
@@ -107,18 +108,18 @@ async def _relay_batch(
         if not events:
             return 0
 
-        # Process each event
+        # Verarbeite jedes Event
         for event in events:
             await _process_event(session, event, worker_id, config)
 
-        # Commit the batch
+        # Committe den Batch
         await session.commit()
 
         logger.info(f"Relayed {len(events)} events in batch")
         return len(events)
 
     except Exception:
-        logger.exception("Error in relay batch")
+        logger.exception("Fehler im Relay-Batch")
         await session.rollback()
         raise
 
@@ -129,9 +130,11 @@ async def _process_event(
     worker_id: UUID,
     config: RelayConfig,
 ) -> None:
-    """Process a single event: mark as processed and notify subscribers.
+    """Verarbeite ein einzelnes Event: Markiere als verarbeitet und benachrichtige Subscribers.
 
-    If max retries exceeded, mark as processed (give up) and log.
+    Falls max. Retries überschritten, markiere als verarbeitet (aufgegeben) und logge.
+    Hinweis: processed_at wird auch bei Retry-Aufgabe gesetzt (nach max_retries Versuchen).
+    Das bedeutet "verarbeitet (erfolgreich oder aufgegeben)", nicht "erfolgreich".
     """
     try:
         if event.retry_count >= config.max_retries:
@@ -139,20 +142,12 @@ async def _process_event(
                 f"Event {event.id} exceeded max retries ({config.max_retries}); giving up. "
                 f"Last error: {event.last_error}"
             )
-            event.processed_at = None  # Will be set by UPDATE below
-            event.processed_by = worker_id
-            # Don't mark as processed; rely on UPDATE below
         else:
-            # Attempt to notify subscribers
+            # Versuche, Subscribers zu benachrichtigen
             await _notify_subscribers(session, event)
 
-        # Mark event as processed
-        event.processed_at = None  # Will be populated by SQL now()
-        event.processed_by = worker_id
-
-        # Refresh from DB to get server-generated timestamp
-        await session.flush()
-        # Use raw SQL to set processed_at to current time
+        # Markiere Event als verarbeitet mit direktem UPDATE (verhindert Race-Conditions)
+        # Nutze text("now()") für server-seitigen Zeitstempel
         update_stmt = (
             update(OutboxEvent)
             .where(OutboxEvent.id == event.id)
@@ -168,8 +163,8 @@ async def _process_event(
         logger.info(f"Event {event.id} processed by worker {worker_id}")
 
     except Exception as exc:  # noqa: BLE001 - catch all to implement retry logic
-        logger.error(f"Error processing event {event.id}: {exc}")
-        # Update retry count and last error
+        logger.error(f"Fehler bei Event-Verarbeitung {event.id}: {exc}")
+        # Aktualisiere Retry-Count und letzten Fehler
         event.retry_count += 1
         event.last_error = str(exc)
 
@@ -183,7 +178,7 @@ async def _process_event(
         )
         await session.execute(update_stmt)
 
-        # Exponential backoff before retry
+        # Exponentieller Backoff vor Retry
         backoff_ms = config.backoff_base_ms * (2**event.retry_count)
         logger.info(f"Event {event.id} retry #{event.retry_count}, backoff {backoff_ms}ms")
         await asyncio.sleep(backoff_ms / 1000.0)
@@ -193,22 +188,30 @@ async def _notify_subscribers(
     session: AsyncSession,
     event: OutboxEvent,
 ) -> None:
-    """Notify subscribers of a new event via LISTEN/NOTIFY.
+    """Benachrichtige Subscribers zu einem neuen Event via LISTEN/NOTIFY.
 
-    Sends the event ID and type on OUTBOX_NOTIFY_CHANNEL.
+    Versendet die Event-ID und den Typ auf OUTBOX_NOTIFY_CHANNEL.
     """
-    # Verify we have a connection (we'll use raw SQL via session.execute)
-    # session.connection() returns async context manager, we just need to verify we can query
+    # Prüfe Datenbankverbindung mit SELECT 1
     try:
         await session.execute(text("SELECT 1"))
     except Exception as exc:
         raise RuntimeError("No connection available for NOTIFY") from exc
 
-    # Prepare notification payload
-    payload = f'{{"id": "{event.id}", "event_type": "{event.event_type}", "aggregate_id": "{event.aggregate_id}"}}'
+    # Bereite Benachrichtigungspayload vor als sicheres JSON
+    # Nutze json.dumps() statt String-Interpolation, um SQL-Injection zu verhindern
+    payload_json = json.dumps(
+        {
+            "id": str(event.id),
+            "event_type": event.event_type,
+            "aggregate_id": str(event.aggregate_id),
+        }
+    )
 
-    # NOTIFY is not directly exposed in asyncpg, so we use raw SQL
-    notify_sql = f"NOTIFY {OUTBOX_NOTIFY_CHANNEL}, '{payload}'"
+    # NOTIFY mit Escaping (Payload muss mit einfachen Anführungszeichen escaped werden)
+    # Escape single quotes in the JSON by doubling them (SQL standard)
+    escaped_payload = payload_json.replace("'", "''")
+    notify_sql = f"NOTIFY {OUTBOX_NOTIFY_CHANNEL}, '{escaped_payload}'"
     await session.execute(text(notify_sql))
 
-    logger.debug(f"Notified {OUTBOX_NOTIFY_CHANNEL} for event {event.id}")
+    logger.debug(f"Benachrichtigt {OUTBOX_NOTIFY_CHANNEL} für Event {event.id}")

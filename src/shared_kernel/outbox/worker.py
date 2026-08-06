@@ -40,6 +40,8 @@ async def main() -> None:
         except ValueError as e:
             raise ValueError(f"Invalid WORKER_ID format: {e}") from e
     else:
+        # WORKER_ID ist optional; wenn nicht gesetzt, wird eine anonyme UUID generiert.
+        # Das ist ok für Entwicklung, aber in Produktion sollte jeder Worker eine eindeutige ID haben.
         worker_id = uuid4()
 
     logger.info(f"Starting outbox relay worker {worker_id}")

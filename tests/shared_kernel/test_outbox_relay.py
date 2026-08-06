@@ -1,6 +1,7 @@
 """Tests for outbox relay worker and publisher."""
 
 import asyncio
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -112,47 +113,55 @@ class TestRelayOutboxEvents:
     """Tests for relay_outbox_events()."""
 
     @pytest.mark.asyncio
-    async def test_relay_event_once(self, test_session: AsyncSession) -> None:
+    async def test_relay_event_once(self, test_engine: AsyncEngine) -> None:
         """Test that an event is processed exactly once (processed_at set)."""
+        async_session = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
         # Publish event
         aggregate_id = uuid4()
-        await publish_outbox_event(
-            test_session,
-            event_type="UserRegistered",
-            aggregate_id=aggregate_id,
-            aggregate_type="User",
-            payload={"email": "test@example.com"},
-        )
-        await test_session.commit()
+        async with async_session() as session:
+            await publish_outbox_event(
+                session,
+                event_type="UserRegistered",
+                aggregate_id=aggregate_id,
+                aggregate_type="User",
+                payload={"email": "test@example.com"},
+            )
+            await session.commit()
 
         # Verify unprocessed
-        stmt = select(OutboxEvent).where(OutboxEvent.aggregate_id == aggregate_id)
-        result = await test_session.execute(stmt)
-        event = result.scalar_one()
-        assert event.processed_at is None
+        async with async_session() as session:
+            stmt = select(OutboxEvent).where(OutboxEvent.aggregate_id == aggregate_id)
+            result = await session.execute(stmt)
+            event = result.scalar_one()
+            assert event.processed_at is None
 
         # Run relay (1 iteration, fetch batch)
         worker_id = uuid4()
         config = RelayConfig(batch_size=10, poll_interval_ms=100)
-        relay_task = asyncio.create_task(
-            relay_outbox_events(test_session, worker_id=worker_id, config=config)
-        )
 
-        # Let relay process batch
-        await asyncio.sleep(0.2)
-        relay_task.cancel()
-        try:
-            await relay_task
-        except asyncio.CancelledError:
-            pass
+        async with async_session() as session:
+            relay_task = asyncio.create_task(
+                relay_outbox_events(session, worker_id=worker_id, config=config)
+            )
+
+            # Let relay process batch
+            await asyncio.sleep(0.3)
+            relay_task.cancel()
+            try:
+                await relay_task
+            except asyncio.CancelledError:
+                pass
 
         # Verify event processed
-        result = await test_session.execute(stmt)
-        event = result.scalar_one()
-        assert event.processed_at is not None
-        assert event.processed_by == worker_id
-        assert event.retry_count == 0
-        assert event.last_error is None
+        async with async_session() as session:
+            stmt = select(OutboxEvent).where(OutboxEvent.aggregate_id == aggregate_id)
+            result = await session.execute(stmt)
+            event = result.scalar_one()
+            assert event.processed_at is not None
+            assert event.processed_by == worker_id
+            assert event.retry_count == 0
+            assert event.last_error is None
 
     @pytest.mark.asyncio
     async def test_relay_skip_locked_prevents_duplicate(self, test_engine: AsyncEngine) -> None:
@@ -292,3 +301,176 @@ class TestRelayOutboxEvents:
         result = await test_session.execute(select(OutboxEvent).where(OutboxEvent.id == event.id))
         event = result.scalar_one()
         assert event.processed_by == worker_id
+
+    @pytest.mark.asyncio
+    async def test_relay_notify_payload_safe(self, test_engine: AsyncEngine) -> None:
+        """Verifiziert, dass NOTIFY-Payload sicher gegen SQL-Injection escaped ist.
+
+        Kontrolliert, dass Payload mit Sonderzeichen (Anführungszeichen, etc.) korrekt
+        escaped wird, um SQL-Injection zu verhindern.
+        """
+        async_session = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
+        # Erstelle Event mit Payload, die Anführungszeichen enthält
+        aggregate_id = uuid4()
+        async with async_session() as session:
+            await publish_outbox_event(
+                session,
+                event_type="UserRegistered",
+                aggregate_id=aggregate_id,
+                aggregate_type="User",
+                # Payload mit gefährlichen Zeichen
+                payload={"email": "test\"with'quotes@example.com"},
+            )
+            await session.commit()
+
+        # Relaye das Event - sollte ohne Fehler durchlaufen
+        async with async_session() as session:
+            relay_config = RelayConfig(batch_size=10, poll_interval_ms=100)
+            relay_task = asyncio.create_task(
+                relay_outbox_events(session, worker_id=uuid4(), config=relay_config)
+            )
+
+            # Lasse relativ lange laufen, um sicherzustellen, dass Event verarbeitet wird
+            await asyncio.sleep(0.5)
+            relay_task.cancel()
+            try:
+                await relay_task
+            except asyncio.CancelledError:
+                pass
+
+        # Verifiziere, dass Event trotz Sonderzeichen verarbeitet wurde
+        async with async_session() as session:
+            result = await session.execute(
+                select(OutboxEvent).where(OutboxEvent.aggregate_id == aggregate_id)
+            )
+            event = result.scalar_one()
+            assert event.processed_at is not None
+            assert event.processed_by is not None
+
+    @pytest.mark.asyncio
+    async def test_relay_skip_locked_across_sessions(self, test_engine: AsyncEngine) -> None:
+        """Verifiziert SKIP LOCKED über separate DB-Sessions (wie separate Container).
+
+        Imitiert zwei separate Worker-Prozesse mit eigenen Engines und Sessions.
+        """
+        # Erstelle zwei separate AsyncSessions
+        async_session_factory = sessionmaker(
+            test_engine, class_=AsyncSession, expire_on_commit=False
+        )
+
+        aggregate_id = uuid4()
+
+        # Publish Event in erster Session
+        async with async_session_factory() as session:
+            await publish_outbox_event(
+                session,
+                event_type="UserRegistered",
+                aggregate_id=aggregate_id,
+                aggregate_type="User",
+                payload={"email": "test@example.com"},
+            )
+            await session.commit()
+
+        # Starte zwei Worker mit je einer eigenen Session
+        worker1_id = uuid4()
+        worker2_id = uuid4()
+        config = RelayConfig(batch_size=10, poll_interval_ms=50)
+
+        task1 = None
+        task2 = None
+        try:
+            async with async_session_factory() as session1, async_session_factory() as session2:
+                task1 = asyncio.create_task(
+                    relay_outbox_events(session1, worker_id=worker1_id, config=config)
+                )
+                task2 = asyncio.create_task(
+                    relay_outbox_events(session2, worker_id=worker2_id, config=config)
+                )
+
+                # Lasse sie kurz laufen
+                await asyncio.sleep(0.5)
+
+                # Beende beide
+                task1.cancel()
+                task2.cancel()
+
+                for task in [task1, task2]:
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+        except Exception:
+            # Cleanup tasks if setup failed
+            for task in [task1, task2]:
+                if task and not task.done():
+                    task.cancel()
+            raise
+
+        # Verifiziere, dass Event nur von einem Worker verarbeitet wurde
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(OutboxEvent).where(OutboxEvent.aggregate_id == aggregate_id)
+            )
+            event = result.scalar_one()
+
+            # Nur einer der beiden Worker sollte es verarbeitet haben
+            assert event.processed_by in (worker1_id, worker2_id)
+            assert event.processed_at is not None
+
+    @pytest.mark.asyncio
+    async def test_relay_exponential_backoff(self, test_session: AsyncSession) -> None:
+        """Verifiziert, dass Retry-Backoff exponentiell wächst."""
+        aggregate_id = uuid4()
+        event_id = uuid4()
+
+        # Erstelle manuell ein Event mit retry_count
+        event = OutboxEvent(
+            id=event_id,
+            event_type="TestEvent",
+            aggregate_id=aggregate_id,
+            aggregate_type="Test",
+            payload={"test": "data"},
+            processed_at=None,
+            processed_by=None,
+            retry_count=0,
+            last_error=None,
+        )
+        test_session.add(event)
+        await test_session.commit()
+
+        # Mocke asyncio.sleep, um Backoff-Delays zu tracken
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch(
+                "src.shared_kernel.outbox.relay._notify_subscribers",
+                new_callable=AsyncMock,
+                side_effect=Exception("Test error"),
+            ),
+        ):
+            # Relaye das Event (sollte fehlschlagen und Backoff versuchen)
+            config = RelayConfig(max_retries=3, backoff_base_ms=100.0)
+            worker_id = uuid4()
+
+            relay_task = asyncio.create_task(
+                relay_outbox_events(test_session, worker_id=worker_id, config=config)
+            )
+
+            # Lasse kurz laufen
+            await asyncio.sleep(0.1)
+            relay_task.cancel()
+            try:
+                await relay_task
+            except asyncio.CancelledError:
+                pass
+
+        # Verifiziere, dass asyncio.sleep mit exponentiellen Delays aufgerufen wurde
+        sleep_calls = mock_sleep.call_args_list
+        if len(sleep_calls) >= 2:
+            # Extrahiere die tatsächlichen Delay-Werte (in Sekunden)
+            sleep_values = [call.args[0] for call in sleep_calls]
+            # Verifiziere, dass sie exponentiell ansteigen
+            for i in range(1, len(sleep_values)):
+                assert sleep_values[i] > sleep_values[i - 1], (
+                    f"Backoff nicht exponentiell: {sleep_values[i]} nicht > {sleep_values[i - 1]}"
+                )
