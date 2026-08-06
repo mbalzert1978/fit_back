@@ -1,12 +1,29 @@
 {
-  "specs_suffix": "n/a",
-  "feature_project_prefix": "n/a",
-  "reference_feature_project": "n/a",
-  "test_facade_glob": "tests/test_api.py",
-  "adr_reference": null,
   "checks": {
-    "coverage_gap": false,
-    "test_api_shape": false
+    "coverage_gap": true
   },
-  "_note": "Beide Checks vorerst deaktiviert: coverage_gap.py/test_api_shape.py setzen eine C#-Konvention voraus (Top-Level-Projekt src/<Project> mit separatem Sibling-Projekt src/<Project><specs_suffix>). Dieses Repo folgt stattdessen .rules/python/python-feature-slices.md: Tests liegen als tests/<use_case>/ *innerhalb* desselben Feature-Pakets, kein separates Top-Level-Specs-Projekt. Sobald M0/M1 die konkrete Paketstruktur (docs/milestones/01-technical-decisions.md) etabliert haben, hier reaktivieren und specs_suffix/feature_project_prefix/test_facade_glob/reference_feature_project auf die reale Struktur setzen (z. B. test_facade_glob auf ein pro Use-Case erwartetes tests/test_api.py). Der Test-Lauf selbst (run-tests) ist davon unberuehrt und bleibt aktiv/verpflichtend."
+  "coverage_rules": [
+    {
+      "unit_glob": "src/contexts/*/application/*",
+      "test_template": "src/contexts/{0}/specs/{1}"
+    },
+    {
+      "unit_glob": "src/contexts/shared_kernel",
+      "test_template": "tests"
+    },
+    {
+      "unit_glob": "src/contexts/*",
+      "test_template": "tests/contexts/{0}"
+    },
+    {
+      "unit_glob": "src/*.py",
+      "test_template": "tests"
+    },
+    {
+      "unit_glob": "src/*",
+      "test_template": "tests/{0}"
+    }
+  ],
+  "coverage_exclude_names": ["shared", "__pycache__", "__init__.py"],
+  "_note": "coverage_rules bilden die zwei Test-Heimaten dieses Repos ab, in dieser Reihenfolge (erste passende Regel gewinnt, deshalb speziell vor allgemein): ein Use-Case-Paket src/contexts/<ctx>/application/<use_case>/ wird von src/contexts/<ctx>/specs/<use_case>/ abgedeckt (die Slice-Konvention aus .rules/python/python-feature-slices.md); alles uebrige spiegelt sich unter tests/ (src/api -> tests/api, src/middleware -> tests/middleware, src/infrastructure -> tests/infrastructure, src/contexts/<ctx> ausserhalb der Slices -> tests/contexts/<ctx>). src/main.py und src/settings.py landen ueber die src/*.py-Regel bei tests/ als Ganzem, weil ihre Tests dort flach liegen (tests/test_settings.py). Der frueher hier konfigurierte test_api_shape-Check ist ersatzlos gestrichen: das Skill slice-shape-check prueft dieselbe Frage passend zu diesem Layout und zusaetzlich die Import-Kanten der Specs. Der Test-Lauf selbst (run-tests) ist unabhaengig davon und bleibt verpflichtend."
 }

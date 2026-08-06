@@ -8,11 +8,18 @@ Verzweigung nur unsichtbar gemacht.
 
 Was bleibt, ist der Fall, den FastAPI selbst wirft: ein Body, der nicht die
 erwartete Gestalt hat.
+
+Angesprochen wird die App wie in jeder anderen Testdatei hier ueber
+`httpx.ASGITransport`, nicht ueber `fastapi.testclient.TestClient`: der
+TestClient ist ein Synchron-Wrapper, der die App ueber einen eigenen Event-Loop
+faehrt, und Starlette hat ihn inzwischen an `httpx2` gebunden. Der direkte
+ASGI-Transport braucht diesen Umweg nicht.
 """
 
+import pytest
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel, field_validator
 
 from src.api.exception_handlers import register_exception_handlers
@@ -21,7 +28,8 @@ from src.api.exception_handlers import register_exception_handlers
 class TestValidationErrorHandler:
     """RequestValidationError wird zu RFC-7807 mit Status 400."""
 
-    def test_ungueltiger_body_wird_zu_problem_json(self) -> None:
+    @pytest.mark.asyncio
+    async def test_ungueltiger_body_wird_zu_problem_json(self) -> None:
         """400 statt FastAPIs 422 - der Aufrufer sieht ueberall dasselbe Format."""
         app = FastAPI()
         register_exception_handlers(app)
@@ -41,11 +49,12 @@ class TestValidationErrorHandler:
         async def register(data: RegisterRequest) -> dict:
             return {"success": True}
 
-        client = TestClient(app)
-        response = client.post(
-            "/api/v1/register",
-            json={"email": "test", "password": "short"},
-        )
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/register",
+                json={"email": "test", "password": "short"},
+            )
 
         assert response.status_code == 400
         assert response.headers["content-type"] == "application/problem+json"
