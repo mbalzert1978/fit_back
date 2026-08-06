@@ -128,7 +128,9 @@ def _normalize_locale(locale: str) -> str:
     """Normalize locale format to language-REGION.
 
     Maps language codes to their default regions per RFC 5646.
-    If a language code is not mapped, raises ValueError with clear message.
+    If a language code is not mapped, gracefully falls back to DEFAULT_LOCALE.
+    Middleware must be robust and never raise exceptions — unsupported languages
+    trigger a log warning and fallback instead.
 
     Supported languages and default regions:
     - 'de' -> 'de-DE', 'en' -> 'en-US', 'fr' -> 'fr-FR', 'es' -> 'es-ES',
@@ -140,10 +142,8 @@ def _normalize_locale(locale: str) -> str:
         locale: Input locale string (e.g., 'de', 'en-US', 'de-DE')
 
     Returns:
-        Normalized locale string (e.g., 'de-DE', 'en-US')
-
-    Raises:
-        ValueError: If language code is not supported.
+        Normalized locale string (e.g., 'de-DE', 'en-US').
+        Falls back to DEFAULT_LOCALE if language is not supported.
     """
     # If already in format language-REGION, validate and return as-is
     if len(locale.split("-")) == 2:
@@ -170,9 +170,11 @@ def _normalize_locale(locale: str) -> str:
 
     language = locale.split("-")[0].lower()
     if language not in language_to_region:
-        raise ValueError(
-            f"Unsupported language code: {language!r}. "
+        logger.warning(
+            f"Unsupported language code {language!r} in Accept-Language, "
+            f"falling back to default locale {DEFAULT_LOCALE}. "
             f"Supported languages: {sorted(language_to_region.keys())}"
         )
+        return DEFAULT_LOCALE
     region = language_to_region[language]
     return f"{language}-{region}"

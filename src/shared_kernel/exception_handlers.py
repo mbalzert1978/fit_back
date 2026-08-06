@@ -44,18 +44,41 @@ async def domain_exception_handler(
 
     # Extract error code from error_type (format: https://api.example/errors/error-code)
     # Validate format and convert from kebab-case to UPPERCASE_WITH_UNDERSCORES
-    if not exc.error_type or "/" not in exc.error_type:
-        raise ValueError(
-            f"Invalid error_type format. Expected 'https://.../errors/<kebab-case>', "
-            f"got: {exc.error_type!r}"
+    # Wrap validation in try-catch: exception handlers must be robust and never crash
+    try:
+        if not exc.error_type or "/" not in exc.error_type:
+            raise ValueError(
+                f"Invalid error_type format. Expected 'https://.../errors/<kebab-case>', "
+                f"got: {exc.error_type!r}"
+            )
+        error_code_kebab = exc.error_type.split("/")[-1]
+        if not error_code_kebab or not all(c.islower() or c == "-" for c in error_code_kebab):
+            raise ValueError(
+                f"error_type must end with kebab-case error code, "
+                f"got: {error_code_kebab!r} from {exc.error_type!r}"
+            )
+        error_code = error_code_kebab.upper().replace("-", "_")
+    except ValueError as e:
+        # Handler validation failed: log and return RFC 7807 error response
+        logger.error(
+            "DomainException validation failed: %s. "
+            "Falling back to generic error response.",
+            str(e),
+            extra={"error_type": exc.error_type},
         )
-    error_code_kebab = exc.error_type.split("/")[-1]
-    if not error_code_kebab or not all(c.islower() or c == "-" for c in error_code_kebab):
-        raise ValueError(
-            f"error_type must end with kebab-case error code, "
-            f"got: {error_code_kebab!r} from {exc.error_type!r}"
+        problem = ProblemDetails(
+            type="https://api.example/errors/internal-server-error",
+            title="Internal Server Error",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal error occurred while processing your request.",
+            instance=str(request.url.path),
+            errors=None,
         )
-    error_code = error_code_kebab.upper().replace("-", "_")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=problem.model_dump(exclude_none=True),
+            media_type="application/problem+json",
+        )
 
     # Get localized title and detail; fall back to exception values if resource not found (locale-neutral)
     localized = resource_provider.get_message(error_code, locale)
