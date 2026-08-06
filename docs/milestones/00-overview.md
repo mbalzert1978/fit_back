@@ -61,11 +61,19 @@ Agent hat dann keinen Grund, mit der Domäne zu beginnen — er baut, was am sic
 Abhängigkeitsrichtung, die sich durch alle M0-PRs zieht. Die Stufung macht „Domäne zuerst"
 **überprüfbar** statt nur empfohlen.
 
+**Nur die Stufen, die es wirklich gibt.** Ein Use Case ohne HTTP-Oberfläche — ein Hintergrundjob,
+ein Outbox-Consumer — hat **Stufe 1 und 2, aber keine Stufe 3**. Er bleibt ein vollwertiger Slice:
+seine Fachlogik gehört in die Domäne, sein Verhalten wird über die Test-API spezifiziert, und der
+Job-Scheduler ist Infrastruktur (Stufe 2), nicht die Fachlogik selbst. Nicht zu verwechseln mit dem
+Fall darunter.
+
 **Was ein Ticket nicht sein darf:** ein Ticket, das **nur** Stufe 2 oder **nur** Stufe 3 liefert,
 ohne dass Stufe 1 in einem anderen Ticket bereits abgeschlossen ist. Das ist ein horizontaler
-Schnitt, kein Tracer Bullet. Legitime Ausnahme: rein technische Infrastruktur ohne eigenen Use Case
-(Repo-Grundgerüst, Migrations-Baseline, Hintergrundjobs) — diese Tickets tragen keine Domäne und
-sind als solche erkennbar.
+Schnitt, kein Tracer Bullet. Legitime Ausnahme: **rein technische** Arbeit ohne jeden eigenen Use
+Case (Repo-Grundgerüst, Migrations-Baseline, ein reiner Aufräum-Job ohne Fachregel) — diese Tickets
+tragen keine Domäne, behalten flache Kriterien und sind als solche erkennbar. Die Abgrenzung: Steckt
+in der Aufgabe eine **Fachregel**, die man falsch implementieren könnte? Dann ist es ein Use Case
+mit Stufe 1, egal ob ihn jemals ein HTTP-Request auslöst.
 
 **Aufteilen in mehrere Tickets** nur, wenn eine einzelne Stufe für sich genommen groß ist (z. B.
 ein OCR-Adapter mit eigener Queue). Der Regelfall ist **ein Ticket je Use Case mit drei gestuften

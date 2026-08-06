@@ -19,10 +19,28 @@ PATCH .../entries/{id} (Grams aendern), PATCH .../entries/{id}/slot (MealSlotId 
 
 ## Acceptance criteria
 
-- [ ] PATCH grams liefert 200 mit aktualisiertem Eintrag, 400 bei Out-of-Range, 404 bei unbekanntem Eintrag
-- [ ] PATCH slot verschiebt den Eintrag und fasst ihn ggf. mit einem vorhandenen Eintrag im Ziel-Slot zusammen (dieselbe Zusammenfassen-Regel wie AddEntry)
-- [ ] DELETE liefert 204 bzw. 404
-- [ ] Integrationstests je Endpunkt, curl-Beispiele
+### Stufe 1 — Slice (ohne Infrastruktur, ohne HTTP, ohne Datenbank)
+
+- [ ] `contexts/diary/domain/`: Invarianten im DiaryEntry + DiaryDay fuer die Operationen UpdateAmount (Grams im Range), MoveEntry (neuer Slot muss existieren, Zusammenfassen-Regel applizieren), DeleteEntry (alles ok)
+- [ ] `contexts/diary/application/update_entry_amount/`: Command (entryId, newGrams), Handler, Request-Mapper, Response-Mapper, Validierungsregeln
+- [ ] `contexts/diary/application/move_entry/`: Command (entryId, newSlotId), Handler, Request-Mapper, Response-Mapper, Validierungsregeln (appliziert Zusammenfassen-Regel)
+- [ ] `contexts/diary/application/delete_entry/`: Command (entryId), Handler, Request-Mapper, Response-Mapper
+- [ ] Public Nähte: je Anwendungsfall eigene schmale Protocols; **nur Primitive** ueber der Naht
+- [ ] `application/update_entry_amount/test_api.py` + fakes, `application/move_entry/test_api.py` + fakes, `application/delete_entry/test_api.py` + fakes
+- [ ] Verhaltens-Specs: UpdateAmount (200 ok, 400 out-of-range, 404 not-found), MoveEntry (200 ok, 404 slot not-found, Zusammenfassen-Regel wird appliziert), DeleteEntry (204 ok, 404 not-found)
+- [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
+
+### Stufe 2 — Infrastruktur
+
+- [ ] SQLAlchemy-Repository implementiert die Naehte fuer alle drei Operationen
+- [ ] Integrationstest gegen Testcontainers-Postgres je Endpunkt: Grams aendern, Entry verschieben mit/ohne Zusammenfassen, Entry loeschen
+
+### Stufe 3 — HTTP
+
+- [ ] `PATCH /api/v1/diary/days/{date}/entries/{entryId}` (Grams aendern) liefert 200 mit aktualisiertem Eintrag, 400 bei `grams-out-of-range`, 404 bei unbekanntem Eintrag
+- [ ] `PATCH /api/v1/diary/days/{date}/entries/{entryId}/slot` (MealSlotId aendern) liefert 200, verschiebt den Eintrag und fasst ihn ggf. mit einem vorhandenen Eintrag im Ziel-Slot zusammen (dieselbe Zusammenfassen-Regel wie AddEntry), 404 wenn Slot nicht existiert
+- [ ] `DELETE /api/v1/diary/days/{date}/entries/{entryId}` liefert 204 bzw. 404
+- [ ] End-to-End-Tests gegen die laufende App; curl-Beispiele je Endpunkt
 
 ## Blocked by
 

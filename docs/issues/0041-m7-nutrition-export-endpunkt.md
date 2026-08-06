@@ -19,8 +19,24 @@ GET /api/v1/health/nutrition-export/{date} - liefert die Tageswerte (kcal/carbsG
 
 ## Acceptance criteria
 
-- [ ] Response liefert dieselben aggregierten Werte wie Diary.GetDay.totals fuer denselben Tag
-- [ ] Integrationstest, curl-Beispiel
+### Stufe 1 — Slice (ohne Infrastruktur, ohne HTTP, ohne Datenbank)
+
+- [ ] `contexts/health_sync/application/export_nutrition/`: Command (date, userId), Handler (ruft Diary ueber den Port auf und transformiert Ergebnis zu Response), Request-Mapper und Response-Mapper
+- [ ] Public Naht: eigenes, schmales `Protocol` mit Operation zum Laden der Tageswerte aus Diary; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
+- [ ] `application/export_nutrition/test_api.py` + `application/export_nutrition/fakes/` (In-Memory, Fake-Gateway zu Diary)
+- [ ] Verhaltens-Specs unter `contexts/health_sync/tests/export_nutrition/`: Projektion der Diary-Daten (kcal/carbsG/proteinG/fatG) in Export-Format, Verhalten des Gateway-Adapters
+- [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container** — Gateway ist gefakt
+- [ ] `./make.ps1 import-lint` gruen, `slice-shape-check` liefert `Findings: 0`
+
+### Stufe 2 — Infrastruktur
+
+- [ ] Port-Adapter implementiert die Naht aus Stufe 1: ruft Diary's Application-Service fuer GetDay auf (In-Process, kein HTTP), uebersetzt Ergebnis
+- [ ] Integrationstest gegen Testcontainers-Postgres + echte Diary/HealthSync-Daten: Response liefert dieselben aggregierten Werte wie Diary.GetDay.totals fuer denselben Tag
+
+### Stufe 3 — HTTP
+
+- [ ] `GET /api/v1/health/nutrition-export/{date}` liefert 200 mit kcal/carbsG/proteinG/fatG
+- [ ] End-to-End-Test gegen die laufende App; curl-Beispiel in der Ticket-Doku
 
 ## Blocked by
 

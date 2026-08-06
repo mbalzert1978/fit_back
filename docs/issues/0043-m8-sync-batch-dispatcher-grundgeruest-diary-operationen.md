@@ -19,10 +19,26 @@ POST /api/v1/sync/batch: operations werden in gesendeter Reihenfolge verarbeitet
 
 ## Acceptance criteria
 
-- [ ] Operationen werden strikt in Sende-Reihenfolge verarbeitet (Reihenfolge-Test)
-- [ ] Eine fehlgeschlagene Operation liefert einen problem-Body (RFC 7807) im entsprechenden results-Eintrag, stoppt aber nicht die folgenden Operationen
-- [ ] opId zweimal ⇒ status=duplicate beim zweiten Mal
-- [ ] Integrationstest je diary.*-Operation, curl-Beispiel mit gemischtem Batch
+### Stufe 1 — Slice (ohne Infrastruktur, ohne HTTP, ohne Datenbank)
+
+- [ ] `shared_kernel/sync_batch/`: Batch-Konzepte (Operation-Union mit diary.addEntry/updateEntry/moveEntry/deleteEntry, Batch-Request/Response-Struktur); Invarianten: Reihenfolge muss erhalten bleiben, Fehler in einer Operation stoppen nicht die Verarbeitung, opId ist Idempotency-Key
+- [ ] `shared_kernel/application/dispatch_batch/`: Dispatcher-Handler (ladet Operation um Operation, orchestriert den Aufruf des entsprechenden Use-Case-Handlers, sammelt Ergebnisse), Request-Mapper und Response-Mapper
+- [ ] `shared_kernel/application/dispatch_batch/test_api.py` + `shared_kernel/application/dispatch_batch/fakes/` (In-Memory, Fake-Handler fuer jeden Operation-Typ)
+- [ ] Verhaltens-Specs unter `shared_kernel/tests/dispatch_batch/`: Operationen werden in Sende-Reihenfolge verarbeitet (Reihenfolge-Test); eine fehlgeschlagene Operation enthaelt ein Fehler-Ergebnis im entsprechenden results-Eintrag, stoppt aber nicht die folgenden; opId zweimal ⇒ `status=duplicate` beim zweiten Mal
+- [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container** — Handler sind gefakt
+- [ ] `./make.ps1 import-lint` gruen, `slice-shape-check` liefert `Findings: 0`
+
+### Stufe 2 — Infrastruktur
+
+- [ ] Dispatcher-Handler integriert sich mit den echten Application-Services der verweigerten Diary-Use-Cases (addEntry, updateEntry, moveEntry, deleteEntry)
+- [ ] Idempotency: opId-Duplikate werden ueber die M0.6-Idempotency-Middleware erkannt und liefern `status=duplicate` ohne neue Bearbeitung
+- [ ] Integrationstest gegen Testcontainers-Postgres + echte Diary-Handler: je diary.*-Operation funktioniert korrekt im Batch-Kontext, Reihenfolge und Fehler-Toleranz sind garantiert
+
+### Stufe 3 — HTTP
+
+- [ ] `POST /api/v1/sync/batch` (neuer Endpunkt im shared API-Bereich oder als neuer Context) akzeptiert Batch-Request und verarbeitet Operationen ueber den Dispatcher
+- [ ] Response enthielt je Operation einen results-Eintrag mit `opId`, `status` (applied/duplicate/failed), und bei Erfolg die Operation-spezifische Response-Payload
+- [ ] End-to-End-Test mit gemischtem Batch verschiedener diary-Operationen; curl-Beispiel in der Ticket-Doku
 
 ## Blocked by
 

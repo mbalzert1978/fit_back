@@ -22,6 +22,7 @@ Tabelle catalog.ocr_jobs, Worker via SELECT ... FOR UPDATE SKIP LOCKED, sofortig
 - [ ] Zwei nebenlaeufige Worker beanspruchen nie denselben ocr_jobs-Datensatz (SKIP LOCKED-Test)
 - [ ] Ein Job, der laenger als 30s braucht bzw. zweimal fehlschlaegt, landet nachweislich auf Status=Failed
 - [ ] OcrAgent-Port ist ein Protocol, der Stub-Adapter ist per DI austauschbar
+- [ ] `./make.ps1 import-lint` gruen (Domaenen-Reinheit + Schichtung)
 
 ## Blocked by
 

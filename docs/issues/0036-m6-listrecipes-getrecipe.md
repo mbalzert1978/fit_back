@@ -19,9 +19,28 @@ GET /api/v1/recipes?sort= (name_asc/name_desc/recent) und GET /api/v1/recipes/{i
 
 ## Acceptance criteria
 
+### Stufe 1 — Slice (ohne Infrastruktur, ohne HTTP, ohne Datenbank)
+
+- [ ] `contexts/recipes/domain/`: (keine neue Domain; nutzt Recipe-Aggregat aus 0035)
+- [ ] `contexts/recipes/application/list_recipes/`: Command (sortMode: name_asc|name_desc|recent), Handler, Response-Mapper
+- [ ] `contexts/recipes/application/get_recipe/`: Command (recipeId), Handler, Response-Mapper
+- [ ] Response-DTOs enthalten ingredients[] mit id/productId/displayName/grams/nutrientsPer100/computedKcal
+- [ ] `application/list_recipes/test_api.py` + `application/list_recipes/fakes/`; `application/get_recipe/test_api.py` + `application/get_recipe/fakes/`
+- [ ] Verhaltens-Specs unter `contexts/recipes/tests/list_recipes/` und `contexts/recipes/tests/get_recipe/`: Sortierung nach allen drei Modi, GetRecipe liefert Zutaten mit berechneten Kcal
+- [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
+- [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
+
+### Stufe 2 — Infrastruktur
+
+- [ ] SQLAlchemy-Queries implementieren Sortierung (name_asc, name_desc, recent by created_at) und Zutaten-Laden mit Product-Joins
+- [ ] Integrationstest gegen Testcontainers-Postgres: alle drei Sortierungen funktionieren, GetRecipe enthaelt korrekte Zutaten-Daten
+
+### Stufe 3 — HTTP
+
+- [ ] `GET /api/v1/recipes?sort=name_asc|name_desc|recent` liefert sortierte Liste mit Rezeptdaten
+- [ ] `GET /api/v1/recipes/{id}` liefert einzelnes Rezept inkl. ingredients[] mit computedKcal
 - [ ] Sortierung nach allen drei Modi korrekt
-- [ ] GetRecipe liefert ingredients[] mit id/productId/displayName/grams/nutrientsPer100/computedKcal
-- [ ] Integrationstest, curl-Beispiel
+- [ ] End-to-End-Tests gegen die laufende App; curl-Beispiele
 
 ## Blocked by
 
