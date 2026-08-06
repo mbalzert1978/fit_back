@@ -8,8 +8,6 @@ des Slice.
 Diese Specs laufen ohne Datenbank, ohne HTTP und ohne Container.
 """
 
-from datetime import UTC, datetime
-
 import pytest
 
 from src.contexts.identity.application.register_user import (
@@ -51,13 +49,13 @@ async def test_legt_ein_konto_an_und_gibt_die_stammdaten_zurueck() -> None:
 
 @pytest.mark.asyncio
 async def test_registriert_zum_zeitpunkt_der_zeitquelle() -> None:
-    moment = datetime(2026, 12, 24, 18, 0, tzinfo=UTC)
-    api = RegisterUserTestApi().at_time(moment)
+    heiligabend_2026_18_uhr_utc = 1798221600
+    api = RegisterUserTestApi().at_unix_time(heiligabend_2026_18_uhr_utc)
 
     result = await api.run(_request())
 
     assert isinstance(result, RegistrationAccepted)
-    assert result.registered_at == moment
+    assert result.registered_at_unix == heiligabend_2026_18_uhr_utc
 
 
 @pytest.mark.asyncio
@@ -90,13 +88,14 @@ async def test_erkennt_die_vergebene_email_unabhaengig_von_gross_kleinschreibung
 
 
 @pytest.mark.asyncio
-async def test_lehnt_ab_wenn_die_email_zwischen_pruefung_und_schreiben_belegt_wird() -> None:
-    api = RegisterUserTestApi().with_email_taken_between_check_and_write("markus@example.de")
+async def test_lehnt_die_zweite_registrierung_derselben_email_ab() -> None:
+    api = RegisterUserTestApi()
 
-    result = await api.run(_request())
+    first = await api.run(_request())
+    second = await api.run(_request(display_name="Jemand anderes"))
 
-    assert isinstance(result, EmailAlreadyTaken)
-    assert result.email == "markus@example.de"
+    assert isinstance(first, RegistrationAccepted)
+    assert isinstance(second, EmailAlreadyTaken)
 
 
 @pytest.mark.asyncio

@@ -25,7 +25,7 @@ from src.contexts.identity.application.register_user.pipeline import build_regis
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.application.register_user.response import RegisterUserResponse
 from src.contexts.identity.domain import Email, UserId
-from src.shared_kernel import FakeTimeProvider
+from src.shared_kernel import FakeTimeProvider, Timestamp
 
 __all__ = ["RegisterUserTestApi"]
 
@@ -49,18 +49,9 @@ class RegisterUserTestApi:
         self._store.register(_normalized(email), user_id or str(UserId.generate()))
         return self
 
-    def with_email_taken_between_check_and_write(
-        self,
-        email: str,
-        user_id: str | None = None,
-    ) -> Self:
-        """Ein anderer Vorgang belegt die E-Mail erst waehrend dieser Registrierung."""
-        self._store.arm_write_collision(_normalized(email), user_id or str(UserId.generate()))
-        return self
-
-    def at_time(self, moment: datetime) -> Self:
+    def at_unix_time(self, unix_seconds: int) -> Self:
         """Die Registrierung geschieht zu diesem Zeitpunkt."""
-        self._clock.set_time(moment)
+        self._clock.set_time(Timestamp(unix_seconds).to_datetime())
         return self
 
     # --- Act ---

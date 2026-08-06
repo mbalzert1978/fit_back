@@ -31,6 +31,20 @@ includes the case where no changed file looks like a test file at all).
    by string-prefix match (with `*` wildcarding one path segment, e.g.
    `src/contexts/*/tests/*/`), not by any judgment call — correctness.
 
+### What this check can and cannot decide
+
+It decides **location**, from the path alone. The drift it exists to catch is a test
+file dropped straight into a `domain/`, `application/`, or `infrastructure/` folder,
+where it sits inside the production package it is supposed to test.
+
+It deliberately does **not** try to decide whether a test that lives under a
+top-level `tests/` root *should* have been co-located with its module instead. That
+distinction depends on what the test covers, not on where it sits: an architecture
+test spanning all of `src/`, an integration test needing Testcontainers, and a shared
+`conftest.py` all legitimately live at the top level, while a unit test for one module
+belongs beside it. Only a reader can tell those apart — so that judgment stays with
+`review-against-rules`, and this check stays mechanical and false-positive-free.
+
 `exempt_file_names` (optional) lists file names that merely *look* like test files
 but are shipped parts of a slice and therefore judged by their own rules. In this
 repo that is `test_api.py`: the public Test-API of a use case is an artifact of the

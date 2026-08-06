@@ -7,17 +7,17 @@ Fabrik; getauscht wird ausschliesslich, was hinter der public Naht steckt.
 
 from typing import final
 
+from src.contexts.identity.application.register_user.abstractions import (
+    RegisterUserPasswordHasher,
+    RegisterUserUserStore,
+)
 from src.contexts.identity.application.register_user.adapters import (
     PasswordHasherAdapter,
     UserRegistryAdapter,
 )
-from src.contexts.identity.application.register_user.gateway import (
-    RegisterUserPasswordHasher,
-    RegisterUserUserStore,
-)
 from src.contexts.identity.application.register_user.handler import RegisterUserHandler
-from src.contexts.identity.application.register_user.register_user_request_mapper import to_command
-from src.contexts.identity.application.register_user.register_user_response_mapper import (
+from src.contexts.identity.application.register_user.mappers import (
+    to_command,
     to_invalid_response,
     to_response,
 )

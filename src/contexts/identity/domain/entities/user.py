@@ -1,6 +1,5 @@
 """Aggregatwurzel User - identitaetsbasierte Gleichheit, ausschliesslich Value Objects."""
 
-from datetime import datetime
 from typing import final
 
 from src.contexts.identity.domain.value_objects.account_status import AccountStatus, Active
@@ -10,6 +9,7 @@ from src.contexts.identity.domain.value_objects.locale import Locale
 from src.contexts.identity.domain.value_objects.password_hash import PasswordHash
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import UserTimeZone
+from src.shared_kernel import Timestamp
 
 __all__ = ["User", "register"]
 
@@ -33,7 +33,7 @@ class User:
         time_zone: UserTimeZone,
         locale: Locale,
         status: AccountStatus,
-        registered_at: datetime,
+        registered_at: Timestamp,
     ) -> None:
         """Setze den vollstaendigen Zustand der Wurzel aus bereits gueltigen Value Objects."""
         self.id = user_id
@@ -65,7 +65,7 @@ def register(
     display_name: DisplayName,
     time_zone: UserTimeZone,
     locale: Locale,
-    registered_at: datetime,
+    registered_at: Timestamp,
 ) -> User:
     """Lege einen neuen, aktiven User an.
 

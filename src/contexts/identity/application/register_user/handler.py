@@ -9,7 +9,6 @@ from src.contexts.identity.domain import (
     User,
     UserId,
     UserRegistry,
-    complete_registration,
     register,
 )
 from src.shared_kernel import Result, TimeProvider
@@ -19,7 +18,7 @@ __all__ = ["RegisterUserHandler"]
 
 @final
 class RegisterUserHandler:
-    """Baut die Aggregatwurzel und ruft **eine** Domaenen-Operation.
+    """Baut die Aggregatwurzel und uebergibt sie dem Nutzerbestand.
 
     Kennt weder Request- noch Response-DTO - beides lebt in den Mappern. Faengt
     nichts ab, entscheidet nichts fachlich und liefert das Domaenen-`Result`
@@ -47,6 +46,6 @@ class RegisterUserHandler:
             display_name=command.display_name,
             time_zone=command.time_zone,
             locale=command.locale,
-            registered_at=self._clock.utc_now(),
+            registered_at=self._clock.now(),
         )
-        return await complete_registration(self._registry, candidate)
+        return await self._registry.add(candidate)

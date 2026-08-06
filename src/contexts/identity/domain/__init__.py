@@ -13,7 +13,6 @@ from src.contexts.identity.domain.entities.user import User, register
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.ports.user_registry import UserRegistry
-from src.contexts.identity.domain.registration import complete_registration
 from src.contexts.identity.domain.value_objects.account_status import (
     AccountStatus,
     Active,
@@ -62,7 +61,6 @@ __all__ = [
     "UserRegistry",
     "UserTimeZone",
     "account_status_tag",
-    "complete_registration",
     "hydrate_locale",
     "locale_tag",
     "parse_locale",

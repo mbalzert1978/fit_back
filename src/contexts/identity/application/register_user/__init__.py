@@ -7,16 +7,13 @@ Domaene sind bewusst **nicht** dabei - wer sie importiert, greift an der Naht
 vorbei.
 """
 
-from src.contexts.identity.application.register_user.gateway import (
-    EmailFree,
-    EmailLookup,
+from src.contexts.identity.application.register_user.abstractions import (
     EmailTaken,
     NewUserRecord,
     RegisterUserPasswordHasher,
     RegisterUserUserStore,
     UserInsertion,
     UserStored,
-    WriteCollision,
 )
 from src.contexts.identity.application.register_user.pipeline import (
     RegisterUserPipeline,
@@ -33,8 +30,6 @@ from src.contexts.identity.application.register_user.test_api import RegisterUse
 
 __all__ = [
     "EmailAlreadyTaken",
-    "EmailFree",
-    "EmailLookup",
     "EmailTaken",
     "NewUserRecord",
     "RegisterUserPasswordHasher",
@@ -47,6 +42,5 @@ __all__ = [
     "RegistrationInvalid",
     "UserInsertion",
     "UserStored",
-    "WriteCollision",
     "build_register_user_pipeline",
 ]

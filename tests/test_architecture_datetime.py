@@ -27,7 +27,10 @@ def test_no_direct_datetime_calls_without_timezone() -> None:
             continue
 
         try:
-            with open(py_file) as f:
+            # encoding explizit: ohne sie liest Windows in cp1252 und bricht an
+            # jedem Nicht-Latin-1-Zeichen im Quelltext ab (z. B. den IDN-Beispielen
+            # in identity/domain/value_objects/email.py).
+            with open(py_file, encoding="utf-8") as f:
                 content = f.read()
 
             # Parse den AST

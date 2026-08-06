@@ -7,7 +7,6 @@ Statuscode und ProblemDetails-Typ - er trifft dabei keine Fachentscheidung mehr.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
 from typing import final
 
 __all__ = [
@@ -28,7 +27,8 @@ class RegistrationAccepted:
     display_name: str
     locale: str
     time_zone_id: str
-    registered_at: datetime
+    registered_at_unix: int
+    """Unix-Sekunden. Die ISO-8601-Formatierung fuer den Transport macht die HTTP-Schicht."""
 
 
 @final

@@ -1,8 +1,9 @@
 """Tagged Union AccountStatus - jeder Fall traegt seine eigenen Daten, kein Enum."""
 
 from dataclasses import dataclass
-from datetime import datetime
 from typing import final
+
+from src.shared_kernel import Timestamp
 
 __all__ = [
     "AccountStatus",
@@ -30,7 +31,7 @@ class Suspended:
 class PendingDeletion:
     """Loeschung beantragt - der Fall traegt sein Wirksamkeitsdatum selbst."""
 
-    effective_at: datetime
+    effective_at: Timestamp
 
 
 type AccountStatus = Active | Suspended | PendingDeletion

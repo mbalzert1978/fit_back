@@ -3,28 +3,53 @@
 from dataclasses import dataclass
 from typing import final
 
-from src.shared_kernel import Err, Ok, Result
+from src.shared_kernel import Err, NotEmptyString, Ok, Result
 
-__all__ = ["MAXIMUM_LENGTH", "MINIMUM_LENGTH", "DisplayName"]
+__all__ = ["MAXIMUM_LENGTH", "DisplayName"]
 
-MINIMUM_LENGTH = 1
 MAXIMUM_LENGTH = 60
+"""BACKEND.md Abschnitt 1: 1-60 Zeichen. Die untere Grenze traegt `NotEmptyString`."""
+
+
+def fits_maximum_length(name: NotEmptyString) -> Result[NotEmptyString, str]:
+    """Fail-fast-Regel: der Anzeigename ist nicht laenger als erlaubt.
+
+    Nimmt bereits einen `NotEmptyString` entgegen und nicht einen rohen `str` -
+    "getrimmt und nicht leer" ist an dieser Stelle schon durch den Typ zugesagt
+    und wird deshalb nicht ein zweites Mal geprueft.
+    """
+    if len(name.value) > MAXIMUM_LENGTH:
+        return Err(f"Anzeigename darf hoechstens {MAXIMUM_LENGTH} Zeichen lang sein")
+    return Ok(name)
 
 
 @final
 @dataclass(frozen=True, slots=True)
 class DisplayName:
-    """Getrimmter Anzeigename; die Invariante "nicht leer" gilt hier, nicht im User."""
+    """Anzeigename des Users.
 
-    value: str
+    Haelt einen `NotEmptyString` statt eines rohen `str`: die Invariante "nicht
+    leer" steht damit genau einmal im Shared Kernel, und jeder Leser sieht dem
+    Typ an, dass hier nichts Leeres liegen kann. `DisplayName` fuegt nur seine
+    eigene, fachliche Regel hinzu - die Obergrenze.
+    """
+
+    value: NotEmptyString
+
+    @property
+    def text(self) -> str:
+        """Der rohe Text - nur an Aussengrenzen (Naht, Response-DTO)."""
+        return self.value.value
 
     @classmethod
     def parse(cls, raw: str) -> Result[DisplayName, str]:
-        """Trimme und pruefe die Laenge einer moeglicherweise ungueltigen Eingabe."""
-        trimmed = raw.strip()
-        if not MINIMUM_LENGTH <= len(trimmed) <= MAXIMUM_LENGTH:
-            return Err(f"Anzeigename muss {MINIMUM_LENGTH}-{MAXIMUM_LENGTH} Zeichen lang sein")
-        return Ok(cls(trimmed))
+        """Pruefe eine moeglicherweise ungueltige Eingabe.
+
+        Ein Fluss statt einer Kette: `NotEmptyString.parse` trimmt und sichert
+        die untere Grenze, `fits_maximum_length` prueft die obere, `map` wickelt
+        das Ergebnis ein. Jede Frage wird genau einmal gestellt.
+        """
+        return NotEmptyString.parse(raw).bind(fits_maximum_length).map(cls)
 
     @classmethod
     def hydrate(cls, raw: str) -> DisplayName:
