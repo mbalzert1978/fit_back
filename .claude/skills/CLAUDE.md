@@ -64,8 +64,10 @@ The skills live directly in `.claude/skills/` so this repo **loads its own skill
   run-tests/                                              SKILL.md  scripts/  config.json
   skill-audit/                                            SKILL.md  scripts/
   skill-tune-up/                                          SKILL.md  scripts/
+  slice-shape-check/                                      SKILL.md  scripts/  config.json
   solid-principles-check/                                 SKILL.md  scripts/  config.json
   strategic-compact/                                      SKILL.md  scripts/  config.json
+  structure-placement-check/                              SKILL.md  scripts/  config.json
   sync-skill-index/                                       SKILL.md  scripts/  assets/  config.json
   tdd/                                                    SKILL.md
   thermo-nuclear-code-quality-review/                     SKILL.md  scripts/  config.json
@@ -158,11 +160,13 @@ Skills are grouped into the four buckets (see Design Contract below). Current in
 - `language-idiom-check` — reviews a diff for missed idioms of the language actually in use (pattern matching, records, collection pipelines, destructuring, ...) and for imperative code that should be declarative (pattern matching over cascades, immutable values, pure functions). Returns BLOCK/APPROVE plus a `Findings: <n>` count.
 - `lint-and-format-check` — runs this repo's configured `linter`/`formatter` (command + args from `config.json`, any language) — unconfigured proposes a pair by detected language and stops as `CONFIG ERROR` rather than guessing — returning PASS/FAIL plus a `Findings: <n>` count.
 - `propose-skills` — scans chat history for repeated manual tasks that should be skills and proposes each (name, bucket, one job), skipping what existing skills cover.
-- `qa-check` — runs the test suite via `run-tests`, and — each independently toggleable via `config.json` — flags changed src/ projects whose Specs sibling didn't change, and agent-judges every feature's test facade against Fowler's Test-API pattern (script only enumerates candidates).
+- `qa-check` — runs the test suite via `run-tests`, and — toggleable via `config.json` — flags changed production units whose configured test location didn't change alongside them; the unit→test-location map is an ordered rule list in `config.json`, never assumed. Slice *shape* is `slice-shape-check`'s job, not this one's.
 - `review-against-rules` — reviews a diff/branch against this repo's configured coding-standard dirs and, if configured, a reference implementation, via the `senior-code-reviewer` subagent — required config missing = `CONFIG ERROR` not a silent pass — returning BLOCK/APPROVE plus a `Findings: <n>` count.
 - `skill-audit` — flags existing skills that straddle more than one bucket and recommends a split or trim.
 - `skill-tune-up` — audits skills against the five structural levers; flags mechanical weaknesses.
+- `slice-shape-check` — checks the mechanically-verifiable half of this repo's feature-slice form — every use-case package carries its Test-API and fakes, and no spec reaches past the Test-API into domain/handler/mappers/fakes/infrastructure. Structure only, no code judgment; missing config = `CONFIG ERROR` not a silent pass. Returns BLOCK/APPROVE plus a `Findings: <n>` count.
 - `solid-principles-check` — reviews a diff against the five SOLID principles (SRP/OCP/LSP/ISP/DIP), each with its own smell checklist, plus a mechanical file-size pre-check (oversized files are a classic SRP smell). Returns BLOCK/APPROVE plus a `Findings: <n>` count.
+- `structure-placement-check` — flags changed test files living outside the configured test-root prefixes — a purely mechanical file-*path* check, no code content read; missing config = `CONFIG ERROR` not a silent pass. The cheap, objective first gate before any content-level review. Returns BLOCK/APPROVE plus a `Findings: <n>` count.
 - `thermo-nuclear-code-quality-review` — extremely strict, language-agnostic, deliberately open-ended maintainability review — abstraction quality, spaghetti conditions, canonical-layer reuse, orchestration atomicity. Standalone/manual use only ("tear this PR apart") — its open-ended bar has no fixed point, so it is not part of `validate-fix-loop`'s default validator set; see `solid-principles-check`/`design-pattern-fit-check`/`language-idiom-check`/`illegal-state-check` for the bounded, loop-safe split of its rubric.
 - `token-budget-audit` — audits persistent-context artifacts (CLAUDE.md, SKILL.md files, memory) against token-budget heuristics and returns PASS/FAIL plus a located, itemized report.
 - `verifier-alternative-classes-with-different-interfaces` — reviews a diff for two classes performing the same job under different method names/signatures, blocking interchangeable use. Returns BLOCK/APPROVE plus a `Findings: <n>` count.
