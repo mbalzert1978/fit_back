@@ -20,6 +20,17 @@ Review: {{SCOPE}}
 If available, use `/thermo-nuclear-code-quality-review` for the deep structural pass
 instead of paraphrasing its doctrine yourself.
 
+## How to check (exhaustive, not sampled)
+
+Do not skim the rule directories and issue one blanket verdict from memory. For every
+changed file, walk each file under the configured rule directories individually and
+record explicitly whether the change complies with or violates the rule stated there.
+Emit this file × rule-file compliance matrix (`changed file -> rule file -> Pass/Fail`,
+with a one-line reason on any `Fail`) before the verdict line — a bare pass/fail
+judgment with no visible check trail is not acceptable. A rule file that never appears
+in the matrix counts as **unchecked**, not as satisfied — don't let an omission read as
+a silent pass.
+
 ## Output
 
 Follow your standard contract exactly: a `Verdict: BLOCK` or `Verdict: APPROVE` header

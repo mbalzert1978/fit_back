@@ -1,0 +1,4 @@
+{
+  "test_file_patterns": ["test_*.py", "*_test.py"],
+  "test_root_prefixes": ["src/*/tests/", "src/contexts/*/tests/*/"]
+}

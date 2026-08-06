@@ -45,18 +45,35 @@ orchestrierst alles davor selbst.
 3. **Entwickler-Agent** — du startest ihn selbst (kein manueller Start durch den
    Nutzer), er implementiert gemäß `Task.md`, committet lokal auf dem Ticket-Branch,
    **kein Push, kein PR**.
-4. **QA-Gate** — `review-against-rules`, `qa-check`, `solid-principles-check`; bei
+4. **Struktur-Vorabprüfung** (objektiv, vor jedem inhaltlichen Review) — prüft
+   ausschließlich Dateiablage, nicht Inhalt: `main.py` muss unter `src/` liegen (nie im
+   Repo-Root), Testdateien müssen unter `src/contexts/<context>/tests/<use_case>/` bzw.
+   dem Analogon für `shared_kernel` liegen, nie direkt in einem Domänen-/Infrastruktur-
+   Ordner. Verstoß → sofort zurück an den Entwickler-Agenten, kein Weiterlauf in Schritt
+   5/6 — das spart eine ganze Gate-Runde für einen rein mechanischen Fehler.
+5. **QA-Gate** — `review-against-rules`, `qa-check`, `solid-principles-check`; bei
    den sechs Cross-Context-Tickets (0011/0017/0018/0026/0038/0042) zusätzlich
-   `architecture-adr-check`.
-5. **Security-Gate** — `review-against-rules`, beschränkt auf
+   `architecture-adr-check`. `review-against-rules` liefert jetzt zwingend eine
+   erschöpfende Datei-×-Regel-Matrix (jede geänderte Datei gegen jede Datei unter
+   `.rules/common/` und `.rules/python/` einzeln Pass/Fail, siehe die geschärfte
+   `assets/agent-brief.md` dieser Skill) statt eines pauschalen Urteils ohne
+   sichtbaren Prüfweg — Ursache für den Wave-3-Vorfall (beide PRs #9/#10 mit
+   Architektur-/Stilverstößen trotz internem APPROVE), siehe
+   `docs/decisions/2026-08-06-0702-qa-gate-haerten-struktur-review.md`.
+6. **Tiefen-Struktur-Review** — zusätzlich zum QA-Gate, nicht optional:
+   `/thermo-nuclear-code-quality-review` auf den kompletten Branch-Diff anwenden.
+   Beide, QA-Gate (Schritt 5) und dieser Tiefen-Review, müssen grün/APPROVE sein,
+   bevor es weitergeht.
+7. **Security-Gate** — `review-against-rules`, beschränkt auf
    `.rules/common/security.md` (keine dedizierte Security-Review-Skill in diesem
    Repo).
-6. **Fix-Verify-Loop** — max. 3 Zyklen je Gate. Nach 3 gescheiterten Zyklen:
-   **du triagierst selbst** (siehe „Eskalation" unten), nicht automatisch an den
-   Nutzer weiterreichen.
-7. **Push + PR** — `git push` + `gh pr create`, Base-Branch `main`. Das ist deine
+8. **Fix-Verify-Loop** — max. 3 Zyklen je Gate (Struktur-Vorabprüfung, QA-Gate,
+   Tiefen-Struktur-Review, Security-Gate zählen dabei als eigene Gates). Nach 3
+   gescheiterten Zyklen **eines** Gates: **du triagierst selbst** (siehe
+   „Eskalation" unten), nicht automatisch an den Nutzer weiterreichen.
+9. **Push + PR** — `git push` + `gh pr create`, Base-Branch `main`. Das ist deine
    letzte automatisierte Stufe — **der Nutzer merged selbst**, nie du.
-8. **Cleanup nach Merge** (sobald der Nutzer "gemergt" meldet):
+10. **Cleanup nach Merge** (sobald der Nutzer "gemergt" meldet):
    - `git pull --ff-only` bzw. `fetch` + Content-Verifikation, dass die erwarteten
      Änderungen wirklich in `main` sind (bei Squash-Merges ist `git rev-list`
      reachability-basiert — das reicht allein nicht als Beweis).
@@ -79,8 +96,8 @@ technische Fallstricke" unten.
 
 ## Eskalation & Triage (deine Kernaufgabe als Team-Lead)
 
-Nach 3 gescheiterten Fix-Zyklen (QA oder Security) triagierst **du** zuerst, bevor
-irgendetwas an den Nutzer geht:
+Nach 3 gescheiterten Fix-Zyklen (Struktur-Vorabprüfung, QA, Tiefen-Struktur-Review oder
+Security) triagierst **du** zuerst, bevor irgendetwas an den Nutzer geht:
 
 - **Generische Security-Checklist-Findings ohne Basis in der Spezifikation**
   (`docs/Draft/BACKEND.md`/Milestones) sind nicht automatisch bindend — prüfe, ob
