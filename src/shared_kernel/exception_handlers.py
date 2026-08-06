@@ -57,10 +57,10 @@ async def domain_exception_handler(
         )
     error_code = error_code_kebab.upper().replace("-", "_")
 
-    # Get localized title and detail; fall back to English if resource not found (locale-neutral)
+    # Get localized title and detail; fall back to exception values if resource not found (locale-neutral)
     localized = resource_provider.get_message(error_code, locale)
-    title = localized.get("title", exc.title)
-    detail = localized.get("detail", exc.detail)
+    title = localized.get("title") or exc.title
+    detail = localized.get("detail") or exc.detail
 
     problem = ProblemDetails(
         type=exc.error_type,
@@ -121,8 +121,8 @@ async def validation_exception_handler(
     # Try to get localized title and detail for VALIDATION_FAILED
     # Fall back to English if resource not found (locale-neutral)
     localized = resource_provider.get_message("VALIDATION_FAILED", locale)
-    title = localized.get("title", "Validation failed")
-    detail = localized.get("detail", "Input does not meet the required conditions.")
+    title = localized.get("title") or "Validation failed"
+    detail = localized.get("detail") or "Input does not meet the required conditions."
 
     problem = ProblemDetails(
         type="https://api.example/errors/validation-failed",
