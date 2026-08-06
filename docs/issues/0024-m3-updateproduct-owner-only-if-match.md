@@ -25,7 +25,7 @@ PUT /api/v1/catalog/products/{id} - nur durch den Besitzer eines privaten Produk
 - [ ] `contexts/catalog/application/update_product/`: Command (productId, userId, neue Werte, rowVersion), Handler (orchestriert Laden → Owner-Check → RowVersion-Pruefung → Update, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Load-/Save-Operation; **nur Primitive** ueber der Naht; eigene TaggedUnion als Naht-Ergebnis
 - [ ] `application/update_product/test_api.py` + `application/update_product/fakes/` (In-Memory, mit einfacher Versionsverwaltung)
-- [ ] Verhaltens-Specs unter `contexts/catalog/tests/update_product/`: erfolgreiches Update durch Owner, Ablehnung durch anderen Nutzer (NotOwner), Versionskonflikt bei veraltetem RowVersion
+- [ ] Verhaltens-Specs unter `contexts/catalog/specs/update_product/`: erfolgreiches Update durch Owner, Ablehnung durch anderen Nutzer (NotOwner), Versionskonflikt bei veraltetem RowVersion
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

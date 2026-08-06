@@ -51,8 +51,8 @@ $targetTable = [ordered]@{
     }
 
     'run' = @{
-        Description = 'Run the placeholder entrypoint (main.py)'
-        Action      = { Invoke-Step 'run' { uv run python main.py } }
+        Description = 'Run the API entrypoint (src/main.py)'
+        Action      = { Invoke-Step 'run' { uv run python -m src.main } }
     }
 
     'test' = @{

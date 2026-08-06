@@ -26,7 +26,7 @@ GET /api/v1/catalog/photos/{photoId} - Polling-Endpunkt, liefert je nach OcrStat
 - [ ] `contexts/catalog/application/get_photo_result/`: Command (photoId), Handler (orchestriert nur), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht des Use Case: Protocol fuer Photo-Ladevorgang; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/get_photo_result/test_api.py` + `application/get_photo_result/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/catalog/tests/get_photo_result/`: Photo mit Status Processing wird gepollt, Status Completed mit OcrResult, Status Failed mit FailureReason
+- [ ] Verhaltens-Specs unter `contexts/catalog/specs/get_photo_result/`: Photo mit Status Processing wird gepollt, Status Completed mit OcrResult, Status Failed mit FailureReason
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

@@ -24,7 +24,6 @@ COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
 COPY src ./src
-COPY main.py ./main.py
 
 # Set environment variables
 ENV PATH="/opt/venv/bin:$PATH" \
@@ -37,4 +36,4 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=10s \
 
 EXPOSE 8000
 
-CMD ["python", "main.py"]
+CMD ["python", "-m", "src.main"]

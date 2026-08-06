@@ -39,7 +39,7 @@ this repo genuinely has zero use-case packages until the first slice lands, so a
 2. **Fakes present** — the same directory contains a `fakes/` subdirectory
    (`required_dirs`) — correctness.
 3. **Specs stay behind the Test-API** — no spec under
-   `src/contexts/<ctx>/tests/<use_case>/` imports a module whose dotted path contains
+   `src/contexts/<ctx>/specs/<use_case>/` imports a module whose dotted path contains
    any `spec_forbidden_import_fragments` entry (`.domain`, `.infrastructure`,
    `.handler`, `.fakes`, `_mapper`). Arrange runs through the Test-API, Act through the
    real request DTO, Assert against the real response union — anything else means the
@@ -86,7 +86,7 @@ Whatever the script printed, verbatim:
 Verdict: BLOCK
 Scope: 2 use case(s), 3 spec file(s) inspected
 - src/contexts/identity/application/register_user/: use case is missing test_api.py
-- src/contexts/identity/tests/register_user/test_register_user.py: spec imports `src.contexts.identity.domain.user` — reaches past the Test-API (forbidden fragment `.domain`)
+- src/contexts/identity/specs/register_user/test_register_user.py: spec imports `src.contexts.identity.domain.user` — reaches past the Test-API (forbidden fragment `.domain`)
 Findings: 2
 ```
 

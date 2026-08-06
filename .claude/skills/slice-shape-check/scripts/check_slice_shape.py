@@ -60,11 +60,20 @@ def use_case_dirs(root: Path, config: dict) -> list[Path]:
 
 
 def spec_files(root: Path, config: dict) -> list[Path]:
+    """Use-case spec files only.
+
+    `spec_exclude_dir_names` carves out the sibling test folders that are NOT
+    use-case specs and legitimately reach into the domain: domain unit tests
+    (per-aggregate/VO/union, BACKEND.md section 9) and cross-context contract
+    tests (docs/milestones/02-test-pyramide.md). Judging those by the
+    "never import .domain" rule would forbid the very thing they exist to test.
+    """
     patterns = config["spec_file_patterns"]
+    excluded = set(config.get("spec_exclude_dir_names", []))
     return sorted(
         f
         for d in root.glob(config["spec_glob"])
-        if d.is_dir()
+        if d.is_dir() and d.name not in excluded
         for f in d.rglob("*.py")
         if any(fnmatch.fnmatch(f.name, p) for p in patterns)
     )

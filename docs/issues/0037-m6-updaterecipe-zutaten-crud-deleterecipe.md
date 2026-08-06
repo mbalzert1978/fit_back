@@ -28,7 +28,7 @@ PUT /api/v1/recipes/{id} (If-Match), AddIngredient/UpdateIngredientGrams/RemoveI
 - [ ] `contexts/recipes/application/remove_ingredient/`: Command (recipeId, ingredientId), Handler, Request-Mapper, Response-Mapper
 - [ ] `contexts/recipes/application/delete_recipe/`: Command (recipeId, rowVersion), Handler, Request-Mapper, Response-Mapper
 - [ ] Test-APIs + Fakes fuer alle Operationen
-- [ ] Verhaltens-Specs unter `contexts/recipes/tests/`: Rezept wird aktualisiert, Zutaten-Aenderungen loesen Normalisierung aus, RowVersion-Konflikt wird erkannt, Rezept wird geloescht
+- [ ] Verhaltens-Specs unter `contexts/recipes/specs/`: Rezept wird aktualisiert, Zutaten-Aenderungen loesen Normalisierung aus, RowVersion-Konflikt wird erkannt, Rezept wird geloescht
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

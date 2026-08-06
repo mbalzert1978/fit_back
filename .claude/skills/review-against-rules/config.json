@@ -3,5 +3,6 @@
     ".rules/common",
     ".rules/python"
   ],
-  "_note": "reference_implementation bewusst nicht gesetzt: es existiert noch kein implementiertes Feature in diesem frischen Repo. Sobald M1 (Identity/register_user) fertig ist, hier auf dieses Feature als Referenzimplementierung verweisen (analog .rules/python/python-rule-pattern.md, das denselben Schritt fuer sich selbst vermerkt)."
+  "reference_implementation": "src/contexts/identity",
+  "_note": "reference_implementation zeigt auf den Identity-Context mit dem Use Case register_user (Ticket 0011, Stufe 1) - der erste vollstaendig gebaute Feature-Slice dieses Repos und damit die verbindliche Zielform: domain/ (nur stdlib), application/register_user/ (Command, Handler, beide Mapper, Validatoren, Port-Adapter, use-case-eigene public Naht), test_api.py + fakes/, Specs unter tests/register_user/. Reviewer vergleichen die Form eines Diffs hiermit, statt sie aus der Prosa in .rules/python/python-feature-slices.md zu rekonstruieren."
 }

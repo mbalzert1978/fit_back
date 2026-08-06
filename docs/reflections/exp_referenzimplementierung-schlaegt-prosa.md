@@ -3,7 +3,7 @@ schema_version: 1
 name: referenzimplementierung-schlaegt-prosa
 description: Solange kein implementiertes Referenz-Feature existiert, erfindet jeder Agent die Zielform neu und produziert dieselbe Klasse Strukturfehler - eine Referenzimplementierung ist wirksamer als jede noch so genaue Regel-Prosa
 type: project
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-06
 decay_eligible: false
 ---

@@ -25,7 +25,7 @@ JWT-Access-Token-Ausstellung (15 min) im Rahmen von Login(email, password), inkl
 - [ ] `contexts/identity/application/login/`: Command (email, password), Handler (orchestriert nur, ~10-15 Zeilen, kein try/except), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit **nur** den Operationen, die `login` braucht; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis (z.B. UserFound/UserNotFound/AccountDeletionPending)
 - [ ] `application/login/test_api.py` + `application/login/fakes/` (In-Memory mit verschiedenen User-Stati)
-- [ ] Verhaltens-Specs unter `contexts/identity/tests/login/`: erfolgreiche Anmeldung, falsch Passwort (identische Antwort wie unbekannte E-Mail), angemeldetes Konto mit PendingDeletion-Status
+- [ ] Verhaltens-Specs unter `contexts/identity/specs/login/`: erfolgreiche Anmeldung, falsch Passwort (identische Antwort wie unbekannte E-Mail), angemeldetes Konto mit PendingDeletion-Status
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 
 ### Stufe 2 — Infrastruktur

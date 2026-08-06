@@ -24,7 +24,7 @@ Outbox-Consumer, der auf UserRegistered (M1.1, ueber M0.10) reagiert und die dre
 - [ ] `contexts/diary/application/create_standard_slots_on_registration/`: Command (userId), Handler (orchestriert nur: laedt oder erzeugt User-Diary-Profil, legt genau drei MealSlots mit Namen Fruehstueck/Mittagessen/Abendessen in dieser Reihenfolge an), Request-Mapper und Response-Mapper
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Operation zum Laden/Anlegen des Nutzerprofils; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/create_standard_slots_on_registration/test_api.py` + `application/create_standard_slots_on_registration/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/diary/tests/create_standard_slots_on_registration/`: Slots werden in exakt dieser Reihenfolge angelegt, idempotent (doppelter Aufruf mit gleichem userId haelt Slots), andere Use Cases stoeren nicht
+- [ ] Verhaltens-Specs unter `contexts/diary/specs/create_standard_slots_on_registration/`: Slots werden in exakt dieser Reihenfolge angelegt, idempotent (doppelter Aufruf mit gleichem userId haelt Slots), andere Use Cases stoeren nicht
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 
 ### Stufe 2 — Infrastruktur

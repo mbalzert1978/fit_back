@@ -29,7 +29,28 @@ includes the case where no changed file looks like a test file at all).
 1. **Test co-location** — every changed file whose name matches `test_file_patterns`
    (e.g. `test_*.py`) has a path starting with one of `test_root_prefixes` — checked
    by string-prefix match (with `*` wildcarding one path segment, e.g.
-   `src/contexts/*/tests/*/`), not by any judgment call — correctness.
+   `src/contexts/*/specs/*/`), not by any judgment call — correctness.
+
+### What this check can and cannot decide
+
+It decides **location**, from the path alone. The drift it exists to catch is a test
+file dropped straight into a `domain/`, `application/`, or `infrastructure/` folder,
+where it sits inside the production package it is supposed to test.
+
+It deliberately does **not** try to decide whether a test that lives under a
+top-level `tests/` root *should* have been co-located with its module instead. That
+distinction depends on what the test covers, not on where it sits: an architecture
+test spanning all of `src/`, an integration test needing Testcontainers, and a shared
+`conftest.py` all legitimately live at the top level, while a unit test for one module
+belongs beside it. Only a reader can tell those apart — so that judgment stays with
+`review-against-rules`, and this check stays mechanical and false-positive-free.
+
+`exempt_file_names` (optional) lists file names that merely *look* like test files
+but are shipped parts of a slice and therefore judged by their own rules. In this
+repo that is `test_api.py`: the public Test-API of a use case is an artifact of the
+slice and belongs inside `application/<use_case>/`, never under a test root — see
+`.rules/python/python-feature-slices.md`, "Die Test-API ist Teil des Slice". Whether
+each use case actually *has* one is `slice-shape-check`'s job, not this check's.
 
 ## External data
 
@@ -69,7 +90,8 @@ Whatever the script printed, verbatim:
 
 ```
 Verdict: BLOCK
-- tests/shared_kernel/i18n/test_middleware.py: test file is outside every configured test root (src/*/tests/, src/contexts/*/tests/*/)
+Scope: 12 changed file(s), 3 test file(s) inspected
+- tests/shared_kernel/i18n/test_middleware.py: test file is outside every configured test root (src/*/tests/, src/contexts/*/specs/*/)
 Findings: 1
 ```
 
@@ -77,8 +99,12 @@ or, on a clean pass:
 
 ```
 Verdict: APPROVE
+Scope: 42 changed file(s), 1 test file(s) inspected
 Findings: 0
 ```
+
+The `Scope:` line is not decoration: without it, "nothing found" reads exactly like
+"nothing checked" (`docs/reflections/exp_gruenes-gate-ohne-scope-angabe.md`).
 
 For a step-1 abort, the `Verdict: CONFIG ERROR` block instead, per
 `_shared/validator-contract.md`.

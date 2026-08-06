@@ -1,9 +1,13 @@
 # Python Rule Pattern
 
 > Uebersetzt `csharp-rule-pattern.md` sinngemaess. Die
-> C#-Vorlage referenziert ein konkretes fremdes Projekt (`DhcpMacVerwaltung`) — hier stattdessen
-> generisch anhand eines Platzhalter-Beispiels (`Order`). Wird ein Referenz-Feature in diesem
-> Projekt etabliert, diese Datei darauf aktualisieren.
+> C#-Vorlage referenziert ein konkretes fremdes Projekt (`DhcpMacVerwaltung`); die Beispiele unten
+> bleiben generisch (`Order`, `SwapRequest`).
+>
+> **Gebaut zu sehen ist beides im Referenz-Slice** `src/contexts/identity`: der gemeinsame
+> Collect-all-Typalias in `src/shared_kernel/validation.py` (`Rule`, `all_of`, `FieldError`),
+> seine Anwendung in `application/register_user/validators/register_user_rules.py`, und der
+> Fail-fast-Zweig als `Result[T, DomainError]` in `domain/registration.py`.
 
 Zwei Bausteine decken jede "ist dieser Input/Zustand gueltig?"-Frage ab — beide sind das
 [Rule Pattern](https://dev.to/stevsharp/the-rule-pattern-in-c-2ed0) (eine Regel ist ein Objekt

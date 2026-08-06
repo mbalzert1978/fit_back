@@ -25,7 +25,7 @@ GET /api/v1/catalog/products/by-barcode/{ean} - sucht zuerst in eigenen privaten
 - [ ] `contexts/catalog/application/find_product_by_barcode/`: Command (userId, barcode als Primitive str), Handler (orchestriert Validierung → Lookup → Prioritaetssortierung, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Operation zum Laden von Produkten nach Barcode/Visibility; **nur Primitive** ueber der Naht; eigene TaggedUnion als Naht-Ergebnis
 - [ ] `application/find_product_by_barcode/test_api.py` + `application/find_product_by_barcode/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/catalog/tests/find_product_by_barcode/`: Treffer im eigenen privaten Produkt, Treffer nur in Public, kein Treffer (NotFound), falsche Pruefziffer (InvalidBarcode), Private hat Vorrang vor Public
+- [ ] Verhaltens-Specs unter `contexts/catalog/specs/find_product_by_barcode/`: Treffer im eigenen privaten Produkt, Treffer nur in Public, kein Treffer (NotFound), falsche Pruefziffer (InvalidBarcode), Private hat Vorrang vor Public
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

@@ -26,7 +26,7 @@ Product-Aggregate (Barcode/Ean, Name, Brand, Nutrients, BasisUnit-Union, Product
 - [ ] `contexts/catalog/application/create_product_manually/`: Command (Nutzer-ID, Name, Brand, Ean, Nährstoffe), Handler (orchestriert Validierung → Aggregat erstellen → Repository speichern, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Laden (mit Visibility-Parametern) und Speichern; **nur Primitive** ueber der Naht; eigene TaggedUnion als Naht-Ergebnis
 - [ ] `application/create_product_manually/test_api.py` + `application/create_product_manually/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/catalog/tests/create_product_manually/`: erfolgreiches Anlegen, verletzter Nährstoff-Invarianten liefern Fehler, Ean-Pruefziffer-Validierung, Barcode-Duplikat nur innerhalb Visibility=Public wird abgelehnt
+- [ ] Verhaltens-Specs unter `contexts/catalog/specs/create_product_manually/`: erfolgreiches Anlegen, verletzter Nährstoff-Invarianten liefern Fehler, Ean-Pruefziffer-Validierung, Barcode-Duplikat nur innerhalb Visibility=Public wird abgelehnt
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

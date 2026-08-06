@@ -51,7 +51,7 @@ Betrifft z. B. `Recipes.DiaryGateway` (Ticket 0038) und `Diary.HealthActivityGat
 implementierungsunabhängige Test-Suite gegen das `Protocol` selbst — eine Funktion wie
 `assert_diary_gateway_contract(gateway: DiaryGateway) -> None`, die alle vom Konsumenten
 benötigten Fälle prüft (Erfolgsfall, jeder dokumentierte Fehlerfall). Diese Suite liegt im
-Konsumenten-Context (`contexts/<consumer>/tests/contracts/`), wird aber vom **Anbieter**
+Konsumenten-Context (`contexts/<consumer>/specs/contracts/`), wird aber vom **Anbieter**
 importiert und gegen dessen eigenen In-Process-Adapter ausgeführt — der Anbieter weiß nichts vom
 Konsumenten, führt aber dessen Erwartungen kontinuierlich in seiner eigenen Testsuite mit aus. Bei
 einer späteren Extraktion ersetzt nur der Adapter (In-Process → HTTP/gRPC-Client) das

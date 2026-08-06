@@ -98,6 +98,19 @@ Postgres-statt-Redis-Entscheidung für M5), verhält sich aber am Tag der Extrak
 eine echte Messagequeue. Shared-Kernel-Baustein: `shared.outbox`-Tabelle + Relay-Worker gehören zu
 M0 (siehe `m0-projekt-grundgeruest.md`).
 
+## Nachträgliche Entscheidungen, die diese Datei ergänzen
+
+Getroffen nach dem ersten gebauten Slice und dort begründet — sie gelten repo-weit und schlagen,
+wo angegeben, die Draft-Spezifikation:
+
+- [`2026-08-06-0751`](../decisions/2026-08-06-0751-slice-form-test-api-baureihenfolge.md) —
+  Slice-Form, Test-API als ausgeliefertes Artefakt, gestufte Baureihenfolge.
+- [`2026-08-06-1105`](../decisions/2026-08-06-1105-shared-kernel-validation-und-tzdata.md) —
+  Rule Pattern im `shared_kernel`, `tzdata` als Laufzeit-Dependency.
+- [`2026-08-06-1340`](../decisions/2026-08-06-1340-unix-epoch-statt-datetime.md) — Zeitpunkte sind
+  Unix-Sekunden in einem Value Object. **Überschreibt BACKEND.md §0.12** (`DateTimeOffset`/
+  `timestamptz`) für diesen Python-Port; der Transport bleibt ISO-8601.
+
 ## Offene Feinentscheidungen, die erst im jeweiligen Ticket getroffen werden
 
 Diese sind bewusst nicht hier vorweggenommen, weil sie use-case-lokal sind und keine

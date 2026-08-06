@@ -33,27 +33,37 @@ sein.
 
 ## Acceptance criteria
 
-### Stufe 1 — Slice (ohne Infrastruktur, ohne HTTP, ohne Datenbank)
+### Stufe 1 — Slice (ohne Infrastruktur, ohne HTTP, ohne Datenbank) — **abgeschlossen (2026-08-06)**
 
-- [ ] `contexts/identity/domain/`: User-Aggregatwurzel mit identitaetsbasierter Gleichheit; Value
+Gebaut auf Branch `0011-register-user-slice`. Der Slice ist damit die
+Referenzimplementierung: `.claude/skills/review-against-rules/config.json` zeigt per
+`reference_implementation` darauf, ebenso die Kopfnotizen von
+`.rules/python/python-feature-slices.md` und `.rules/python/python-rule-pattern.md`.
+
+Zwei Ergaenzungen ausserhalb des Slice, beide in
+[`2026-08-06-…-shared-kernel-validation-und-tzdata.md`](../decisions/2026-08-06-1105-shared-kernel-validation-und-tzdata.md)
+begruendet: `src/shared_kernel/validation.py` (Collect-all Rule Pattern) und `tzdata` als
+Laufzeit-Dependency.
+
+- [x] `contexts/identity/domain/`: User-Aggregatwurzel mit identitaetsbasierter Gleichheit; Value
       Objects Email/PasswordHash/DisplayName/TimeZone (`@dataclass(frozen=True, slots=True)`, per
       `parse() -> Result[...]`-Factory erzeugt, nie roher `str`); Locale/AccountStatus als
       geschlossene Tagged Unions (kein `Enum`); **nur stdlib**
-- [ ] Ein flacher, **context-eigener** `DomainError` (Tagged Union, ein Fall je Fehlerursache, mit
+- [x] Ein flacher, **context-eigener** `DomainError` (Tagged Union, ein Fall je Fehlerursache, mit
       Nutzlast statt vorformatiertem String); Domain-Ports als `Protocol`, durchgehend
       `Result[T, E]`
-- [ ] `contexts/identity/application/register_user/`: Command, Handler (orchestriert nur, ~10-15
+- [x] `contexts/identity/application/register_user/`: Command, Handler (orchestriert nur, ~10-15
       Zeilen, kein try/except), Request-Mapper und Response-Mapper als **getrennte** Einheiten,
       Validierungsregeln, Port-Adapter
-- [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit **nur** den Operationen, die
+- [x] Public Naht des Use Case: eigenes, schmales `Protocol` mit **nur** den Operationen, die
       `register_user` braucht; **nur Primitive** ueber der Naht; eigene Tagged Union als
       Naht-Ergebnis, **nicht** `Result[T, E]`
-- [ ] `application/register_user/test_api.py` + `application/register_user/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/identity/tests/register_user/`: Arrange ueber die Test-API,
+- [x] `application/register_user/test_api.py` + `application/register_user/fakes/` (In-Memory)
+- [x] Verhaltens-Specs unter `contexts/identity/specs/register_user/`: Arrange ueber die Test-API,
       Act ueber das echte Request-DTO, Assert gegen die echte Response-Union — abgedeckt:
       erfolgreiche Registrierung, doppelte E-Mail (case-insensitive), Passwort < 10 Zeichen
-- [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
-- [ ] `./make.ps1 import-lint` gruen (Domaenen-Reinheit + Schichtung); `slice-shape-check` und
+- [x] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
+- [x] `./make.ps1 import-lint` gruen (Domaenen-Reinheit + Schichtung); `slice-shape-check` und
       `structure-placement-check` liefern `Findings: 0`
 
 ### Stufe 2 — Infrastruktur

@@ -26,7 +26,7 @@ POST /api/v1/catalog/products mit befuelltem sourcePhotoId - legt Product mit Or
 - [ ] `contexts/catalog/application/create_product_from_ocr/`: Command (name, barcode?, nutrients, sourcePhotoId), Handler (orchestriert nur), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht des Use Case: Protocol fuer Photo-Ladevorgang und ggf. Product-Repository; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/create_product_from_ocr/test_api.py` + `application/create_product_from_ocr/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/catalog/tests/create_product_from_ocr/`: Produkt wird mit Origin.UserOcr(photoId) angelegt, Nutrients-Invarianten aus 0021 greifen
+- [ ] Verhaltens-Specs unter `contexts/catalog/specs/create_product_from_ocr/`: Produkt wird mit Origin.UserOcr(photoId) angelegt, Nutrients-Invarianten aus 0021 greifen
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

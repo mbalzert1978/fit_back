@@ -11,6 +11,15 @@ dependencies = [
     "pydantic>=2.13.4",
     "alembic>=1.19.0",
     "sqlalchemy>=2.0.51",
+    # IANA-Zeitzonendatenbank fuer zoneinfo. Windows liefert keine mit, ohne
+    # tzdata ist available_timezones() dort leer und jede gueltige Zeitzone
+    # (Europe/Berlin) wuerde als unbekannt abgelehnt.
+    "tzdata>=2026.3",
+    # IDNA 2008 / UTS-46 fuer internationalisierte Domainnamen in E-Mail-Adressen.
+    # Die stdlib kann nur IDNA 2003 (encodings.idna) und liegt bei mehreren
+    # Labels und bei der Normalisierung anders.
+    "idna>=3.18",
+    "argon2-cffi>=25.1.0",
 ]
 
 [project.optional-dependencies]

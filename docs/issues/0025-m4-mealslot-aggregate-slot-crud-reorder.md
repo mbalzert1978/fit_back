@@ -27,7 +27,7 @@ MealSlot-Aggregate (Name, Position, IsArchived) mit den Invarianten: mindestens 
 - [ ] `contexts/diary/application/create_meal_slot/`, `.../update_meal_slot/`, `.../delete_meal_slot/`, `.../reorder_meal_slots/` — je Ordner ein eigener Command, ein eigener Handler (orchestriert nur, ~5-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten, eigene Validierungsregeln
 - [ ] Public Naht **je Use Case**: eigenes, schmales `Protocol` mit **nur** den Operationen, die der jeweilige Use Case braucht; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] **Je Use Case eine eigene** `test_api.py` + `fakes/`
-- [ ] Verhaltens-Specs je Use Case unter `contexts/diary/tests/<use_case>/`: Slot anlegen; Slot aendern; Slot loeschen (ohne Eintraege erfolgreich, mit Eintraegen → Fehler, letzter verbleibender Slot → Fehler); Slots reordern (Position bleibt lueckenlos)
+- [ ] Verhaltens-Specs je Use Case unter `contexts/diary/specs/<use_case>/`: Slot anlegen; Slot aendern; Slot loeschen (ohne Eintraege erfolgreich, mit Eintraegen → Fehler, letzter verbleibender Slot → Fehler); Slots reordern (Position bleibt lueckenlos)
 - [ ] Value-Object-Tests (SlotName, SlotPosition); Invarianten-Tests
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 

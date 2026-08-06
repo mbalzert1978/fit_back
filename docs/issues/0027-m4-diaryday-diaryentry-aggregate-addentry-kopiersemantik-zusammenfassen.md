@@ -26,7 +26,7 @@ DiaryDay-Aggregate (Schluessel UserId+DiaryDate) mit DiaryEntry als Child-Entity
 - [ ] `contexts/diary/application/add_diary_entry/`: Command (userId, date, slotId, sourceId, sourceType, grams, portionLabel), Handler (ladet oder erzeugt DiaryDay → prueft Invarianten → appliziert Zusammenfassen-Regel oder legt neue Entry an → gibt internes Outcome zurueck), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` fuer MealSlot-Ladevorgang und Source-Validierung (Product/Recipe); **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/add_diary_entry/test_api.py` + `application/add_diary_entry/fakes/` (In-Memory, fake MealSlot- und Product-Gateway)
-- [ ] Verhaltens-Specs unter `contexts/diary/tests/add_diary_entry/`: Entry erfolgreich anlegen (201), Zusammenfassen mit bestehendem Eintrag (200, addierte Gramm), Kopiersemantik (Produkt nach Erfassung aendern ⇒ Eintrag unveraendert), Out-of-Range-Gramm, unbekannter Slot/Source, Datum > 14 Tage in Zukunft
+- [ ] Verhaltens-Specs unter `contexts/diary/specs/add_diary_entry/`: Entry erfolgreich anlegen (201), Zusammenfassen mit bestehendem Eintrag (200, addierte Gramm), Kopiersemantik (Produkt nach Erfassung aendern ⇒ Eintrag unveraendert), Out-of-Range-Gramm, unbekannter Slot/Source, Datum > 14 Tage in Zukunft
 - [ ] Value-Object-Tests (Grams, PortionLabel); Tagged-Union-Serialisierungstest (EntrySource)
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 

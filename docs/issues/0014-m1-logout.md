@@ -25,7 +25,7 @@ Use Case Logout(refreshToken) - widerruft genau den uebergebenen Refresh-Token.
 - [ ] `contexts/identity/application/logout/`: Command (refreshToken als Primitive), Handler (orchestriert nur die Revokation, ~5-10 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Operation zur Token-Revokation; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/logout/test_api.py` + `application/logout/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/identity/tests/logout/`: Token erfolgreich revoked, unbekannter Token
+- [ ] Verhaltens-Specs unter `contexts/identity/specs/logout/`: Token erfolgreich revoked, unbekannter Token
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 
 ### Stufe 2 — Infrastruktur

@@ -28,8 +28,8 @@ AppPreferences-Aggregate (Theme-Union Dark/Light, Language-Union, MeasurementSys
 - [ ] `contexts/goals/application/update_preferences/`: Command (userId, neue Preferences), Handler (orchestriert Laden → Domaenen-Operation → Speichern, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht **je Use Case**: eigenes, schmales `Protocol` mit **nur** den Operationen, die der jeweilige Use Case braucht (`get_preferences` liest, `update_preferences` liest und schreibt); **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] **Je Use Case eine eigene** `test_api.py` + `fakes/`: `application/get_preferences/` und `application/update_preferences/`
-- [ ] Verhaltens-Specs unter `contexts/goals/tests/get_preferences/`: Preferences werden vollstaendig geliefert, Default-Werte fuer einen Nutzer ohne gespeicherte Preferences
-- [ ] Verhaltens-Specs unter `contexts/goals/tests/update_preferences/`: Update erfolgreich, nur uebergebene Felder werden aktualisiert (Partial-Set)
+- [ ] Verhaltens-Specs unter `contexts/goals/specs/get_preferences/`: Preferences werden vollstaendig geliefert, Default-Werte fuer einen Nutzer ohne gespeicherte Preferences
+- [ ] Verhaltens-Specs unter `contexts/goals/specs/update_preferences/`: Update erfolgreich, nur uebergebene Felder werden aktualisiert (Partial-Set)
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

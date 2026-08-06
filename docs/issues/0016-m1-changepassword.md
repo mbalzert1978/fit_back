@@ -26,7 +26,7 @@ Use Case ChangePassword(current, new) - verifiziert das aktuelle Passwort und wi
 - [ ] `contexts/identity/application/change_password/`: Command (userId, currentPassword, newPassword), Handler (orchestriert nur, Aggregat ladet → Passwort-Verifikation → Passwort aendert → Tokens revoked), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Operationen fuer Passwort-Verifikation und Token-Revokation; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/change_password/test_api.py` + `application/change_password/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/identity/tests/change_password/`: erfolgreiches Aendern, falsches current-Passwort, zu kurzes neues Passwort, erfolgreicher Token-Widerruf nach Aenderung
+- [ ] Verhaltens-Specs unter `contexts/identity/specs/change_password/`: erfolgreiches Aendern, falsches current-Passwort, zu kurzes neues Passwort, erfolgreicher Token-Widerruf nach Aenderung
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 
 ### Stufe 2 — Infrastruktur

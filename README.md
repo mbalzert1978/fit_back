@@ -109,7 +109,7 @@ If you prefer to run without Docker:
 
 3. Run the app:
    ```bash
-   uv run python main.py
+   uv run python -m src.main
    ```
 
 4. Test the health endpoint:
