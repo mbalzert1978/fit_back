@@ -73,6 +73,48 @@ def test_die_url_faehrt_asyncpg_ueber_sqlalchemy() -> None:
         db_password="geheim",
     )
 
-    assert settings.database_url == (
+    assert settings.database_url.render_as_string(hide_password=False) == (
         "postgresql+asyncpg://eigener_nutzer:geheim@datenbank:6543/eigene_db"
     )
+
+
+def test_sonderzeichen_im_passwort_verschieben_die_url_nicht() -> None:
+    """Regression: ein `@` im Passwort verschob die Grenze zwischen Zugangsdaten und Host.
+
+    Bei roher Interpolation las der Treiber alles vor dem **letzten** `@` als
+    Zugangsdaten - der Prozess verband sich gegen einen Host, den niemand
+    konfiguriert hat, oder gar nicht. Geprueft wird deshalb an den
+    Bestandteilen, nicht an der zusammengesetzten Zeichenkette: dass die
+    Maskierung stimmt, ist Sache von SQLAlchemy, dass nichts verrutscht, unsere.
+    """
+    boesartig = "p@ss:w/rd#100%"
+    settings = Settings(
+        db_host="datenbank",
+        db_port=5432,
+        db_name="eigene_db",
+        db_user="nutzer@firma",
+        db_password=boesartig,
+    )
+
+    url = settings.database_url
+
+    assert url.password == boesartig
+    assert url.username == "nutzer@firma"
+    assert url.host == "datenbank"
+    assert url.port == 5432
+    assert url.database == "eigene_db"
+
+
+def test_die_url_zeigt_das_passwort_nicht(capsys: pytest.CaptureFixture[str]) -> None:
+    """`str(url)` maskiert das Passwort - landet die URL in einem Log, geht es nicht mit."""
+    settings = Settings(
+        db_host="datenbank",
+        db_port=5432,
+        db_name="eigene_db",
+        db_user="nutzer",
+        db_password="streng-geheim",
+    )
+
+    print(settings.database_url)
+
+    assert "streng-geheim" not in capsys.readouterr().out

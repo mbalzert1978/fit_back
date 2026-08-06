@@ -10,6 +10,7 @@ import os
 from typing import final
 
 from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import URL
 
 __all__ = ["Settings", "validate_settings"]
 
@@ -25,16 +26,32 @@ class Settings(BaseModel):
     db_password: str = Field(...)  # Pflichtangabe, kein Standardwert
 
     @property
-    def database_url(self) -> str:
+    def database_url(self) -> URL:
         """Die eine Datenbank-URL des Prozesses.
 
         Der Treiber ist asyncpg, gefahren wird er ueber SQLAlchemy - ein Weg,
         den sich Health-Check, Idempotency-Middleware und die Slices teilen
         (`docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md`).
+
+        Zusammengesetzt ueber `URL.create`, **nicht** ueber einen f-String. Eine
+        URL hat Trennzeichen mit Bedeutung - `@`, `:`, `/`, `%`, `#` -, und ein
+        Passwort darf sie alle enthalten. Interpoliert man es roh, verschiebt ein
+        einziges `@` die Grenze zwischen Zugangsdaten und Host: der Prozess
+        verbindet sich dann gegen einen anderen Server oder gar nicht.
+        `URL.create` nimmt die Bestandteile einzeln entgegen und maskiert sie
+        selbst - damit gibt es keine Stelle mehr, an der man das vergessen kann.
+
+        Nebeneffekt, der hier zaehlt: `str(...)` einer `URL` zeigt das Passwort
+        als `***`. Landet die URL versehentlich in einem Log, geht das Geheimnis
+        nicht mit.
         """
-        return (
-            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+        return URL.create(
+            drivername="postgresql+asyncpg",
+            username=self.db_user,
+            password=self.db_password,
+            host=self.db_host,
+            port=self.db_port,
+            database=self.db_name,
         )
 
 

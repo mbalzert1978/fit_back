@@ -17,6 +17,7 @@ import logging
 from collections.abc import AsyncGenerator
 
 from fastapi import Request
+from sqlalchemy import URL
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
 from src.contexts.shared_kernel.events import EventRegistry
@@ -33,8 +34,12 @@ __all__ = [
 _logger = logging.getLogger(__name__)
 
 
-def build_engine(database_url: str) -> AsyncEngine:
-    """Baue die SQLAlchemy-Engine fuer den Prozess."""
+def build_engine(database_url: URL) -> AsyncEngine:
+    """Baue die SQLAlchemy-Engine fuer den Prozess.
+
+    Nimmt eine `URL`, keinen String: die Bestandteile sind darin einzeln
+    gefuehrt und bereits maskiert (siehe `Settings.database_url`).
+    """
     return create_async_engine(database_url, pool_pre_ping=True)
 
 
