@@ -1,22 +1,35 @@
-"""Idempotency-Key middleware for POST/PUT deduplication.
+"""Idempotency-Key-Middleware fuer POST/PUT (Ticket 0006, BACKEND.md Abschnitt 0.3).
 
-Implements RFC 7231 idempotency via Idempotency-Key header.
-Stores (key, user_id, request_hash, response_body, created_utc) in shared_kernel.idempotency_keys.
+Ein bereits verarbeiteter Schluessel liefert die urspruengliche Antwort mit 200
+statt eines zweiten Datensatzes. Abgelegt wird
+`(key, user_id, request_hash, response_body, created_utc)` in
+`shared_kernel.idempotency_keys`.
+
+Der Datenbankzugriff laeuft ueber **dieselbe** `AsyncEngine` wie die Slices - es
+gibt genau einen Weg zur Datenbank im Prozess. Die Engine wird nicht in den
+Konstruktor gereicht, sondern bei jeder Anfrage aus `app.state` gelesen: die
+Middleware-Kette baut Starlette auf, **bevor** der Lifespan laeuft, in dem die
+Engine entsteht. Genau daran ist die frühere Verdrahtung gescheitert (siehe
+`docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md`).
 """
 
 import hashlib
 import json
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, final
 from uuid import UUID
 
-import asyncpg
+from sqlalchemy import TextClause, text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp
+
+from src.shared_kernel.time_provider import TimeProvider
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +38,17 @@ IDEMPOTENCY_KEYS_TABLE = "shared_kernel.idempotency_keys"
 IDEMPOTENT_METHODS = frozenset({"POST", "PUT"})
 CACHEABLE_STATUS_CODES = frozenset({200, 201})
 
-SELECT_IDEMPOTENCY_KEY_SQL = f"""SELECT key, user_id, request_hash, response_body, created_utc
+SELECT_IDEMPOTENCY_KEY: TextClause = text(f"""
+    SELECT key, user_id, request_hash, response_body, created_utc
     FROM {IDEMPOTENCY_KEYS_TABLE}
-    WHERE key = $1 AND user_id = $2"""
+    WHERE key = :key AND user_id = :user_id
+""")
 
-INSERT_IDEMPOTENCY_KEY_SQL = f"""INSERT INTO {IDEMPOTENCY_KEYS_TABLE}
-    (key, user_id, request_hash, response_body, created_utc)
-    VALUES ($1, $2, $3, $4, $5)"""
+INSERT_IDEMPOTENCY_KEY: TextClause = text(f"""
+    INSERT INTO {IDEMPOTENCY_KEYS_TABLE}
+        (key, user_id, request_hash, response_body, created_utc)
+    VALUES (:key, :user_id, :request_hash, :response_body, :created_utc)
+""")
 
 
 def calculate_request_hash(method: str, path: str, body: str) -> str:
@@ -50,12 +67,12 @@ def calculate_request_hash(method: str, path: str, body: str) -> str:
 
 
 async def get_idempotency_key_from_db(
-    pool: asyncpg.Pool, key: UUID, user_id: UUID
+    engine: AsyncEngine, key: UUID, user_id: UUID
 ) -> dict[str, Any] | None:
     """Hole einen Idempotency-Key aus der Datenbank.
 
     Args:
-        pool: Datenbank-Verbindungspool
+        engine: Die Engine des Prozesses
         key: UUID des Idempotency-Keys
         user_id: UUID des Benutzers
 
@@ -63,52 +80,53 @@ async def get_idempotency_key_from_db(
         Dict mit Key-Daten oder None, falls nicht vorhanden
     """
     try:
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                SELECT_IDEMPOTENCY_KEY_SQL,
-                key,
-                user_id,
+        async with engine.connect() as connection:
+            found = await connection.execute(
+                SELECT_IDEMPOTENCY_KEY, {"key": key, "user_id": user_id}
             )
-            if row:
+            if (row := found.mappings().first()) is not None:
                 return dict(row)
             return None
-    except Exception as e:  # noqa: BLE001 -- catch-all for DB connection issues
+    except SQLAlchemyError as e:
         logger.warning(f"Error fetching idempotency key: {e}")
         return None
 
 
 async def save_idempotency_key(
-    pool: asyncpg.Pool,
+    engine: AsyncEngine,
     key: UUID,
     user_id: UUID,
     request_hash: str,
     response_body: dict[str, Any],
+    created_utc: datetime,
 ) -> bool:
     """Speichere einen neuen Idempotency-Key in der Datenbank.
 
     Args:
-        pool: Datenbank-Verbindungspool
+        engine: Die Engine des Prozesses
         key: UUID des Idempotency-Keys
         user_id: UUID des Benutzers
         request_hash: SHA256-Hash des Requests
         response_body: Response-Body als Dict
+        created_utc: Zeitpunkt der Speicherung (vom TimeProvider)
 
     Returns:
         True, falls erfolgreich, False bei Fehler
     """
     try:
-        async with pool.acquire() as conn:
-            created_utc = datetime.now(tz=UTC)
-            await conn.execute(
-                INSERT_IDEMPOTENCY_KEY_SQL,
-                key,
-                user_id,
-                request_hash,
-                json.dumps(response_body),
-                created_utc,
+        async with engine.begin() as connection:
+            await connection.execute(
+                INSERT_IDEMPOTENCY_KEY,
+                {
+                    "key": key,
+                    "user_id": user_id,
+                    "request_hash": request_hash,
+                    "response_body": json.dumps(response_body),
+                    "created_utc": created_utc,
+                },
             )
         return True
-    except Exception as e:  # noqa: BLE001 -- catch-all for DB write issues
+    except SQLAlchemyError as e:
         logger.warning(f"Error saving idempotency key: {e}")
         return False
 
@@ -136,20 +154,19 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        db_pool: asyncpg.Pool | None = None,
-        time_provider: object | None = None,
+        time_provider: TimeProvider,
         ttl_days: int = 7,
     ) -> None:
         """Initialisiere die Middleware.
 
         Args:
             app: Die ASGI-App
-            db_pool: asyncpg-Verbindungspool (optional, wird sonst aus app.state geholt)
-            time_provider: TimeProvider für deterministische Tests (nicht direkt genutzt)
-            ttl_days: TTL in Tagen (Standard: 7)
+            time_provider: TimeProvider fuer den `created_utc`-Zeitstempel
+            ttl_days: TTL in Tagen (Standard: 7). Der Cleanup-Job dazu ist
+                nicht Teil von Ticket 0006 - der Wert liegt hier als
+                Konfiguration bereit, bis es ihn gibt.
         """
         super().__init__(app)
-        self.db_pool = db_pool
         self.time_provider = time_provider
         self.ttl_days = ttl_days
 
@@ -184,48 +201,58 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
 
         # Berechne RequestHash aus Methode, Pfad und Body
         body_str = ""
-        if is_idempotent_method(request.method):
-            try:
-                body_bytes = await request.body()
-                body_str = body_bytes.decode("utf-8")
-            except (UnicodeDecodeError, OSError) as e:
-                logger.warning(f"Error reading request body: {e}")
+        try:
+            body_bytes = await request.body()
+            body_str = body_bytes.decode("utf-8")
+        except (UnicodeDecodeError, OSError) as e:
+            logger.warning(f"Error reading request body: {e}")
 
         request_hash = calculate_request_hash(request.method, request.url.path, body_str)
 
-        # Hole DB-Pool aus Constructor oder App-State
-        pool = self.db_pool or getattr(request.app.state, "db_pool", None)
-        if not pool:
-            logger.warning("No database pool available, skipping idempotency check")
+        # Die Engine des Prozesses - dieselbe, mit der die Slices schreiben.
+        engine: AsyncEngine | None = getattr(request.app.state, "engine", None)
+        if engine is None:
+            logger.warning("No database engine available, skipping idempotency check")
             return await call_next(request)
 
         # Prüfe, ob Key bekannt ist
-        existing_key = await get_idempotency_key_from_db(pool, idempotency_key, user_id)
+        existing_key = await get_idempotency_key_from_db(engine, idempotency_key, user_id)
         if existing_key:
             logger.info(f"Idempotency key {idempotency_key} found, returning cached response")
-            response_body = existing_key.get("response_body")
             return JSONResponse(
-                content=response_body,
+                content=json.loads(existing_key["response_body"]),
                 status_code=200,
             )
 
         # Key ist neu: verarbeite Request normal
         response = await call_next(request)
 
-        # Speichere Response in Datenbank (nur für erfolgreiche Responses 201, 200)
-        if response.status_code in CACHEABLE_STATUS_CODES:
-            try:
-                response_body = json.loads(response.body.decode("utf-8"))
-            except (json.JSONDecodeError, UnicodeDecodeError, OSError) as e:
-                logger.warning(f"Error parsing response body: {e}")
-                response_body = {}
+        if response.status_code not in CACHEABLE_STATUS_CODES:
+            return response
 
-            await save_idempotency_key(
-                pool,
-                idempotency_key,
-                user_id,
-                request_hash,
-                response_body,
-            )
+        # `call_next` liefert eine Streaming-Antwort: der Body ist ein noch nicht
+        # gelesener Iterator, kein `.body`. Er muss hier eingesammelt werden - und
+        # weil er sich nur einmal lesen laesst, geht anschliessend eine neue
+        # Antwort mit denselben Bytes hinaus.
+        raw_body = b"".join([chunk async for chunk in response.body_iterator])
+        try:
+            response_body = json.loads(raw_body.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logger.warning(f"Error parsing response body: {e}")
+            response_body = {}
 
-        return response
+        await save_idempotency_key(
+            engine,
+            idempotency_key,
+            user_id,
+            request_hash,
+            response_body,
+            self.time_provider.utc_now(),
+        )
+
+        return Response(
+            content=raw_body,
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            media_type=response.media_type,
+        )

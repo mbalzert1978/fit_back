@@ -5,10 +5,12 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-import asyncpg
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.api.composition import build_engine, build_event_registry, run_outbox_worker
 from src.api.exception_handlers import register_exception_handlers
@@ -30,12 +32,10 @@ class Settings(BaseModel):
 
     @property
     def database_url(self) -> str:
-        """SQLAlchemy-URL fuer dieselbe Datenbank.
+        """Die eine Datenbank-URL des Prozesses.
 
-        Der asyncpg-Pool unten und diese Engine sprechen mit derselben Instanz,
-        aber ueber zwei Wege: der Pool bedient Health-Check und
-        Idempotency-Middleware (Tickets 0001/0006), die Engine die Slices. Ein
-        Weg zu viel - beim naechsten Anfassen von 0006 zusammenfuehren.
+        Der Treiber ist asyncpg, gefahren wird er ueber SQLAlchemy - ein Weg,
+        den sich Health-Check, Idempotency-Middleware und die Slices teilen.
         """
         return (
             f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
@@ -57,61 +57,41 @@ def validate_settings() -> Settings:
         raise RuntimeError("Configuration validation failed: invalid environment variables") from e
 
 
-async def init_db(settings: Settings) -> asyncpg.Pool:
-    """Initialize database connection pool."""
-    try:
-        pool = await asyncpg.create_pool(
-            host=settings.db_host,
-            port=settings.db_port,
-            database=settings.db_name,
-            user=settings.db_user,
-            password=settings.db_password,
-            min_size=1,
-            max_size=10,
-        )
-        logger.info("Database pool initialized successfully")
-        return pool
-    except asyncpg.Error:
-        logger.warning("Failed to initialize database pool")
-        raise
-
-
-async def close_db(pool: asyncpg.Pool | None) -> None:
-    """Close database connection pool."""
-    if pool:
-        await pool.close()
-        logger.info("Database pool closed")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    """Manage app lifespan: startup and shutdown."""
-    # Startup: validate settings and initialize database
-    try:
-        settings = validate_settings()
-        app.state.settings = settings
-        app.state.db_pool = await init_db(settings)
-        # Set up idempotency middleware after db pool is ready
-        setup_idempotency_middleware(app)
-    except RuntimeError as e:
-        logger.error("Application startup failed: %s", str(e))
-        app.state.db_pool = None
-        raise
+    """Manage app lifespan: startup and shutdown.
 
+    Hier wird **nichts** mehr an die App gehaengt, was zu ihrer Gestalt gehoert:
+    Router, Exception-Handler und Middleware stehen auf Modulebene fest. Der
+    Lifespan legt ausschliesslich Laufzeit-Ressourcen an und raeumt sie weg.
+    """
+    settings = validate_settings()
+    app.state.settings = settings
     app.state.engine = build_engine(settings.database_url)
     app.state.event_registry = build_event_registry()
-    async with run_outbox_worker(app.state.engine, app.state.event_registry):
-        yield
+    logger.info("Datenbank-Engine erstellt")
 
-    # Shutdown
-    await app.state.engine.dispose()
-    await close_db(app.state.db_pool)
+    try:
+        async with run_outbox_worker(app.state.engine, app.state.event_registry):
+            yield
+    finally:
+        await app.state.engine.dispose()
+        logger.info("Datenbank-Engine geschlossen")
 
 
 app = FastAPI(title="Fit-back API", lifespan=lifespan)
 
 # Register exception handlers for RFC 7807 ProblemDetails
 register_exception_handlers(app)
+
+# Middleware gehoert auf Modulebene: Starlette baut die Kette beim ersten
+# ASGI-Aufruf zusammen - und das ist der Lifespan-Aufruf selbst. Ein
+# `add_middleware` waehrend des Startups kommt also immer zu spaet und wirft
+# "Cannot add middleware after an application has started"; siehe
+# docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md.
+# Die Engine kann die Middleware deshalb nicht im Konstruktor bekommen - sie
+# liest sie je Anfrage aus `app.state`.
+app.add_middleware(IdempotencyKeyMiddleware, time_provider=SystemTimeProvider())
 
 # Rate-Limit- und CSRF-Middleware sind hier bewusst nicht verdrahtet: beide kamen
 # aus 96b8f2c, wurden mit 4165fed zurueckgenommen (siehe
@@ -124,24 +104,6 @@ register_exception_handlers(app)
 app.include_router(register_user_router)
 
 
-def setup_idempotency_middleware(app: FastAPI) -> None:
-    """Set up idempotency middleware after database initialization.
-
-    This is called in the lifespan startup after db_pool is initialized.
-    """
-    db_pool: asyncpg.Pool | None = getattr(app.state, "db_pool", None)
-    if db_pool is None:
-        logger.warning("Idempotency middleware skipped: database pool not initialized")
-        return
-
-    time_provider = SystemTimeProvider()
-    app.add_middleware(
-        IdempotencyKeyMiddleware,
-        db_pool=db_pool,
-        time_provider=time_provider,
-    )
-
-
 @app.get("/api/v1/health")
 async def health_check(request: Request) -> JSONResponse:
     """
@@ -149,8 +111,8 @@ async def health_check(request: Request) -> JSONResponse:
 
     Returns 200 if the database is connected, 503 otherwise.
     """
-    db_pool: asyncpg.Pool | None = getattr(request.app.state, "db_pool", None)
-    if db_pool is None:
+    engine: AsyncEngine | None = getattr(request.app.state, "engine", None)
+    if engine is None:
         logger.warning("Health check: database not available")
         return JSONResponse(
             {"status": "unhealthy"},
@@ -159,10 +121,10 @@ async def health_check(request: Request) -> JSONResponse:
 
     try:
         # Verify connection by running a simple query
-        async with db_pool.acquire() as conn:
-            await conn.execute("SELECT 1")
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
         return JSONResponse({"status": "healthy"})
-    except asyncpg.Error:
+    except SQLAlchemyError:
         logger.warning("Health check: database connection failed")
         return JSONResponse(
             {"status": "unhealthy"},

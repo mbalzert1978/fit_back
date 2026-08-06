@@ -11,6 +11,7 @@ from src.shared_infrastructure.idempotency import (
     calculate_request_hash,
     is_idempotent_method,
 )
+from src.shared_kernel.time_provider import FakeTimeProvider
 
 
 class TestCalculateRequestHash:
@@ -86,7 +87,7 @@ class TestIdempotencyKeyMiddleware:
     async def test_passes_through_without_idempotency_header(self) -> None:
         """Sollte durchpassen, wenn kein Idempotency-Key-Header vorhanden ist."""
         mock_app = MagicMock()
-        middleware = IdempotencyKeyMiddleware(mock_app)
+        middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
         mock_request = AsyncMock()
         mock_request.method = "POST"
@@ -104,7 +105,7 @@ class TestIdempotencyKeyMiddleware:
     async def test_passes_through_without_user_id(self) -> None:
         """Sollte durchpassen, wenn keine user_id in request.state vorhanden ist."""
         mock_app = MagicMock()
-        middleware = IdempotencyKeyMiddleware(mock_app)
+        middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
         key = uuid4()
         mock_request = AsyncMock()
@@ -123,7 +124,7 @@ class TestIdempotencyKeyMiddleware:
     async def test_passes_through_with_invalid_uuid(self) -> None:
         """Sollte durchpassen, wenn Idempotency-Key kein gültiger UUID ist."""
         mock_app = MagicMock()
-        middleware = IdempotencyKeyMiddleware(mock_app)
+        middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
         mock_request = AsyncMock()
         mock_request.method = "POST"
@@ -145,13 +146,15 @@ class TestIdempotencyKeyMiddlewareConfiguration:
     def test_middleware_accepts_ttl_days_config(self) -> None:
         """Middleware sollte ttl_days-Parameter akzeptieren."""
         mock_app = MagicMock()
-        middleware = IdempotencyKeyMiddleware(mock_app, ttl_days=14)
+        middleware = IdempotencyKeyMiddleware(
+            mock_app, time_provider=FakeTimeProvider(), ttl_days=14
+        )
 
         assert middleware.ttl_days == 14
 
     def test_middleware_default_ttl_is_7_days(self) -> None:
         """Standard-TTL sollte 7 Tage sein."""
         mock_app = MagicMock()
-        middleware = IdempotencyKeyMiddleware(mock_app)
+        middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
         assert middleware.ttl_days == 7

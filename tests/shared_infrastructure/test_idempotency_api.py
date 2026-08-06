@@ -1,244 +1,223 @@
-"""Tests for Idempotency-Key middleware."""
+"""Integrationstests der Idempotency-Key-Middleware gegen eine echte Datenbank.
 
-import asyncio
-from uuid import uuid4
+Diese Datei lief bisher gegen eine `db_pool`-Fixture, die `None` zurueckgab -
+der eine Test, auf den es ankommt (zweiter Aufruf mit demselben Schluessel
+liefert die gespeicherte Antwort), hat sich damit selbst uebersprungen. Er laeuft
+jetzt gegen die Testcontainers-Engine, dieselbe, die auch die Slices benutzen.
+"""
+
+from collections.abc import AsyncGenerator
+from uuid import UUID, uuid4
 
 import pytest
+import pytest_asyncio
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from src.shared_infrastructure.idempotency import IdempotencyKeyMiddleware
 from src.shared_kernel.time_provider import FakeTimeProvider
 
-
-@pytest.fixture
-def fake_time_provider() -> FakeTimeProvider:
-    """Provide a FakeTimeProvider for deterministic testing."""
-    return FakeTimeProvider()
+pytestmark = pytest.mark.asyncio
 
 
-@pytest.fixture
-def test_app(
-    db_pool: object,
-    fake_time_provider: FakeTimeProvider,
-) -> FastAPI:
-    """Create a test FastAPI app with idempotency middleware.
+class _StubAuthMiddleware(BaseHTTPMiddleware):
+    """Setzt eine feste `user_id` - die Idempotenz haengt an ihr."""
 
-    Note: db_pool is a fixture that should be provided by conftest.py
+    def __init__(self, app: object, user_id: UUID) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self._user_id = user_id
+
+    async def dispatch(self, request: Request, call_next: object) -> Response:
+        request.state.user_id = self._user_id
+        return await call_next(request)  # type: ignore[operator]
+
+
+def _build_app(engine: AsyncEngine, user_id: UUID | None) -> FastAPI:
+    """Baue eine App mit einem Dummy-Endpunkt hinter der Middleware.
+
+    `user_id=None` laesst die Stub-Auth weg und bildet damit den
+    unauthentifizierten Fall ab.
+
+    Reihenfolge: `add_middleware` schiebt jeweils nach vorn, die zuletzt
+    hinzugefuegte Middleware laeuft also **aussen**. Die Auth muss aussen
+    liegen, sonst sieht die Idempotenz-Pruefung noch keine `user_id`.
     """
     app = FastAPI()
 
-    # Add a simple test endpoint that returns a JSON response
     @app.post("/api/v1/test-idempotency")
-    async def test_endpoint() -> JSONResponse:
-        """Test endpoint that simulates resource creation."""
-        user_id = uuid4()
-        return JSONResponse(
-            status_code=201,
-            content={
-                "id": str(user_id),
-                "data": "test-response",
-                "timestamp": fake_time_provider.utc_now().isoformat(),
-            },
-        )
+    async def create() -> JSONResponse:
+        return JSONResponse(status_code=201, content={"id": str(uuid4()), "data": "angelegt"})
 
-    # Add idempotency middleware
-    # Note: In production, this is registered in lifespan; here we add it directly
-    if db_pool is not None:
-        app.add_middleware(
-            IdempotencyKeyMiddleware,
-            db_pool=db_pool,
-            time_provider=fake_time_provider,
-        )
+    @app.put("/api/v1/test-idempotency")
+    async def update() -> JSONResponse:
+        return JSONResponse(status_code=200, content={"updated": True})
 
+    @app.get("/api/v1/test-idempotency")
+    async def read() -> JSONResponse:
+        return JSONResponse(status_code=200, content={"data": "gelesen"})
+
+    app.add_middleware(IdempotencyKeyMiddleware, time_provider=FakeTimeProvider())
+    if user_id is not None:
+        app.add_middleware(_StubAuthMiddleware, user_id=user_id)
+    app.state.engine = engine
     return app
 
 
-@pytest.mark.asyncio
-class TestIdempotencyKeyMiddleware:
-    """Test Idempotency-Key middleware behavior."""
+@pytest_asyncio.fixture
+async def clean_idempotency_keys(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncEngine]:
+    """Leere die Tabelle vor und nach jedem Test."""
+    async with postgres_engine.begin() as connection:
+        await connection.execute(text("TRUNCATE shared_kernel.idempotency_keys"))
+    yield postgres_engine
+    async with postgres_engine.begin() as connection:
+        await connection.execute(text("TRUNCATE shared_kernel.idempotency_keys"))
 
-    async def test_request_without_idempotency_key_passes_through(
-        self,
-        test_app: FastAPI,
-    ) -> None:
-        """Requests without Idempotency-Key header should pass through normally."""
-        transport = ASGITransport(app=test_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post("/api/v1/test-idempotency")
-            assert response.status_code == 201
-            data = response.json()
-            assert "id" in data
-            assert data["data"] == "test-response"
 
-    async def test_idempotency_key_with_unauthenticated_request(
-        self,
-        test_app: FastAPI,
-    ) -> None:
-        """Requests with Idempotency-Key but without auth should pass through."""
-        idempotency_key = str(uuid4())
-        transport = ASGITransport(app=test_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/test-idempotency",
-                headers={"Idempotency-Key": idempotency_key},
-            )
-            assert response.status_code == 201
+async def _client(app: FastAPI) -> AsyncClient:
+    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
-    async def test_idempotency_key_cache_hit_with_same_key(
-        self,
-        test_app: FastAPI,
-        db_pool: object,
-    ) -> None:
-        """Second request with same Idempotency-Key should return cached 200.
 
-        NOTE: This test requires a real database pool and migration setup.
-        Without proper DB initialization, this will be skipped.
-        """
-        if db_pool is None:
-            pytest.skip("Database pool not available")
+async def test_zweiter_aufruf_liefert_die_gespeicherte_antwort(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """Der Kern des Tickets: gleicher Schluessel, gleiche Antwort, jetzt mit 200."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    key = str(uuid4())
 
-        idempotency_key = str(uuid4())
-        user_id = uuid4()
+    async with await _client(app) as client:
+        first = await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
+        second = await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
 
-        # Create a modified test app that simulates auth
-        app = FastAPI()
+    assert first.status_code == 201
+    assert second.status_code == 200
+    assert second.json() == first.json()
 
-        @app.post("/api/v1/test-idempotency")
-        async def test_endpoint() -> JSONResponse:
-            """Test endpoint with authenticated user."""
-            return JSONResponse(
-                status_code=201,
-                content={
-                    "id": str(uuid4()),
-                    "data": "cached-response",
-                },
-            )
 
-        # Middleware that injects user_id
-        from starlette.middleware.base import BaseHTTPMiddleware
-        from starlette.responses import Response
+async def test_der_eintrag_traegt_alle_geforderten_felder(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """`shared_kernel.idempotency_keys` bekommt Schluessel, Nutzer, Hash, Body und Zeitpunkt."""
+    user_id = uuid4()
+    app = _build_app(clean_idempotency_keys, user_id=user_id)
+    key = uuid4()
 
-        class AuthMiddleware(BaseHTTPMiddleware):
-            """Inject user_id into request state."""
+    async with await _client(app) as client:
+        await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": str(key)})
 
-            async def dispatch(
-                self,
-                request,  # type: ignore[no-untyped-def]
-                call_next,  # type: ignore[no-untyped-def]
-            ) -> Response:
-                request.state.user_id = user_id
-                return await call_next(request)  # type: ignore[no-untyped-call]
+    async with clean_idempotency_keys.connect() as connection:
+        found = await connection.execute(
+            text("""
+                SELECT key, user_id, request_hash, response_body, created_utc
+                FROM shared_kernel.idempotency_keys
+            """)
+        )
+        row = found.mappings().one()
 
-        app.add_middleware(AuthMiddleware)
-        app.add_middleware(
-            IdempotencyKeyMiddleware,
-            db_pool=db_pool,
-            time_provider=FakeTimeProvider(),
+    assert row["key"] == key
+    assert row["user_id"] == user_id
+    assert len(row["request_hash"]) == 64
+    assert "angelegt" in row["response_body"]
+    # FakeTimeProvider steht auf 2000-01-01 - der Zeitpunkt kommt aus dem
+    # TimeProvider, nicht aus einem direkten Uhrablesen in der Middleware.
+    assert row["created_utc"].year == 2000
+
+
+async def test_verschiedene_schluessel_stoeren_sich_nicht(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """Zwei Schluessel, zwei Vorgaenge - kein Treffer im Zwischenspeicher."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+
+    async with await _client(app) as client:
+        first = await client.post(
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid4())}
+        )
+        second = await client.post(
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid4())}
         )
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            # First request
-            response1 = await client.post(
-                "/api/v1/test-idempotency",
-                headers={"Idempotency-Key": idempotency_key},
-            )
-            assert response1.status_code == 201
-            data1 = response1.json()
+    assert (first.status_code, second.status_code) == (201, 201)
+    assert first.json() != second.json()
 
-            # Small delay to ensure DB write completes
-            await asyncio.sleep(0.1)
 
-            # Second request with same key should return 200
-            response2 = await client.post(
-                "/api/v1/test-idempotency",
-                headers={"Idempotency-Key": idempotency_key},
-            )
-            # On cache hit, should return 200 (not original 201)
-            assert response2.status_code == 200
-            data2 = response2.json()
-            # Cached response should match original
-            assert data1 == data2
+async def test_ohne_schluessel_geht_die_anfrage_durch(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """Ohne Header greift die Middleware nicht ein."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
 
-    async def test_different_idempotency_keys_create_separate_entries(
-        self,
-        test_app: FastAPI,
-    ) -> None:
-        """Different Idempotency-Keys should not interfere."""
-        key1 = str(uuid4())
-        key2 = str(uuid4())
+    async with await _client(app) as client:
+        response = await client.post("/api/v1/test-idempotency")
 
-        transport = ASGITransport(app=test_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response1 = await client.post(
-                "/api/v1/test-idempotency",
-                headers={"Idempotency-Key": key1},
-            )
-            assert response1.status_code == 201
+    assert response.status_code == 201
 
-            response2 = await client.post(
-                "/api/v1/test-idempotency",
-                headers={"Idempotency-Key": key2},
-            )
-            # Both should return 201 (no cache hit because keys differ)
-            assert response2.status_code == 201
 
-    async def test_put_request_with_idempotency_key(
-        self,
-        test_app: FastAPI,
-    ) -> None:
-        """PUT requests with Idempotency-Key should also be handled."""
+async def test_ohne_angemeldeten_nutzer_geht_die_anfrage_durch(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """Idempotenz haengt an der `user_id`; ohne sie wird nichts gespeichert."""
+    app = _build_app(clean_idempotency_keys, user_id=None)
+    key = str(uuid4())
 
-        # Add a PUT endpoint
-        @test_app.put("/api/v1/test-idempotency")
-        async def put_endpoint() -> JSONResponse:
-            return JSONResponse(
-                status_code=200,
-                content={"updated": True},
-            )
+    async with await _client(app) as client:
+        first = await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
+        second = await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
 
-        idempotency_key = str(uuid4())
-        transport = ASGITransport(app=test_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.put(
-                "/api/v1/test-idempotency",
-                headers={"Idempotency-Key": idempotency_key},
-            )
-            # Without auth, should pass through
-            assert response.status_code == 200
+    assert (first.status_code, second.status_code) == (201, 201)
 
-    async def test_invalid_idempotency_key_uuid_passes_through(
-        self,
-        test_app: FastAPI,
-    ) -> None:
-        """Invalid UUID in Idempotency-Key should not crash, just pass through."""
-        transport = ASGITransport(app=test_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/test-idempotency",
-                headers={"Idempotency-Key": "not-a-uuid"},
-            )
-            # Should still return 201 (middleware warning logged, request continues)
-            assert response.status_code == 201
+    async with clean_idempotency_keys.connect() as connection:
+        stored = await connection.scalar(
+            text("SELECT count(*) FROM shared_kernel.idempotency_keys")
+        )
+    assert stored == 0
 
-    async def test_get_request_ignores_idempotency_key(
-        self,
-        test_app: FastAPI,
-    ) -> None:
-        """GET requests with Idempotency-Key should be ignored (only POST/PUT)."""
 
-        # Add a GET endpoint
-        @test_app.get("/api/v1/test-idempotency")
-        async def get_endpoint() -> JSONResponse:
-            return JSONResponse(status_code=200, content={"data": "test"})
+async def test_ungueltige_uuid_im_header_geht_durch(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """Ein unlesbarer Schluessel bricht die Anfrage nicht ab."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
 
-        idempotency_key = str(uuid4())
-        transport = ASGITransport(app=test_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                "/api/v1/test-idempotency",
-                headers={"Idempotency-Key": idempotency_key},
-            )
-            assert response.status_code == 200
+    async with await _client(app) as client:
+        response = await client.post(
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": "kein-uuid"}
+        )
+
+    assert response.status_code == 201
+
+
+async def test_get_wird_nicht_behandelt(clean_idempotency_keys: AsyncEngine) -> None:
+    """Nur POST und PUT sind idempotenzpflichtig."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+
+    async with await _client(app) as client:
+        response = await client.get(
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 200
+
+
+async def test_put_wird_ebenfalls_zwischengespeichert(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """PUT faellt unter dieselbe Regel wie POST."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    key = str(uuid4())
+
+    async with await _client(app) as client:
+        await client.put("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
+        second = await client.put("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
+
+    assert second.status_code == 200
+    async with clean_idempotency_keys.connect() as connection:
+        stored = await connection.scalar(
+            text("SELECT count(*) FROM shared_kernel.idempotency_keys")
+        )
+    assert stored == 1
