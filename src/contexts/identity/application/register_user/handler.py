@@ -8,9 +8,9 @@ from src.contexts.identity.domain import (
     PasswordHasher,
     User,
     UserId,
-    UserRegistered,
     UserRegistry,
     register,
+    user_registered,
 )
 from src.shared_kernel import Result, TimeProvider
 from src.shared_kernel.events import EventPublisher
@@ -61,4 +61,4 @@ class RegisterUserHandler:
 
     async def _announce(self, user: User) -> None:
         """Melde die abgeschlossene Registrierung nach aussen."""
-        await self._events.publish(UserRegistered(user.id, user.locale, user.registered_at))
+        await self._events.publish(user_registered(user))

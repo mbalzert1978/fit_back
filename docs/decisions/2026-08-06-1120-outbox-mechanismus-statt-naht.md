@@ -41,16 +41,60 @@ greifen. Das ist die gewohnte Richtung aus .NET — ein Infrastructure-Projekt r
 Application-Projekte und implementiert deren Interfaces, nie umgekehrt. Der Preis sind viele
 winzige Klassen; jede davon ist zwei Zeilen lang und enthält keine Logik.
 
-## Die Rückrichtung läuft über eine Registry
+## Die Rückrichtung läuft über eine Registry, registriert wird über den Typ
 
 Wen der Relay beliefert, gibt er **nicht** vor. `EventRegistry` (ebenfalls
-`src/shared_kernel/events.py`) bietet `register(event_type, handler)`; die Pipeline eines
-reagierenden Use Case trägt sich dort beim Aufbau ein, der Relay schlägt nur nach. Damit kennen
-sich beide Seiten nicht.
+`src/shared_kernel/events.py`) bietet `register[T: DomainEvent](event: type[T], handler)`; die
+Pipeline eines reagierenden Use Case trägt sich dort beim Aufbau ein, der Relay schlägt nur nach.
+Damit kennen sich beide Seiten nicht.
 
-Mehrere Handler je Event-Typ sind der Normalfall, nicht die Ausnahme — auf `UserRegistered`
+Registriert wird über den **Typ**, nicht über einen String: `register(UserRegistered, handler)`.
+Der Import macht die Abhängigkeit sichtbar, und ein Vertippen ist ein Fehler beim Aufbau statt
+einer Reaktion, die im Betrieb schlicht nie kommt. Der Name steht genau einmal, als
+`EVENT_TYPE: ClassVar[str]` im Vertrag selbst — als Konstante und nicht als `__name__`, weil unter
+diesem Namen bereits geschriebene Zeilen in der Outbox liegen und ein Klassen-Rename sonst still
+ein Vertragsbruch wäre. Auf der Zustellseite (`handlers_for`) bleibt es ein String, weil er dort
+auch als String ankommt: aus einer Zeile, geschrieben womöglich von einer älteren Version.
+
+Mehrere Handler je Ereignis sind der Normalfall, nicht die Ausnahme — auf `UserRegistered`
 reagieren Goals *und* Diary. Die Registry ist eine Instanz und kein Modul-Global: Registrierungen
 gehören zur Verdrahtung einer Anwendung, nicht zum Importzustand des Prozesses.
+
+## `contracts/` als vierter Teil eines Context
+
+Ein Ereignis, mit dem sich ein fremder Context registriert, muss von diesem importierbar sein.
+`domain/` und `infrastructure/` sind für Fremde gesperrt (`forbidden`-Contract), `application/`
+gehört dem Slice. Also bekommt jeder Context ein `contracts/`-Paket: sein veröffentlichtes
+Vokabular, Primitive statt Value Objects, abhängig von nichts außer stdlib und Shared Kernel.
+
+Im `context-layers`-Contract liegt `contracts` **zuinnerst** — unterhalb von `domain`. Kennte der
+Vertrag die eigene Domäne, zöge jeder Konsument sie über den Vertrag mit herein, und die Grenze
+wäre nur noch auf dem Papier vorhanden. Die Schicht ist als `(contracts)` optional notiert, weil
+die übrigen fünf Contexts noch keine haben; sobald eine entsteht, greift die Regel dort
+automatisch. `src.contexts.identity.contracts` steht zusätzlich im `domain-purity`-Contract.
+
+Damit gibt es das Ereignis genau **einmal**, nicht als Paar aus Domänen-Ereignis und
+Transport-DTO. `domain/events.py` ist entsprechend kein Ereignis mehr, sondern die Abbildung
+`user_registered(user: User) -> UserRegistered` — welcher Ausschnitt eines Aggregats hinausgeht,
+bleibt eine fachliche Entscheidung der Domäne.
+
+Kein `from_payload` auf dem Vertrag: es gibt noch keinen Konsumenten, und ob eine unlesbare
+Nutzlast ein fachlicher Fall (`Result`) oder ein Programmierfehler ist, entscheidet der erste
+Konsument mit echtem Bedarf — nicht ich vorab.
+
+## Offen: die Registry hat noch keinen Produktions-Aufrufer
+
+`register_user` ist reiner Produzent; er meldet, reagiert aber auf nichts. Die erste echte
+Registrierung gehört den konsumierenden Slices — Goals
+([0018](../issues/0018-m2-nutritiongoal-aggregate-default-profil-handler-auf-userregistered.md)) und
+Diary ([0026](../issues/0026-m4-standard-slots-outbox-consumer-auf-userregistered.md)).
+
+Dazu fehlt der **Composition Root**: `src/api/` ist ein leeres Paket, niemand erzeugt die eine
+`EventRegistry`-Instanz und reicht sie an die Pipelines der Konsumenten *und* an den `OutboxRelay`.
+Aktuell füllt nur Testcode die Registry; die Verdrahtung selbst ist durch nichts abgedeckt. Sie
+entsteht mit Stufe 3 von Ticket 0011 (`POST /api/v1/identity/register`), wo ohnehin Engine,
+Session-Scope je Request, Relay und Worker-Task zusammenkommen. Bewusst nicht vorgezogen: ein
+App-Bootstrap ohne Endpoint wäre Verdrahtung ohne Verdrahtetes.
 
 ## `publish` hat keinen Fehlerkanal
 

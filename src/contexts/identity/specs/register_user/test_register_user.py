@@ -148,11 +148,7 @@ async def test_meldet_die_registrierung_nach_aussen() -> None:
     (announced,) = api.published_events
     assert announced.event_type == "UserRegistered"
     assert announced.occurred_at == heiligabend_2026_18_uhr_utc
-    assert announced.payload == {
-        "user_id": result.user_id,
-        "locale": "de",
-        "registered_at": heiligabend_2026_18_uhr_utc,
-    }
+    assert announced.payload == {"user_id": result.user_id, "locale": "de"}
 
 
 @pytest.mark.asyncio

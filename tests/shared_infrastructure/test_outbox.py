@@ -7,8 +7,10 @@ sich selbst geprueft - er koennte nur bestaetigen, was wir ihm beigebracht haben
 """
 
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import ClassVar, final
 
 import pytest
 import pytest_asyncio
@@ -16,13 +18,31 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.shared_infrastructure.outbox import OutboxRelay, OutboxWorker, RelayConfig, write_event
-from src.shared_kernel.events import DeliveredEvent, EventRegistry
+from src.shared_kernel.events import DeliveredEvent, EventRegistry, JsonValue
 from src.shared_kernel.time_provider import FakeTimeProvider
 from src.shared_kernel.timestamp import Timestamp
 
 pytestmark = pytest.mark.asyncio
 
-_EVENT_TYPE = "DummyAggregateChanged"
+
+@final
+@dataclass(frozen=True, slots=True)
+class DummyAggregateChanged:
+    """Ein veroeffentlichtes Ereignis ohne Fachlichkeit - Traeger fuer den Mechanismus.
+
+    Bewusst hier und nicht aus einem Context geliehen: geprueft wird der
+    Transport, nicht die Fachlichkeit irgendeiner Domaene. Ein echtes Ereignis
+    wuerde diese Tests an einen Context binden, den sie nichts angehen.
+    """
+
+    EVENT_TYPE: ClassVar[str] = "DummyAggregateChanged"
+
+    index: int
+    occurred_at: Timestamp
+
+    def to_payload(self) -> Mapping[str, JsonValue]:
+        """Gib die Nutzlast heraus."""
+        return {"index": self.index}
 
 
 class RecordingHandler:
@@ -80,13 +100,14 @@ def _relay(
 
 async def _publish(engine: AsyncEngine, index: int = 0, *, commit: bool = True) -> None:
     """Schreibe ein Event - wahlweise mit oder ohne Commit der umgebenden Transaktion."""
+    event = DummyAggregateChanged(index=index, occurred_at=Timestamp(1_000_000))
     async with engine.connect() as connection:
         await connection.begin()
         await write_event(
             connection,
-            _EVENT_TYPE,
-            {"index": index},
-            Timestamp(1_000_000),
+            event.EVENT_TYPE,
+            event.to_payload(),
+            event.occurred_at,
         )
         if commit:
             await connection.commit()
@@ -98,7 +119,7 @@ async def test_event_ohne_commit_wird_nie_zugestellt(clean_outbox: AsyncEngine) 
     """Der Aggregate-Write entscheidet ueber das Event, nicht der Schreibvorgang selbst."""
     handler = RecordingHandler()
     registry = EventRegistry()
-    registry.register(_EVENT_TYPE, handler)
+    registry.register(DummyAggregateChanged, handler)
 
     await _publish(clean_outbox, commit=False)
 
@@ -110,7 +131,7 @@ async def test_committetes_event_wird_genau_einmal_zugestellt(clean_outbox: Asyn
     """AC1: ein transaktional geschriebenes Event erreicht den Consumer, und zwar einmal."""
     handler = RecordingHandler()
     registry = EventRegistry()
-    registry.register(_EVENT_TYPE, handler)
+    registry.register(DummyAggregateChanged, handler)
 
     await _publish(clean_outbox, index=7)
 
@@ -122,7 +143,7 @@ async def test_committetes_event_wird_genau_einmal_zugestellt(clean_outbox: Asyn
 
     assert len(handler.delivered) == 1
     delivered = handler.delivered[0]
-    assert delivered.event_type == _EVENT_TYPE
+    assert delivered.event_type == DummyAggregateChanged.EVENT_TYPE
     assert delivered.payload == {"index": 7}
     assert delivered.occurred_at == Timestamp(1_000_000)
     assert delivered.attempt == 1
@@ -149,7 +170,7 @@ async def test_nebenlaeufige_relays_verarbeiten_kein_event_doppelt(
     registries = []
     for handler in (first, second):
         registry = EventRegistry()
-        registry.register(_EVENT_TYPE, handler)
+        registry.register(DummyAggregateChanged, handler)
         registries.append(registry)
 
     await _publish(clean_outbox, index=1)
@@ -185,7 +206,7 @@ async def test_worker_stellt_ohne_polling_intervall_zu(clean_outbox: AsyncEngine
 
     handler = SignallingHandler()
     registry = EventRegistry()
-    registry.register(_EVENT_TYPE, handler)
+    registry.register(DummyAggregateChanged, handler)
 
     worker = OutboxWorker(
         clean_outbox,
@@ -216,7 +237,7 @@ async def test_fehlschlag_verschiebt_die_faelligkeit_statt_zu_warten(
     """Ein gescheiterter Versuch wird zur Faelligkeit, nicht zu einer Schlafphase."""
     handler = FailingHandler(failures=1)
     registry = EventRegistry()
-    registry.register(_EVENT_TYPE, handler)
+    registry.register(DummyAggregateChanged, handler)
 
     await _publish(clean_outbox)
 
@@ -259,7 +280,7 @@ async def test_aufgegebenes_event_gilt_nicht_als_zugestellt(clean_outbox: AsyncE
     """Nach erschoepften Versuchen wird `failed_at` gesetzt - `processed_at` bleibt leer."""
     handler = FailingHandler(failures=10)
     registry = EventRegistry()
-    registry.register(_EVENT_TYPE, handler)
+    registry.register(DummyAggregateChanged, handler)
 
     await _publish(clean_outbox)
 

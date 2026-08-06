@@ -25,7 +25,7 @@ class EventPublisherAdapter:
     async def publish(self, event: DomainEvent) -> None:
         """Reiche das Ereignis als Primitive an die Naht weiter."""
         await self._log.record(
-            event.event_type,
+            event.EVENT_TYPE,
             event.to_payload(),
             event.occurred_at.unix_seconds,
         )

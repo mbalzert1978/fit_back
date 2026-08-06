@@ -19,7 +19,7 @@ In-Process-Aufruf waere genau die Kopplung, die das verhindert.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Protocol, final
+from typing import ClassVar, Protocol, final
 from uuid import UUID
 
 from src.shared_kernel.timestamp import Timestamp
@@ -37,27 +37,25 @@ type JsonValue = str | int | float | bool | None | list["JsonValue"] | Mapping[s
 
 
 class DomainEvent(Protocol):
-    """Ein fachliches Ereignis, das andere Contexts erreichen darf.
+    """Der veroeffentlichte Teil eines Ereignisses - was Fremde importieren duerfen.
 
-    Bewusst ein Protocol und keine Basisklasse: jeder Context modelliert sein
-    Ereignis als eigenes, typisiertes Value Object in seiner Domaene
-    (`UserRegistered` mit `UserId` und `Email`, nicht mit `str`). Hier steht nur,
-    was ein Transport davon braucht - Name, Zeitpunkt und eine
-    JSON-serialisierbare Fassung.
+    Wohnt im `contracts/`-Paket seines Context, nicht in dessen Domaene: ein
+    Konsument soll auf ein Ereignis reagieren koennen, ohne die Aggregate,
+    Value Objects und Fehlertypen des Erzeugers mitzuziehen. Entsprechend traegt
+    ein Ereignis Primitive, keine Value Objects des Erzeugers.
+
+    Bewusst ein Protocol und keine Basisklasse: der Context besitzt seinen
+    Vertrag, hier steht nur, was ein Transport davon braucht.
     """
 
-    @property
-    def event_type(self) -> str:
-        """Fachlicher Name des Ereignisses, z. B. `UserRegistered`."""
-        ...
+    EVENT_TYPE: ClassVar[str]
+    """Der Name auf der Leitung - die einzige Stelle, an der er als String steht."""
 
-    @property
-    def occurred_at(self) -> Timestamp:
-        """Wann das Ereignis fachlich eingetreten ist."""
-        ...
+    occurred_at: Timestamp
+    """Wann das Ereignis fachlich eingetreten ist."""
 
     def to_payload(self) -> Mapping[str, JsonValue]:
-        """Flache, JSON-faehige Fassung fuer den Transport.
+        """Flache, JSON-faehige Nutzlast fuer den Transport.
 
         Der schreibende Context entscheidet hier, was er nach aussen zeigt - das
         ist die Stelle, an der ein Aggregat nicht versehentlich komplett
@@ -131,19 +129,28 @@ class EventRegistry:
         """Beginne ohne jede Registrierung."""
         self._handlers: dict[str, list[EventHandler]] = {}
 
-    def register(self, event_type: str, handler: EventHandler) -> None:
-        """Trage eine Reaktion auf einen Event-Typ ein.
+    def register[T: DomainEvent](self, event: type[T], handler: EventHandler) -> None:
+        """Trage eine Reaktion auf ein Ereignis ein - ueber dessen Typ, nicht ueber seinen Namen.
 
-        Mehrere Reaktionen auf denselben Typ sind der Normalfall, nicht die
+        `registry.register(UserRegistered, handler)`: der Import macht die
+        Abhaengigkeit sichtbar, und ein Vertippen ist ein Fehler beim Aufbau
+        statt einer Reaktion, die im Betrieb schlicht nie kommt. Der String
+        steht genau einmal, naemlich als `EVENT_TYPE` im Vertrag selbst.
+
+        Mehrere Reaktionen auf dasselbe Ereignis sind der Normalfall, nicht die
         Ausnahme: auf `UserRegistered` legt Goals ein Default-Profil an *und*
         Diary seine Standard-Mahlzeiten-Slots. Die Reihenfolge ist die der
         Registrierung, aber niemand darf sich darauf verlassen - die beiden
         wissen nichts voneinander.
         """
-        self._handlers.setdefault(event_type, []).append(handler)
+        self._handlers.setdefault(event.EVENT_TYPE, []).append(handler)
 
     def handlers_for(self, event_type: str) -> Sequence[EventHandler]:
         """Liefere die eingetragenen Reaktionen; leer, wenn keine registriert ist.
+
+        Hier steht der Name als String, weil er hier auch als String ankommt -
+        aus einer Outbox-Zeile, geschrieben womoeglich von einer aelteren
+        Version. Das ist die Zustellseite, nicht die Registrierungsseite.
 
         Ein Event ohne Reaktion ist kein Fehler. Ein Context veroeffentlicht,
         was fachlich passiert ist - ob das gerade jemanden interessiert, ist

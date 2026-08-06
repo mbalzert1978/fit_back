@@ -28,7 +28,7 @@ from src.contexts.identity.domain.email_errors import (
 )
 from src.contexts.identity.domain.entities.user import User, register
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
-from src.contexts.identity.domain.events import UserRegistered
+from src.contexts.identity.domain.events import user_registered
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.ports.user_registry import UserRegistry
@@ -93,7 +93,6 @@ __all__ = [
     "UnencodableDomainLabel",
     "User",
     "UserId",
-    "UserRegistered",
     "UserRegistry",
     "UserTimeZone",
     "account_status_tag",
@@ -101,4 +100,5 @@ __all__ = [
     "locale_tag",
     "parse_locale",
     "register",
+    "user_registered",
 ]
