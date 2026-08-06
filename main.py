@@ -2,19 +2,16 @@
 
 import logging
 import os
-import time
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import final
 
 import asyncpg
 from fastapi import FastAPI, Request
-from fastapi.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
-from starlette.middleware.csrf import CSRFMiddleware
-from starlette.types import ASGIApp
 
+from src.api.composition import build_engine, build_event_registry, run_outbox_worker
+from src.api.identity import register_user_router
 from src.shared_kernel.exception_handlers import register_exception_handlers
 from src.shared_kernel.idempotency import IdempotencyKeyMiddleware
 from src.shared_kernel.time_provider import SystemTimeProvider
@@ -31,6 +28,20 @@ class Settings(BaseModel):
     db_user: str = Field(default="fit_user")
     db_password: str = Field(...)  # Required, no default
 
+    @property
+    def database_url(self) -> str:
+        """SQLAlchemy-URL fuer dieselbe Datenbank.
+
+        Der asyncpg-Pool unten und diese Engine sprechen mit derselben Instanz,
+        aber ueber zwei Wege: der Pool bedient Health-Check und
+        Idempotency-Middleware (Tickets 0001/0006), die Engine die Slices. Ein
+        Weg zu viel - beim naechsten Anfassen von 0006 zusammenfuehren.
+        """
+        return (
+            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+        )
+
 
 def validate_settings() -> Settings:
     """Validate and load settings from environment variables."""
@@ -44,40 +55,6 @@ def validate_settings() -> Settings:
         )
     except (ValidationError, ValueError) as e:
         raise RuntimeError("Configuration validation failed: invalid environment variables") from e
-
-
-@final
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Rate limiting middleware to prevent abuse."""
-
-    def __init__(self, app: ASGIApp, requests_per_minute: int = 60) -> None:
-        super().__init__(app)
-        self.requests_per_minute = requests_per_minute
-        self.request_times: dict[str, list[float]] = {}
-
-    async def dispatch(self, request: Request, call_next: Callable) -> JSONResponse:
-        """Rate limit requests based on client IP."""
-        client_ip = request.client.host if request.client else "unknown"
-        current_time = time.time()
-        window_start = current_time - 60
-
-        if client_ip not in self.request_times:
-            self.request_times[client_ip] = []
-
-        self.request_times[client_ip] = [
-            t for t in self.request_times[client_ip] if t > window_start
-        ]
-
-        if len(self.request_times[client_ip]) >= self.requests_per_minute:
-            logger.warning(f"Rate limit exceeded for client: {client_ip}")
-            return JSONResponse(
-                {"status": "error", "detail": "Too many requests"},
-                status_code=429,
-            )
-
-        self.request_times[client_ip].append(current_time)
-        response = await call_next(request)
-        return response
 
 
 async def init_db(settings: Settings) -> asyncpg.Pool:
@@ -120,8 +97,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.error("Application startup failed: %s", str(e))
         app.state.db_pool = None
         raise
-    yield
+
+    app.state.engine = build_engine(settings.database_url)
+    app.state.event_registry = build_event_registry()
+    async with run_outbox_worker(app.state.engine, app.state.event_registry):
+        yield
+
     # Shutdown
+    await app.state.engine.dispose()
     await close_db(app.state.db_pool)
 
 
@@ -130,13 +113,15 @@ app = FastAPI(title="Fit-back API", lifespan=lifespan)
 # Register exception handlers for RFC 7807 ProblemDetails
 register_exception_handlers(app)
 
-_secret_key = os.getenv("SECRET_KEY")
-if not _secret_key:
-    raise RuntimeError("SECRET_KEY environment variable is required and has no default")
-
-# Add security middleware
-app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
-app.add_middleware(CSRFMiddleware, secret_key=_secret_key)
+# Rate-Limit- und CSRF-Middleware sind hier bewusst nicht verdrahtet: beide kamen
+# aus 96b8f2c, wurden mit 4165fed zurueckgenommen (siehe
+# docs/decisions/2026-08-05-0936-security-gate-triage-ticket-0001.md) und sind
+# ueber den PR-Merge c30054d unbemerkt zurueckgekehrt - inklusive zweier Importe,
+# die es nicht gibt (`fastapi.middleware.base`, `starlette.middleware.csrf`).
+# Seither liess sich dieses Modul nicht mehr importieren, ohne dass es auffiel:
+# nichts hat es je geladen. Der Smoke-Test in tests/api/test_app_startup.py
+# schliesst diese Luecke.
+app.include_router(register_user_router)
 
 
 def setup_idempotency_middleware(app: FastAPI) -> None:
