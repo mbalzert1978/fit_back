@@ -11,6 +11,10 @@ dependencies = [
     "pydantic>=2.13.4",
     "alembic>=1.19.0",
     "sqlalchemy>=2.0.51",
+    # IANA-Zeitzonendatenbank fuer zoneinfo. Windows liefert keine mit, ohne
+    # tzdata ist available_timezones() dort leer und jede gueltige Zeitzone
+    # (Europe/Berlin) wuerde als unbekannt abgelehnt.
+    "tzdata>=2026.1",
 ]
 
 [project.optional-dependencies]

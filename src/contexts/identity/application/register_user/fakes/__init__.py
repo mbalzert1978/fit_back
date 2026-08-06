@@ -1,0 +1,15 @@
+"""In-Memory-Implementierungen der public Naht - Teil des ausgelieferten Slice.
+
+Sie stecken hinter der aeussersten Naht und nirgends sonst: alles davor
+(Validierung, Mapper, Handler, Adapter, Domaene) ist in einem Spec-Lauf das
+echte Produktions-Zusammenspiel.
+"""
+
+from src.contexts.identity.application.register_user.fakes.deterministic_password_hasher import (
+    DeterministicPasswordHasher,
+)
+from src.contexts.identity.application.register_user.fakes.in_memory_user_store import (
+    InMemoryUserStore,
+)
+
+__all__ = ["DeterministicPasswordHasher", "InMemoryUserStore"]
