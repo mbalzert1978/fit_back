@@ -3,7 +3,7 @@ schema_version: 1
 name: brief-traegt-die-form-nicht-die-loesung
 description: Ein Implementierungs-Brief an einen Agenten beschreibt, WAS gelten muss (Regel, Zielform, Fertig-Kriterium) - nie WIE das Problem zu loesen ist; eine konkrete Loesungsvorgabe schlaegt jeden Regel-Verweis und macht den Denkfehler des Auftraggebers unkorrigierbar
 type: feedback
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-06
 decay_eligible: false
 ---

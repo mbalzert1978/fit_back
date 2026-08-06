@@ -24,6 +24,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_gh-cli-full-path-required.md](exp_gh-cli-full-path-required.md) — `gh` im Bash-Tool nie ueber PATH aufrufbar, immer vollen Windows-Pfad nutzen
 - [exp_gruenes-gate-ohne-scope-angabe.md](exp_gruenes-gate-ohne-scope-angabe.md) — jeder Checker muss seinen tatsaechlichen Pruefumfang mitausgeben, sonst ist „nichts gefunden" nicht von „nichts geprueft" zu unterscheiden
 - [exp_maschinelle-absicherung-statt-review-regel.md](exp_maschinelle-absicherung-statt-review-regel.md) — mechanisch entscheidbare Architektur-Regeln gehoeren in einen Linter-Contract, nicht in ein LLM-Review
+- [exp_parallele-agenten-brauchen-eigene-worktrees.md](exp_parallele-agenten-brauchen-eigene-worktrees.md) — parallele Agenten im selben Working Tree halten fremde Aenderungen fuer eigene Fehler und raeumen destruktiv auf
 - [exp_pipeline-artefakte-gitignore.md](exp_pipeline-artefakte-gitignore.md) — Pipeline-Arbeitsdateien (Task.md) von Anfang an gitignored halten
 - [exp_powershell-set-content-bom.md](exp_powershell-set-content-bom.md) — PowerShell `Set-Content -Encoding utf8` schreibt eine BOM, bricht TOML-Parser
 - [exp_push-main-before-worktree-fanout.md](exp_push-main-before-worktree-fanout.md) — `main` vor dem Erstellen neuer Worktrees pushen, sonst Scope-Creep in jedem PR-Diff
@@ -38,3 +39,4 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_versionswahl-aktuell-statt-gewohnheit.md](exp_versionswahl-aktuell-statt-gewohnheit.md) — aktuelle stabile Version statt Trainingsdaten-Gewohnheit waehlen
 - [exp_workflow-agent-cd-explizit.md](exp_workflow-agent-cd-explizit.md) — Workflow-Pipeline-Prompts brauchen explizites `cd` in den Worktree
 - [exp_workflow-tool-args-bug.md](exp_workflow-tool-args-bug.md) — Workflow-Tool `args` kann `undefined` sein, Eingaben hardcoden
+- [exp_zweifelsfaelle-bericht-deckt-regel-luecken-auf.md](exp_zweifelsfaelle-bericht-deckt-regel-luecken-auf.md) — verpflichtender Zweifelsfall-Bericht im Agenten-Brief ist der billigste Test der eigenen Regel
