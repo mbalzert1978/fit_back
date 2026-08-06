@@ -250,6 +250,9 @@ class TestRelayOutboxEvents:
         except asyncio.CancelledError:
             pass
 
+        # Session-Transaktionszustand zurücksetzen (notwendig nach Task-Cancel)
+        await test_session.rollback()
+
         # Count processed events
         stmt = select(OutboxEvent).where(OutboxEvent.processed_at.isnot(None))
         result = await test_session.execute(stmt)
@@ -298,8 +301,14 @@ class TestRelayOutboxEvents:
         except asyncio.CancelledError:
             pass
 
+        # Speichere die Event-ID vor dem Rollback (event wird danach expired sein)
+        event_id = event.id
+
+        # Session-Transaktionszustand zurücksetzen (notwendig nach Task-Cancel)
+        await test_session.rollback()
+
         # Verify event is marked as processed despite max retries
-        result = await test_session.execute(select(OutboxEvent).where(OutboxEvent.id == event.id))
+        result = await test_session.execute(select(OutboxEvent).where(OutboxEvent.id == event_id))
         event = result.scalar_one()
         assert event.processed_by == worker_id
 
