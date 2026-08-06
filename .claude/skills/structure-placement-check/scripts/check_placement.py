@@ -7,9 +7,10 @@
 
 Purely mechanical file-*path* check — no code content is read. A test file
 (matching a configured naming pattern) must live under one of the configured
-test-root prefixes (co-located under its own module, e.g. `src/shared_kernel/
-tests/`, or per-use-case under a context, e.g. `src/contexts/diary/specs/
-register_meal/`); anything else — a stray top-level `tests/` mirror tree, a
+test-root prefixes (co-located under its own module, or per-use-case under a
+context, e.g. `src/contexts/diary/specs/register_meal/`) — the prefixes
+themselves come from `config.json`, never from this docstring; anything else —
+a stray top-level `tests/` mirror tree, a
 test file dropped straight into a domain/application/infrastructure folder —
 is a finding. Both patterns come from config.json, so the check stays
 portable across repos with a different layout.

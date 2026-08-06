@@ -21,7 +21,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from src.contexts.shared_kernel.time_provider import FakeTimeProvider
-from src.middleware.idempotency import IdempotencyKeyMiddleware
+from src.middleware.idempotency import IdempotencyKeyMiddleware, calculate_request_hash
 
 pytestmark = pytest.mark.asyncio
 
@@ -61,6 +61,14 @@ def _build_app(engine: AsyncEngine, user_id: UUID | None) -> FastAPI:
     @app.get("/api/v1/test-idempotency")
     async def read() -> JSONResponse:
         return JSONResponse(status_code=200, content={"data": "gelesen"})
+
+    @app.post("/api/v1/abgelehnt")
+    async def abgelehnt() -> JSONResponse:
+        return JSONResponse(status_code=400, content={"fehler": "ungueltig"})
+
+    @app.post("/api/v1/kaputt")
+    async def kaputt() -> JSONResponse:
+        raise RuntimeError("etwas ging schief")
 
     app.add_middleware(IdempotencyKeyMiddleware, time_provider=FakeTimeProvider())
     if user_id is not None:
@@ -202,6 +210,124 @@ async def test_get_wird_nicht_behandelt(clean_idempotency_keys: AsyncEngine) -> 
         )
 
     assert response.status_code == 200
+
+
+async def test_derselbe_schluessel_mit_anderem_body_wird_abgelehnt(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """422 statt der Antwort von vorhin - genau dafuer steht der request_hash in der Tabelle.
+
+    Ohne diesen Vergleich bekaeme der Aufrufer stillschweigend das Ergebnis
+    seiner ERSTEN Anfrage und hielte seinen zweiten, voellig anderen Vorgang
+    fuer erledigt.
+    """
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    key = str(uuid4())
+
+    async with await _client(app) as client:
+        first = await client.post(
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": key}, json={"menge": 1}
+        )
+        second = await client.post(
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": key}, json={"menge": 999}
+        )
+
+    assert first.status_code == 201
+    assert second.status_code == 422
+    assert second.headers["content-type"].startswith("application/problem+json")
+    assert second.json()["type"].endswith("/idempotency-key-reused")
+
+
+async def test_der_schluessel_eines_anderen_nutzers_ist_belegt(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """422 - und die Antwort verraet nicht, dass der Schluessel jemand anderem gehoert.
+
+    Derselbe Ausgang wie beim abweichenden Body: waeren die beiden Faelle
+    unterscheidbar, liesse sich damit die Schluesselvergabe fremder Nutzer
+    abtasten.
+    """
+    key = str(uuid4())
+    async with await _client(_build_app(clean_idempotency_keys, user_id=uuid4())) as erster:
+        await erster.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
+
+    async with await _client(_build_app(clean_idempotency_keys, user_id=uuid4())) as zweiter:
+        response = await zweiter.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
+
+    assert response.status_code == 422
+    assert response.json()["type"].endswith("/idempotency-key-reused")
+
+
+async def test_eine_laufende_anfrage_blockt_den_zweiten_versuch(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """409, solange die erste Anfrage noch keine Antwort hinterlassen hat.
+
+    Der Zustand wird hier direkt gesetzt statt echt nebenlaeufig erzeugt: eine
+    Reservierung ohne Antwort ist genau das, was eine noch laufende Anfrage
+    hinterlaesst.
+    """
+    user_id = uuid4()
+    key = uuid4()
+    app = _build_app(clean_idempotency_keys, user_id=user_id)
+
+    async with await _client(app) as client:
+        # Den Hash so bilden, wie die Middleware ihn fuer diese Anfrage bildet -
+        # sonst schlaegt der Body-Vergleich zu und der Test pruefte 422.
+        request_hash = calculate_request_hash("POST", "/api/v1/test-idempotency", "")
+        async with clean_idempotency_keys.begin() as connection:
+            await connection.execute(
+                text("""
+                    INSERT INTO shared_kernel.idempotency_keys
+                        (key, user_id, request_hash, response_body, created_utc)
+                    VALUES (:key, :user_id, :request_hash, NULL, now())
+                """),
+                {"key": key, "user_id": user_id, "request_hash": request_hash},
+            )
+
+        response = await client.post(
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(key)}
+        )
+
+    assert response.status_code == 409
+    assert response.json()["type"].endswith("/request-in-progress")
+
+
+async def test_eine_abgelehnte_anfrage_gibt_den_schluessel_frei(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """Ein 400 hinterlaesst nichts Wiederholbares - der Schluessel darf nicht blockiert bleiben."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    key = str(uuid4())
+
+    async with await _client(app) as client:
+        first = await client.post("/api/v1/abgelehnt", headers={"Idempotency-Key": key})
+        second = await client.post("/api/v1/abgelehnt", headers={"Idempotency-Key": key})
+
+    assert (first.status_code, second.status_code) == (400, 400)
+    async with clean_idempotency_keys.connect() as connection:
+        stored = await connection.scalar(
+            text("SELECT count(*) FROM shared_kernel.idempotency_keys")
+        )
+    assert stored == 0
+
+
+async def test_eine_gescheiterte_anfrage_gibt_den_schluessel_frei(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """Auch eine geworfene Ausnahme darf den Schluessel nicht dauerhaft verbrennen."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    key = str(uuid4())
+
+    async with await _client(app) as client:
+        with pytest.raises(RuntimeError):
+            await client.post("/api/v1/kaputt", headers={"Idempotency-Key": key})
+
+    async with clean_idempotency_keys.connect() as connection:
+        stored = await connection.scalar(
+            text("SELECT count(*) FROM shared_kernel.idempotency_keys")
+        )
+    assert stored == 0
 
 
 async def test_put_wird_ebenfalls_zwischengespeichert(
