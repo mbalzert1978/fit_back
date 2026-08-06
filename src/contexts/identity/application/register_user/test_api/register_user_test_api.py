@@ -14,14 +14,17 @@ Testcontainers und HTTP gegen die laufende App sind eine eigene, aeussere Ebene
 (docs/milestones/02-test-pyramide.md) und kommen in Stufe 2 bzw. 3 dazu.
 """
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Self, final
 
 from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
 from src.contexts.identity.application.register_user.fakes import (
     DeterministicPasswordHasher,
+    InMemoryEventLog,
     InMemoryUserStore,
     PassthroughIdnLabels,
+    RecordedEvent,
 )
 from src.contexts.identity.application.register_user.pipeline import build_register_user_pipeline
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
@@ -43,6 +46,7 @@ class RegisterUserTestApi:
         self._store = InMemoryUserStore()
         self._hasher = DeterministicPasswordHasher()
         self._labels = PassthroughIdnLabels()
+        self._events = InMemoryEventLog()
         self._clock = FakeTimeProvider(_DEFAULT_NOW)
 
     # --- Arrange ---
@@ -62,9 +66,22 @@ class RegisterUserTestApi:
     async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
         """Fuehre das echte Request-DTO durch die echte Pipeline."""
         pipeline = build_register_user_pipeline(
-            self._store, self._hasher, self._labels, self._clock
+            self._store, self._hasher, self._labels, self._events, self._clock
         )
         return await pipeline.run(request)
+
+    # --- Assert ---
+
+    @property
+    def published_events(self) -> Sequence[RecordedEvent]:
+        """Was der Use Case nach aussen gemeldet hat.
+
+        Der zweite beobachtbare Ausgang neben der Response - und der einzige Weg,
+        ihn zu pruefen, ohne an der Test-API vorbeizugreifen. Ein Spec sieht hier
+        Event-Name und Nutzlast, also genau das, was ein fremder Context
+        tatsaechlich zu sehen bekaeme.
+        """
+        return self._events.recorded
 
 
 def _normalized(email: str) -> str:

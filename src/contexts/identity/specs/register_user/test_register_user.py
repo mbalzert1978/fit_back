@@ -135,3 +135,41 @@ async def test_legt_bei_ungueltiger_eingabe_kein_konto_an() -> None:
 
     assert isinstance(rejected, RegistrationInvalid)
     assert isinstance(accepted, RegistrationAccepted)
+
+
+@pytest.mark.asyncio
+async def test_meldet_die_registrierung_nach_aussen() -> None:
+    heiligabend_2026_18_uhr_utc = 1798221600
+    api = RegisterUserTestApi().at_unix_time(heiligabend_2026_18_uhr_utc)
+
+    result = await api.run(_request(locale="de"))
+
+    assert isinstance(result, RegistrationAccepted)
+    (announced,) = api.published_events
+    assert announced.event_type == "UserRegistered"
+    assert announced.occurred_at == heiligabend_2026_18_uhr_utc
+    assert announced.payload == {
+        "user_id": result.user_id,
+        "locale": "de",
+        "registered_at": heiligabend_2026_18_uhr_utc,
+    }
+
+
+@pytest.mark.asyncio
+async def test_meldet_nichts_wenn_die_email_schon_vergeben_ist() -> None:
+    api = RegisterUserTestApi().with_registered_user("markus@example.de")
+
+    result = await api.run(_request(email="markus@example.de"))
+
+    assert isinstance(result, EmailAlreadyTaken)
+    assert api.published_events == ()
+
+
+@pytest.mark.asyncio
+async def test_meldet_nichts_bei_ungueltiger_eingabe() -> None:
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(password="kurz"))
+
+    assert isinstance(result, RegistrationInvalid)
+    assert api.published_events == ()

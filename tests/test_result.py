@@ -1,5 +1,7 @@
 """Unit-Tests für Result[T, E]."""
 
+import pytest
+
 from src.shared_kernel.result import Err, Ok, Result
 
 
@@ -119,3 +121,45 @@ class TestResultMatching:
                 matched_error = err
 
         assert matched_error == "test error"
+
+
+class TestInspectAsync:
+    """inspect_async loest eine Nebenwirkung aus, ohne die Kette zu veraendern."""
+
+    @pytest.mark.asyncio
+    async def test_ok_loest_die_nebenwirkung_aus_und_bleibt_unveraendert(self) -> None:
+        """Auf Ok laeuft die Nebenwirkung, das Result kommt identisch zurueck."""
+        seen: list[int] = []
+        result: Result[int, str] = Ok(42)
+
+        async def remember(value: int) -> None:
+            seen.append(value)
+
+        returned = await result.inspect_async(remember)
+
+        assert seen == [42]
+        assert returned is result
+
+    @pytest.mark.asyncio
+    async def test_err_loest_keine_nebenwirkung_aus(self) -> None:
+        """Auf Err bleibt die Nebenwirkung aus - es gibt keinen Erfolgs-Wert."""
+        seen: list[int] = []
+        result: Result[int, str] = Err("abgelehnt")
+
+        async def remember(value: int) -> None:
+            seen.append(value)
+
+        returned = await result.inspect_async(remember)
+
+        assert seen == []
+        assert returned is result
+
+    @pytest.mark.asyncio
+    async def test_rueckgabewert_der_nebenwirkung_wird_verworfen(self) -> None:
+        """Was `f` zurueckgibt, ist ohne Belang - sonst waere `bind` das richtige Werkzeug."""
+        result: Result[int, str] = Ok(1)
+
+        async def yields_something(value: int) -> str:
+            return "ignoriert"
+
+        assert await result.inspect_async(yields_something) == Ok(1)

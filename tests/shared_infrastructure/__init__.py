@@ -1,0 +1,1 @@
+"""Integrationstests der geteilten Infrastruktur."""

@@ -15,6 +15,9 @@ IDN-Umwandlung haben nichts miteinander zu tun und werden von verschiedenen
 Dingen erfuellt.
 """
 
+from src.contexts.identity.application.register_user.abstractions.event_log import (
+    RegisterUserEventLog,
+)
 from src.contexts.identity.application.register_user.abstractions.idn_labels import (
     AsciiLabel,
     IdnLabels,
@@ -39,6 +42,7 @@ __all__ = [
     "LabelEncoding",
     "LabelRejected",
     "NewUserRecord",
+    "RegisterUserEventLog",
     "RegisterUserPasswordHasher",
     "RegisterUserUserStore",
     "UserInsertion",

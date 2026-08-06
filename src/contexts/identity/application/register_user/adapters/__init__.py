@@ -6,6 +6,9 @@ eigenen Ergebnis-Unions. Die Adapter uebersetzen in beide Richtungen und fangen
 dabei nichts ab - erwartete Fehlschlaege sind bereits Ergebnistypen der Naht.
 """
 
+from src.contexts.identity.application.register_user.adapters.event_publisher_adapter import (
+    EventPublisherAdapter,
+)
 from src.contexts.identity.application.register_user.adapters.idn_encoder_adapter import (
     IdnEncoderAdapter,
 )
@@ -16,4 +19,9 @@ from src.contexts.identity.application.register_user.adapters.user_registry_adap
     UserRegistryAdapter,
 )
 
-__all__ = ["IdnEncoderAdapter", "PasswordHasherAdapter", "UserRegistryAdapter"]
+__all__ = [
+    "EventPublisherAdapter",
+    "IdnEncoderAdapter",
+    "PasswordHasherAdapter",
+    "UserRegistryAdapter",
+]

@@ -8,10 +8,12 @@ from src.contexts.identity.domain import (
     PasswordHasher,
     User,
     UserId,
+    UserRegistered,
     UserRegistry,
     register,
 )
 from src.shared_kernel import Result, TimeProvider
+from src.shared_kernel.events import EventPublisher
 
 __all__ = ["RegisterUserHandler"]
 
@@ -30,15 +32,17 @@ class RegisterUserHandler:
         self,
         registry: UserRegistry,
         hasher: PasswordHasher,
+        events: EventPublisher,
         clock: TimeProvider,
     ) -> None:
         """Nimm die Ports und die Zeitquelle per Dependency Injection entgegen."""
         self._registry = registry
         self._hasher = hasher
+        self._events = events
         self._clock = clock
 
     async def __call__(self, command: RegisterUserCommand) -> Result[User, DomainError]:
-        """Registriere den Kandidaten."""
+        """Registriere den Kandidaten und melde die Registrierung."""
         candidate = register(
             user_id=UserId.generate(),
             email=command.email,
@@ -48,4 +52,13 @@ class RegisterUserHandler:
             locale=command.locale,
             registered_at=self._clock.now(),
         )
-        return await self._registry.add(candidate)
+        # `inspect_async` statt eines Match: gemeldet wird nur der aufgenommene
+        # User - eine abgelehnte Registrierung ist nichts, worauf ein anderer
+        # Context reagieren duerfte - und die Meldung selbst aendert am Ergebnis
+        # des Use Case nichts.
+        registered = await self._registry.add(candidate)
+        return await registered.inspect_async(self._announce)
+
+    async def _announce(self, user: User) -> None:
+        """Melde die abgeschlossene Registrierung nach aussen."""
+        await self._events.publish(UserRegistered(user.id, user.locale, user.registered_at))

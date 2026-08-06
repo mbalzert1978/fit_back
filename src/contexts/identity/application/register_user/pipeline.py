@@ -9,10 +9,12 @@ from typing import final
 
 from src.contexts.identity.application.register_user.abstractions import (
     IdnLabels,
+    RegisterUserEventLog,
     RegisterUserPasswordHasher,
     RegisterUserUserStore,
 )
 from src.contexts.identity.application.register_user.adapters import (
+    EventPublisherAdapter,
     IdnEncoderAdapter,
     PasswordHasherAdapter,
     UserRegistryAdapter,
@@ -59,6 +61,7 @@ def build_register_user_pipeline(
     store: RegisterUserUserStore,
     hasher: RegisterUserPasswordHasher,
     labels: IdnLabels,
+    events: RegisterUserEventLog,
     clock: TimeProvider,
 ) -> RegisterUserPipeline:
     """Verdrahte den Slice gegen eine beliebige Implementierung der public Naht."""
@@ -68,6 +71,7 @@ def build_register_user_pipeline(
         handler=RegisterUserHandler(
             registry=UserRegistryAdapter(store),
             hasher=PasswordHasherAdapter(hasher),
+            events=EventPublisherAdapter(events),
             clock=clock,
         ),
         idn=idn,

@@ -8,6 +8,10 @@ echte Produktions-Zusammenspiel.
 from src.contexts.identity.application.register_user.fakes.deterministic_password_hasher import (
     DeterministicPasswordHasher,
 )
+from src.contexts.identity.application.register_user.fakes.in_memory_event_log import (
+    InMemoryEventLog,
+    RecordedEvent,
+)
 from src.contexts.identity.application.register_user.fakes.in_memory_user_store import (
     InMemoryUserStore,
 )
@@ -15,4 +19,10 @@ from src.contexts.identity.application.register_user.fakes.passthrough_idn_label
     PassthroughIdnLabels,
 )
 
-__all__ = ["DeterministicPasswordHasher", "InMemoryUserStore", "PassthroughIdnLabels"]
+__all__ = [
+    "DeterministicPasswordHasher",
+    "InMemoryEventLog",
+    "InMemoryUserStore",
+    "PassthroughIdnLabels",
+    "RecordedEvent",
+]
