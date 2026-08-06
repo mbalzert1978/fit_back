@@ -42,15 +42,36 @@ orchestrierst alles davor selbst.
    wo einschlägig — die Versions-Policy (siehe unten). `Task.md` ist ein reines
    Pipeline-Arbeitsartefakt und muss von Anfang an gitignored sein — siehe
    „Bekannte technische Fallstricke" unten.
+
+   **Der Brief trägt die Form, nie deine Lösung.** Gib niemals vor, *wie* ein
+   Struktur-Problem zu lösen ist — beschreibe, *was* gelten muss, und lass den Agenten
+   das Wie aus der Regel ableiten. Eine konkrete Lösungsvorgabe schlägt immer den
+   Verweis auf `.rules/`, und wenn deine Vorgabe falsch ist, kann der Agent deinen
+   Denkfehler nicht mehr abfangen — genau so entstand der M0-Vorfall
+   (`docs/decisions/2026-08-06-0751-slice-form-test-api-baureihenfolge.md`).
+   Jeder Implementierungs-Brief enthält verbindlich:
+   - die **Baureihenfolge** (`domain/` → `application/<use_case>/` → Test-API + Specs →
+     `infrastructure/` → `src/api/`) und die Feststellung, dass der Slice **ohne
+     Infrastruktur vollständig grün** sein muss;
+   - die **Review-Checkliste aus `.rules/python/python-feature-slices.md` wörtlich** als
+     Fertig-Kriterium, Punkt für Punkt abzuhaken;
+   - sobald Ticket 0011 gemergt ist: den **Verweis auf `register_user` als
+     Referenzimplementierung** statt einer Prosa-Beschreibung der Form.
 3. **Entwickler-Agent** — du startest ihn selbst (kein manueller Start durch den
    Nutzer), er implementiert gemäß `Task.md`, committet lokal auf dem Ticket-Branch,
    **kein Push, kein PR**.
-4. **Struktur-Vorabprüfung** (objektiv, vor jedem inhaltlichen Review) — prüft
-   ausschließlich Dateiablage, nicht Inhalt: `main.py` muss unter `src/` liegen (nie im
-   Repo-Root), Testdateien müssen unter `src/contexts/<context>/tests/<use_case>/` bzw.
-   dem Analogon für `shared_kernel` liegen, nie direkt in einem Domänen-/Infrastruktur-
-   Ordner. Verstoß → sofort zurück an den Entwickler-Agenten, kein Weiterlauf in Schritt
-   5/6 — das spart eine ganze Gate-Runde für einen rein mechanischen Fehler.
+4. **Struktur-Vorabprüfung** (objektiv, vor jedem inhaltlichen Review) — drei
+   deterministische Checks, alle ohne LLM-Urteil, Verstoß → sofort zurück an den
+   Entwickler-Agenten, kein Weiterlauf in Schritt 5/6 (spart eine ganze Gate-Runde für
+   rein mechanische Fehler):
+   - `./make.ps1 import-lint` — erzwingt Domänen-Reinheit (`domain/` importiert kein
+     `fastapi`/`starlette`/`pydantic`/`sqlalchemy`/`asyncpg`) und die Schichtung
+     `infrastructure → application → domain`. **Das ist die maschinelle Absicherung der
+     Regel, die in M0 wiederholt verletzt wurde** — sie ersetzt jedes Review dafür.
+   - Skill `structure-placement-check` — Testdateien am vorgesehenen Ort.
+   - Skill `slice-shape-check` — jeder Use Case hat `test_api.py` + `fakes/`, und kein
+     Spec greift an der Test-API vorbei. **Immer die `Scope:`-Zeile lesen**: `0 use
+     case(s) inspected` heißt „nichts geprüft", nicht „alles korrekt".
 5. **QA-Gate** — `review-against-rules`, `qa-check`, `solid-principles-check`; bei
    den sechs Cross-Context-Tickets (0011/0017/0018/0026/0038/0042) zusätzlich
    `architecture-adr-check`. `review-against-rules` liefert jetzt zwingend eine

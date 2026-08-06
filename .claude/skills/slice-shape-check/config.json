@@ -1,0 +1,15 @@
+{
+  "use_case_glob": "src/contexts/*/application/*",
+  "use_case_exclude_names": ["shared", "validators", "__pycache__"],
+  "required_files": ["test_api.py"],
+  "required_dirs": ["fakes"],
+  "spec_glob": "src/contexts/*/tests/*",
+  "spec_file_patterns": ["test_*.py", "*_test.py"],
+  "spec_forbidden_import_fragments": [
+    ".domain",
+    ".infrastructure",
+    ".handler",
+    ".fakes",
+    "_mapper"
+  ]
+}

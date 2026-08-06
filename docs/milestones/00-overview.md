@@ -41,6 +41,36 @@ jeder folgende Meilenstein wendet sie auf seine eigenen Aggregate an — das ist
 Meilenstein-Dokument unter „Cross-Cutting-Check" explizit aufgeführt, damit es nicht stillschweigend
 vergessen wird.
 
+## Ticket-Schnitt: von der Domäne nach außen, Infrastruktur zuletzt
+
+Verbindlich seit
+[`2026-08-06-0751-slice-form-test-api-baureihenfolge.md`](../decisions/2026-08-06-0751-slice-form-test-api-baureihenfolge.md).
+Ein Ticket bleibt ein **Tracer Bullet** — ein Use Case, durchgehend — aber seine
+Akzeptanzkriterien sind **in drei geordnete Stufen gegliedert**, und die Pipeline gibt Stufe 1
+frei, bevor Stufe 2 beginnt:
+
+| Stufe | Was entsteht | Fertig, wenn |
+|-------|--------------|--------------|
+| **1 — Slice** | `domain/` (VOs, Entitäten, Aggregatwurzel, Ports, Regeln), `application/<use_case>/` (Command, Handler, beide Mapper, Validatoren, Port-Adapter, public Naht), `test_api.py` + `fakes/`, Verhaltens-Specs | Die Specs sind **grün ohne jede Infrastruktur** — keine Datenbank, kein HTTP, kein Container. Ab hier ist das Verhalten des Use Case vollständig spezifiziert. |
+| **2 — Infrastruktur** | Naht-Implementierung (SQLAlchemy-Repository, externer Adapter), Alembic-Migration, Outbox-Publikation, Integrationstest gegen Testcontainers | Der Slice läuft gegen echte Persistenz, Verhalten unverändert. |
+| **3 — HTTP** | `src/api/<context>/`-Router, ProblemDetails-Mapping, Idempotency-Header, curl-Beispiel, End-to-End-Test | Der Endpunkt ist erreichbar und liefert das spezifizierte Verhalten. |
+
+**Warum gestuft statt gebündelt:** In M0 bündelte jedes Ticket alle Stufen ununterscheidbar. Ein
+Agent hat dann keinen Grund, mit der Domäne zu beginnen — er baut, was am sichtbarsten ist
+(Endpunkt, ORM-Modell) und leitet die Domäne daraus ab. Genau so entstand die invertierte
+Abhängigkeitsrichtung, die sich durch alle M0-PRs zieht. Die Stufung macht „Domäne zuerst"
+**überprüfbar** statt nur empfohlen.
+
+**Was ein Ticket nicht sein darf:** ein Ticket, das **nur** Stufe 2 oder **nur** Stufe 3 liefert,
+ohne dass Stufe 1 in einem anderen Ticket bereits abgeschlossen ist. Das ist ein horizontaler
+Schnitt, kein Tracer Bullet. Legitime Ausnahme: rein technische Infrastruktur ohne eigenen Use Case
+(Repo-Grundgerüst, Migrations-Baseline, Hintergrundjobs) — diese Tickets tragen keine Domäne und
+sind als solche erkennbar.
+
+**Aufteilen in mehrere Tickets** nur, wenn eine einzelne Stufe für sich genommen groß ist (z. B.
+ein OCR-Adapter mit eigener Queue). Der Regelfall ist **ein Ticket je Use Case mit drei gestuften
+Kriterienblöcken** — das hält die Ticket-Zahl beherrschbar und die Verticality erhalten.
+
 ## Tests (Abschnitt 9)
 
 Jeder Meilenstein liefert die in Abschnitt 9 geforderten Testarten für die von ihm eingeführten
