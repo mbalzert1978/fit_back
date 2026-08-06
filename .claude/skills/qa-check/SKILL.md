@@ -1,44 +1,34 @@
 ---
 name: qa-check
-description: Run the repo's test suite via the canonical `run-tests` skill, optionally flag any changed src/ project whose co-located `*.Specs` sibling didn't change alongside it, and optionally check every feature's test-facade against Fowler's Test-API pattern (blackbox facade, fluent arrange, encapsulated domain, no visibility-escape). All checks except the test suite are independently toggleable via `config.json` so this skill still makes sense in a repo with a different test topology. Returns PASS/FAIL plus a `Findings: <n>` count. Use as one leg of a validator loop, or standalone when checking test coverage or test-facade conformance — "sind Tests gruen", "fehlt ein Spec-Update", "haelt sich die TestApi an Fowlers Test-API-Pattern", "QA-Check", "did the tests keep up with this change".
+description: Run the repo's test suite via the canonical `run-tests` skill, and optionally flag any changed production unit whose configured test location didn't change alongside it. The coverage check is toggleable via `config.json` so this skill still makes sense in a repo with a different test topology; the production-unit-to-test-location mapping is configured, never assumed. Returns PASS/FAIL plus a `Findings: <n>` count. Use as one leg of a validator loop, or standalone when checking whether tests kept up with a change — "sind Tests gruen", "fehlt ein Spec-Update", "QA-Check", "did the tests keep up with this change".
 arguments: Optional. Base ref to diff against for the coverage-gap check (default: same resolution as `thermo-nuclear-code-quality-review`'s size pass — `origin/HEAD`/`origin/main`/`main` in that order).
 ---
 
 # QA Check
 
-Three checks, the first mandatory and the other two independently toggleable via
-`config.json`'s `checks` object: the test suite must be green; every changed production
-project should have a change in its co-located `*.Specs` project too (a repo-specific
-test-colocation convention — this repo documents it as ADR-0006, another repo might not
-have this convention at all, hence toggleable); and every feature's test-facade must
-actually be the blackbox seam **Fowler's Test-API pattern** describes — not just present,
-but *shaped* right: a fluent facade, an encapsulated domain, no compiler/runtime backdoor
-that lets a spec bypass the facade.
-
-That third check is judged, not scripted: fluent interfaces, encapsulation, and
-dependency direction are semantic properties, not syntax you can regex for reliably
-across languages (an earlier version tried a C#-specific regex script here and hit
-word-boundary bugs on compound identifiers). The bundled script only finds candidate
-files; **you**, running this skill, read them and judge — the same split
-`architecture-adr-check` uses for ADRs.
+Two checks: the test suite must be green (mandatory), and every changed production unit
+should have a change in its configured test location too (toggleable via `config.json`'s
+`checks` object — a repo whose tests don't sit in a predictable place relative to the
+code has nothing to gain from it).
 
 This does **not** re-derive coverage percentages or re-implement test running — it
-delegates both to existing, narrower tools. The test-facade check is scoped to *feature*
-projects only, via `feature_project_prefix`/`specs_suffix` in `config.json` — a repo's
-non-feature test projects (adapter tests against a mocked external system, ViewModel
-tests, etc.) intentionally follow a different pattern and stay out of scope.
+delegates the run to `run-tests` and keeps only the "did the tests keep up" question for
+itself.
 
-Everything repo-specific — the colocation convention, the facade glob, which checks are
-even active, the optional ADR that documents this repo's instance of the pattern — lives
-in `config.json`. Nothing repo-specific belongs in this file.
+**Slice *shape* is not checked here.** Whether a use-case package carries its Test-API
+and fakes, and whether a spec reaches past the Test-API into domain/handler/mapper
+internals, is the job of the `slice-shape-check` skill — it is diff-scoped, fully
+deterministic, and matches this repo's actual package layout. Don't duplicate it here.
+
+Everything repo-specific — which checks are active, and the map from a production unit to
+where its tests live — lives in `config.json`. Nothing repo-specific belongs in this file.
 
 ## Process
 
-1. **Read `config.json`'s `checks` object.** `coverage_gap` and `test_api_shape` each
-   default to `true` if the key is absent, so an unmodified copy of this skill behaves
-   exactly as today; set either to `false` in a repo where that convention doesn't apply.
-   A disabled check gets one report row saying `disabled via config` — never silently
-   folded into a `0`, so a reader can't mistake "not checked" for "checked and clean".
+1. **Read `config.json`'s `checks` object.** `coverage_gap` defaults to `true` if the key
+   is absent. A disabled check gets one report row saying `disabled via config` — never
+   silently folded into a `0`, so a reader can't mistake "not checked" for "checked and
+   clean".
 
 2. **Run the suite.** Use this repo's canonical test runner, unmodified:
    ```powershell
@@ -51,68 +41,49 @@ in `config.json`. Nothing repo-specific belongs in this file.
    ```powershell
    uv run .claude/skills/qa-check/scripts/coverage_gap.py [base-ref]
    ```
-   It lists every changed top-level `src/` project as `covered` (its `*.Specs` sibling
-   also changed), `gap` (sibling exists on disk but didn't change), or `no-specs-sibling`
-   (no such project exists — not a gap, nothing to require). Judge `gap` rows, don't
-   rubber-stamp them: a pure rename, a comment-only change, or a change already fully
-   covered by an existing test can legitimately need no new test. Read the diff for each
-   `gap` row before counting it as a finding; drop it (and say why) if it's a genuine
-   no-test-needed change.
 
-4. **If `checks.test_api_shape` is enabled**, run:
-   ```powershell
-   uv run .claude/skills/qa-check/scripts/test_api_shape.py
-   ```
-   For every project matching `feature_project_prefix` (default excludes
-   `Infrastructure`/`Presentation`-style non-feature projects since they don't end up in
-   this prefix), it lists whether a file exists matching `test_facade_glob`. A `MISSING`
-   row is an automatic finding — no judgment needed, there's nothing to read.
+   The script reads `coverage_rules` from `config.json` — an ordered list pairing a glob
+   that enumerates production units with a template naming where that unit's tests live
+   (`{0}`, `{1}`, … are the glob's wildcard captures, in order). First matching rule wins,
+   so specific rules precede general ones. Units nest, and each changed path counts toward
+   the **most specific** unit containing it, so a change inside a slice is judged against
+   that slice's own tests rather than also against its parent package.
 
-   For every feature **with** a candidate file: first read `reference_feature_project`'s
-   own facade file once, to calibrate what "conformant" looks like in this codebase (if
-   that reference feature itself doesn't conform, say so as a calibration concern — fix
-   `config.json`'s `reference_feature_project` before trusting findings — and don't let it
-   block judging the others). Then read each other feature's candidate file plus its
-   handler/domain code, and judge against Fowler's Test-API checklist:
+   Exit 2 with `Verdict: CONFIG ERROR` means `coverage_rules` is missing — per
+   `_shared/validator-contract.md`, stop and report that, don't treat it as a pass.
 
-   - **Facade is the only supported entry point** — a public, discoverable type/module at
-     the location the glob found, not one of several ways in.
-   - **Arrange operations are fluent** — each returns the facade itself, so setup chains
-     instead of scattering mutation across the test.
-   - **At least one act operation returns the real response type** (DTO/DU), not a raw
-     primitive or internal state leaking out.
-   - **The domain/handler is not directly reachable from outside the facade** — no
-     compiler/runtime visibility-escape defeats this (C#: `InternalsVisibleTo` granted to
-     the feature's own `.Specs` assembly; other languages: whichever equivalent opens
-     "internal" to the test code — reflection-based access, a leading-underscore import,
-     etc.).
-   - **Dependency direction**: the facade depends on application/domain, never the
-     reverse; nothing outside the facade reaches into domain/handler internals directly.
+   Each changed unit gets one row:
 
-   If `config.json` sets `adr_reference` (e.g. `"ADR-0007"`), cite it as a **footnote** in
-   the report ("this repo additionally documents this as ADR-0007") — never as the reason
-   the rule exists. The rule exists because it's Fowler's Test-API pattern; the ADR is
-   just this repo's paperwork for it.
+   - `covered` — something under its test location changed too.
+   - `gap` — the test location exists on disk but didn't change.
+   - `no-test-location` — the mapped test location doesn't exist. Not automatically a
+     finding, but **do** report it: it usually means `coverage_rules` has drifted from the
+     layout, not that tests are genuinely unnecessary.
+
+   A changed path under `src/` that no rule claims is listed as `unmapped`. That is a
+   config-drift signal, not a clean result — surface it rather than ignoring it.
+
+   Judge `gap` rows, don't rubber-stamp them: a pure rename, a comment-only change, or a
+   change already fully covered by an existing test can legitimately need no new test.
+   Read the diff for each `gap` row before counting it as a finding; drop it (and say why)
+   if it's a genuine no-test-needed change.
 
 ## Report format
 
-**Verdict: PASS** or **Verdict: FAIL** (FAIL if the suite is red, any enabled `gap` row
-survives judgement, or any enabled test-facade check finds a violation), then:
+**Verdict: PASS** or **Verdict: FAIL** (FAIL if the suite is red or any enabled `gap` row
+survives judgement), then:
 
 | Check | Result |
 | ----- | ------ |
 | Test suite | green / red (`N` gesamt, `M` fehlgeschlagen) |
-| Coverage gaps | `<project>` — gap / dismissed (reason) / disabled via config |
-| Test-facade shape | `<feature>` — conformant / violation (`<rule broken>`) / disabled via config |
+| Coverage gaps | `<unit>` — gap / dismissed (reason) / no-test-location / unmapped / disabled via config |
 
-For a red suite, the verbatim failing test names underneath. For a shape violation, the
-exact rule broken and the `datei:zeile` (or file, if there's no single line to pin). End
-with:
+For a red suite, the verbatim failing test names underneath. End with:
 
 ```
 Findings: <n>
 ```
 
-`<n>` = failing tests (0 if green) + surviving coverage-gap rows (0 if disabled) +
-test-facade violations (0 if disabled). A disabled check contributes `0`, but its row
-says `disabled via config`, not a bare `0`, so it's never mistaken for "checked, clean".
+`<n>` = failing tests (0 if green) + surviving coverage-gap rows (0 if disabled). A
+disabled check contributes `0`, but its row says `disabled via config`, not a bare `0`, so
+it's never mistaken for "checked, clean".
