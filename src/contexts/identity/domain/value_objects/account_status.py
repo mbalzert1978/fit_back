@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import final
 
-from src.shared_kernel import Timestamp
+from src.contexts.shared_kernel import Timestamp
 
 __all__ = [
     "AccountStatus",

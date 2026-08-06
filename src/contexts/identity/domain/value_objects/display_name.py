@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import final
 
-from src.shared_kernel import Err, NotEmptyString, Ok, Result
+from src.contexts.shared_kernel import Err, NotEmptyString, Ok, Result
 
 __all__ = ["MAXIMUM_LENGTH", "DisplayName"]
 

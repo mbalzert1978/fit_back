@@ -30,7 +30,7 @@ from src.contexts.identity.application.register_user.pipeline import build_regis
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.application.register_user.response import RegisterUserResponse
 from src.contexts.identity.domain import Email
-from src.shared_kernel import FakeTimeProvider, Timestamp
+from src.contexts.shared_kernel import FakeTimeProvider, Timestamp
 
 __all__ = ["RegisterUserTestApi"]
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.shared_kernel.result import Err, Ok, Result
+from src.contexts.shared_kernel.result import Err, Ok, Result
 
 
 class TestOk:

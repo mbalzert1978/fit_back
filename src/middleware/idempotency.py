@@ -29,7 +29,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp
 
-from src.shared_kernel.time_provider import TimeProvider
+from src.contexts.shared_kernel.time_provider import TimeProvider
 
 logger = logging.getLogger(__name__)
 

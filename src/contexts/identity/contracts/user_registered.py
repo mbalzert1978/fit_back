@@ -4,8 +4,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import ClassVar, final
 
-from src.shared_kernel.events import JsonValue
-from src.shared_kernel.timestamp import Timestamp
+from src.contexts.shared_kernel.events import JsonValue
+from src.contexts.shared_kernel.timestamp import Timestamp
 
 __all__ = ["UserRegistered"]
 

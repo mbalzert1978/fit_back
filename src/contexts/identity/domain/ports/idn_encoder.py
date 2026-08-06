@@ -19,7 +19,7 @@ wird nur gefragt, wo ohne ihn geraten werden muesste.
 
 from typing import TYPE_CHECKING, Protocol
 
-from src.shared_kernel import Result
+from src.contexts.shared_kernel import Result
 
 if TYPE_CHECKING:  # Importzyklus: errors.py haengt ueber email.py an diesem Modul.
     from src.contexts.identity.domain.errors import DomainError

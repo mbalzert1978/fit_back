@@ -1,70 +1,42 @@
-"""Fit-back API entry point."""
+"""Der Einstiegspunkt: Zusammenbau der Anwendung, sonst nichts.
+
+Diese Datei enthaelt bewusst weder Fachlichkeit noch Konfigurationslogik. Sie
+beantwortet genau zwei Fragen:
+
+- **Woraus besteht die Anwendung?** Middleware, Exception-Handler und Router -
+  alles auf Modulebene. Nichts davon darf im Lifespan entstehen: Starlette baut
+  die Middleware-Kette beim ersten ASGI-Aufruf zusammen, und der erste
+  ASGI-Aufruf *ist* der Lifespan-Aufruf. Ein `add_middleware` im Startup kommt
+  also immer zu spaet - siehe
+  `docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md`.
+- **Was lebt so lange wie der Prozess?** Engine, Ereignis-Registrierung,
+  Outbox-Worker - der Lifespan legt sie an und raeumt sie weg, mehr nicht.
+
+Die Konfiguration steht in `src/settings.py`, der Health-Endpunkt in
+`src/api/health_router.py`; beides braucht man auch ohne laufende App.
+"""
 
 import logging
-import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from fastapi import FastAPI
 
 from src.api.composition import build_engine, build_event_registry, run_outbox_worker
 from src.api.exception_handlers import register_exception_handlers
+from src.api.health_router import health_router
 from src.api.identity import register_user_router
-from src.shared_infrastructure.idempotency import IdempotencyKeyMiddleware
-from src.shared_kernel.time_provider import SystemTimeProvider
+from src.contexts.shared_kernel.time_provider import SystemTimeProvider
+from src.middleware.idempotency import IdempotencyKeyMiddleware
+from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
+from src.settings import validate_settings
 
 logger = logging.getLogger(__name__)
 
 
-class Settings(BaseModel):
-    """Application settings with validation."""
-
-    db_host: str = Field(default="localhost")
-    db_port: int = Field(default=5432, ge=1, le=65535)
-    db_name: str = Field(default="fit_back")
-    db_user: str = Field(default="fit_user")
-    db_password: str = Field(...)  # Required, no default
-
-    @property
-    def database_url(self) -> str:
-        """Die eine Datenbank-URL des Prozesses.
-
-        Der Treiber ist asyncpg, gefahren wird er ueber SQLAlchemy - ein Weg,
-        den sich Health-Check, Idempotency-Middleware und die Slices teilen.
-        """
-        return (
-            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
-        )
-
-
-def validate_settings() -> Settings:
-    """Validate and load settings from environment variables."""
-    try:
-        return Settings(
-            db_host=os.getenv("DB_HOST", "localhost"),
-            db_port=int(os.getenv("DB_PORT", "5432")),
-            db_name=os.getenv("DB_NAME", "fit_back"),
-            db_user=os.getenv("DB_USER", "fit_user"),
-            db_password=os.getenv("DB_PASSWORD"),
-        )
-    except (ValidationError, ValueError) as e:
-        raise RuntimeError("Configuration validation failed: invalid environment variables") from e
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    """Manage app lifespan: startup and shutdown.
-
-    Hier wird **nichts** mehr an die App gehaengt, was zu ihrer Gestalt gehoert:
-    Router, Exception-Handler und Middleware stehen auf Modulebene fest. Der
-    Lifespan legt ausschliesslich Laufzeit-Ressourcen an und raeumt sie weg.
-    """
+    """Lege die Ressourcen des Prozesses an und raeume sie wieder weg."""
     settings = validate_settings()
     app.state.settings = settings
     app.state.engine = build_engine(settings.database_url)
@@ -81,59 +53,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 app = FastAPI(title="Fit-back API", lifespan=lifespan)
 
-# Register exception handlers for RFC 7807 ProblemDetails
-register_exception_handlers(app)
-
-# Middleware gehoert auf Modulebene: Starlette baut die Kette beim ersten
-# ASGI-Aufruf zusammen - und das ist der Lifespan-Aufruf selbst. Ein
-# `add_middleware` waehrend des Startups kommt also immer zu spaet und wirft
-# "Cannot add middleware after an application has started"; siehe
-# docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md.
-# Die Engine kann die Middleware deshalb nicht im Konstruktor bekommen - sie
-# liest sie je Anfrage aus `app.state`.
+# Reihenfolge: `add_middleware` schiebt jeweils nach vorn, die zuletzt
+# hinzugefuegte laeuft also **aussen**. Der Auffangpunkt fuer unbehandelte
+# Ausnahmen muss aussen liegen - sonst sieht er nicht, was weiter innen
+# hochkommt, auch nicht aus der Idempotenz-Pruefung selbst.
 app.add_middleware(IdempotencyKeyMiddleware, time_provider=SystemTimeProvider())
+app.add_middleware(UnhandledExceptionMiddleware)
 
 # Rate-Limit- und CSRF-Middleware sind hier bewusst nicht verdrahtet: beide kamen
 # aus 96b8f2c, wurden mit 4165fed zurueckgenommen (siehe
 # docs/decisions/2026-08-05-0936-security-gate-triage-ticket-0001.md) und sind
 # ueber den PR-Merge c30054d unbemerkt zurueckgekehrt - inklusive zweier Importe,
 # die es nicht gibt (`fastapi.middleware.base`, `starlette.middleware.csrf`).
-# Seither liess sich dieses Modul nicht mehr importieren, ohne dass es auffiel:
-# nichts hat es je geladen. Der Smoke-Test in tests/api/test_app_startup.py
-# schliesst diese Luecke.
+
+register_exception_handlers(app)
+
+app.include_router(health_router)
 app.include_router(register_user_router)
 
 
-@app.get("/api/v1/health")
-async def health_check(request: Request) -> JSONResponse:
-    """
-    Health check endpoint.
-
-    Returns 200 if the database is connected, 503 otherwise.
-    """
-    engine: AsyncEngine | None = getattr(request.app.state, "engine", None)
-    if engine is None:
-        logger.warning("Health check: database not available")
-        return JSONResponse(
-            {"status": "unhealthy"},
-            status_code=503,
-        )
-
-    try:
-        # Verify connection by running a simple query
-        async with engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
-        return JSONResponse({"status": "healthy"})
-    except SQLAlchemyError:
-        logger.warning("Health check: database connection failed")
-        return JSONResponse(
-            {"status": "unhealthy"},
-            status_code=503,
-        )
-
-
 def main() -> None:
-    """Run the application."""
+    """Starte die Anwendung."""
     import uvicorn
 
     uvicorn.run(

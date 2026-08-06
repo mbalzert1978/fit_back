@@ -17,10 +17,10 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from src.shared_infrastructure.outbox import OutboxRelay, OutboxWorker, RelayConfig, write_event
-from src.shared_kernel.events import DeliveredEvent, EventRegistry, JsonValue
-from src.shared_kernel.time_provider import FakeTimeProvider
-from src.shared_kernel.timestamp import Timestamp
+from src.contexts.shared_kernel.events import DeliveredEvent, EventRegistry, JsonValue
+from src.contexts.shared_kernel.time_provider import FakeTimeProvider
+from src.contexts.shared_kernel.timestamp import Timestamp
+from src.infrastructure.outbox import OutboxRelay, OutboxWorker, RelayConfig, write_event
 
 pytestmark = pytest.mark.asyncio
 

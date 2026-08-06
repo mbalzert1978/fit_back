@@ -18,8 +18,8 @@ from src.contexts.identity.application.register_user import (
 from src.contexts.identity.infrastructure.hashing import Argon2PasswordHasher
 from src.contexts.identity.infrastructure.idn import IdnaLabels
 from src.contexts.identity.infrastructure.persistence import PostgresUserStore
-from src.shared_infrastructure.outbox.publishers import RegisterUserOutbox
-from src.shared_kernel.time_provider import SystemTimeProvider
+from src.contexts.shared_kernel.time_provider import SystemTimeProvider
+from src.infrastructure.outbox.publishers import RegisterUserOutbox
 
 __all__ = ["RegisterUser"]
 

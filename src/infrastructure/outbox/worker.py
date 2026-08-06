@@ -18,8 +18,8 @@ from typing import final
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from src.shared_infrastructure.outbox.outbox import OUTBOX_CHANNEL
-from src.shared_infrastructure.outbox.relay import OutboxRelay
+from src.infrastructure.outbox.outbox import OUTBOX_CHANNEL
+from src.infrastructure.outbox.relay import OutboxRelay
 
 __all__ = ["OutboxWorker"]
 

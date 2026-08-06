@@ -5,7 +5,7 @@ from functools import cache
 from typing import final
 from zoneinfo import available_timezones
 
-from src.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = ["DEFAULT_TIME_ZONE_ID", "UserTimeZone"]
 

@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import final
 
-from src.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = ["MINIMUM_LENGTH", "Password"]
 

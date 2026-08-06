@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Protocol, final
 
-from src.shared_kernel.timestamp import Timestamp
+from src.contexts.shared_kernel.timestamp import Timestamp
 
 
 class TimeProvider(Protocol):

@@ -8,7 +8,7 @@ Entweder beides oder keines - siehe `shared_kernel.events.EventPublisher`.
 from collections.abc import Mapping
 from typing import Protocol
 
-from src.shared_kernel.events import JsonValue
+from src.contexts.shared_kernel.events import JsonValue
 
 __all__ = ["RegisterUserEventLog"]
 

@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import final
 
-from src.shared_kernel.result import Ok, Result
+from src.contexts.shared_kernel.result import Ok, Result
 
 __all__ = ["FieldError", "ResultRule", "Rule", "all_of", "chain", "group_by_field"]
 

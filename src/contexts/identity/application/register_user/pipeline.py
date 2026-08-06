@@ -29,8 +29,8 @@ from src.contexts.identity.application.register_user.request import RegisterUser
 from src.contexts.identity.application.register_user.response import RegisterUserResponse
 from src.contexts.identity.application.register_user.validators import build_register_user_rules
 from src.contexts.identity.domain import IdnEncoder
-from src.shared_kernel import TimeProvider
-from src.shared_kernel.validation import Rule
+from src.contexts.shared_kernel import TimeProvider
+from src.contexts.shared_kernel.validation import Rule
 
 __all__ = ["RegisterUserPipeline", "build_register_user_pipeline"]
 

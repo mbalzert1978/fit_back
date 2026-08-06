@@ -31,8 +31,8 @@ from src.contexts.identity.domain.email_errors import (
     EmailNeedsExactlyOneAtSign,
 )
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
-from src.shared_kernel import Err, Ok, Result
-from src.shared_kernel.validation import ResultRule, chain
+from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel.validation import ResultRule, chain
 
 __all__ = ["MAX_DOMAIN_LENGTH", "MAX_LABEL_LENGTH", "MAX_LOCAL_LENGTH", "Email"]
 

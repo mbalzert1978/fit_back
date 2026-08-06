@@ -12,8 +12,8 @@ from src.contexts.identity.domain import (
     register,
     user_registered,
 )
-from src.shared_kernel import Result, TimeProvider
-from src.shared_kernel.events import EventPublisher
+from src.contexts.shared_kernel import Result, TimeProvider
+from src.contexts.shared_kernel.events import EventPublisher
 
 __all__ = ["RegisterUserHandler"]
 

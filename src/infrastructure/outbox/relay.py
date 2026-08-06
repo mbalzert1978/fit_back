@@ -21,9 +21,9 @@ from uuid import UUID
 from sqlalchemy import RowMapping, TextClause, text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from src.shared_kernel.events import DeliveredEvent, EventRegistry, JsonValue
-from src.shared_kernel.time_provider import TimeProvider
-from src.shared_kernel.timestamp import Timestamp
+from src.contexts.shared_kernel.events import DeliveredEvent, EventRegistry, JsonValue
+from src.contexts.shared_kernel.time_provider import TimeProvider
+from src.contexts.shared_kernel.timestamp import Timestamp
 
 __all__ = [
     "OutboxRelay",

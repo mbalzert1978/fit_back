@@ -9,20 +9,26 @@ nicht leer ist.
 from dataclasses import dataclass
 from typing import final
 
-from src.shared_kernel.result import Err, Ok, Result
+from src.contexts.shared_kernel.result import Err, Ok, Result
 
 __all__ = ["NotEmptyString", "not_blank"]
 
 
 def not_blank(raw: str) -> Result[str, str]:
-    """Fail-fast-Regel: der Text besteht nicht nur aus Leerraum.
+    """Fail-fast-Regel: der Text besteht nicht nur aus Leerraum - und kommt getrimmt zurueck.
 
     Als eigenstaendige Regel exportiert, damit sie in einer `chain(...)` vor
     laengeren Pruefungen stehen kann, statt in jedem VO neu geschrieben zu werden.
+
+    Das Ergebnis ist der **getrimmte** Text: die Regel muss ohnehin trimmen, um
+    ueberhaupt urteilen zu koennen, und jeder Aufrufer will danach dasselbe. Gaebe
+    sie den Rohwert zurueck, muesste jede nachgelagerte Pruefung erneut trimmen -
+    und wer es vergisst, laesst Leerraum in ein Value Object.
     """
-    if not raw.strip():
+    trimmed = raw.strip()
+    if not trimmed:
         return Err("Text darf nicht leer sein")
-    return Ok(raw)
+    return Ok(trimmed)
 
 
 @final
@@ -35,7 +41,7 @@ class NotEmptyString:
     @classmethod
     def parse(cls, raw: str) -> Result[NotEmptyString, str]:
         """Trimme und pruefe eine moeglicherweise leere Eingabe."""
-        return not_blank(raw).map(lambda text: cls(text.strip()))
+        return not_blank(raw).map(cls)
 
     @classmethod
     def hydrate(cls, raw: str) -> NotEmptyString:

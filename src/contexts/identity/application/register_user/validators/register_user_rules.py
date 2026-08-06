@@ -37,8 +37,8 @@ from src.contexts.identity.domain import (
     UserTimeZone,
     parse_locale,
 )
-from src.shared_kernel import Err, Ok, Result
-from src.shared_kernel.validation import FieldError, Rule, all_of
+from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
 
 __all__ = ["build_register_user_rules", "email_message"]
 

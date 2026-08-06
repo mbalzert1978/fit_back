@@ -47,10 +47,21 @@ src/contexts/<context>/domain/            # Aggregate, Value Objects, Domain-Por
 src/contexts/<context>/application/<use_case>/   # ein Ordner je Use Case: Command, Handler, Mapper, Validatoren
 src/contexts/<context>/infrastructure/    # SQLAlchemy-Modelle/Repositories, externe Adapter
 src/contexts/<context>/specs/<use_case>/  # Tests ausschließlich über die öffentliche Test-API des Use Case
-src/api/<context>/                        # FastAPI-Router — nur HTTP <-> Application-DTOs
-src/shared_kernel/                        # Result[T,E], TimeProvider, RFC-7807-ProblemDetails,
-                                           # Idempotency-Key-Middleware, IUserOwned, UUIDv7, Outbox
+src/contexts/<context>/contracts/         # veröffentlichtes Vokabular für andere Contexts — nur Primitive
+src/contexts/shared_kernel/               # Result[T,E], TimeProvider, Timestamp, EventPublisher/-Registry,
+                                          # IUserOwned — hängt an nichts außer der stdlib
+src/api/                                  # FastAPI-Router (je Context ein Unterordner), ProblemDetails,
+                                          # Exception-Handler, Composition Root
+src/middleware/                           # ASGI-Middleware: Idempotency-Key, Auffangpunkt für
+                                          # unbehandelte Ausnahmen
+src/infrastructure/                       # kontextübergreifende Infrastruktur: Outbox, DB-Schemata
+src/settings.py                           # Konfiguration aus der Umgebung, geprüft beim Start
+src/main.py                               # nur Zusammenbau: Middleware, Handler, Router, Lifespan
 ```
+
+Die Reihenfolge ist die Abhängigkeitsrichtung: `src/main.py` kennt alles, der Shared Kernel
+niemanden. Beides ist über den `domain-purity`-Contract in `setup.cfg` maschinell abgesichert,
+nicht bloß vereinbart.
 
 Contexts: `identity`, `catalog`, `diary`, `recipes`, `goals`, `health_sync` — je ein
 PostgreSQL-Schema, kein Context greift je auf die Tabellen eines anderen zu.

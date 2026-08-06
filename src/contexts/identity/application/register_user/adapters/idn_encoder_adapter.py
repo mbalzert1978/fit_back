@@ -15,7 +15,7 @@ from src.contexts.identity.application.register_user.abstractions import (
     LabelRejected,
 )
 from src.contexts.identity.domain import DomainError, UnencodableDomainLabel
-from src.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = ["IdnEncoderAdapter"]
 

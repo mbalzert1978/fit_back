@@ -15,7 +15,7 @@ from src.contexts.identity.domain import (
     account_status_tag,
     locale_tag,
 )
-from src.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = ["UserRegistryAdapter"]
 

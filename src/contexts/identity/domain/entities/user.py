@@ -9,7 +9,7 @@ from src.contexts.identity.domain.value_objects.locale import Locale
 from src.contexts.identity.domain.value_objects.password_hash import PasswordHash
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import UserTimeZone
-from src.shared_kernel import Timestamp
+from src.contexts.shared_kernel import Timestamp
 
 __all__ = ["User", "register"]
 

@@ -3,7 +3,7 @@
 from typing import final
 
 from src.contexts.identity.application.register_user.abstractions import RegisterUserEventLog
-from src.shared_kernel.events import DomainEvent
+from src.contexts.shared_kernel.events import DomainEvent
 
 __all__ = ["EventPublisherAdapter"]
 

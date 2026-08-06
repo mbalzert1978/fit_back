@@ -3,9 +3,9 @@
 from collections.abc import Mapping
 from typing import final
 
-from src.shared_infrastructure.outbox.outbox import OutboxTransaction, write_event
-from src.shared_kernel.events import JsonValue
-from src.shared_kernel.timestamp import Timestamp
+from src.contexts.shared_kernel.events import JsonValue
+from src.contexts.shared_kernel.timestamp import Timestamp
+from src.infrastructure.outbox.outbox import OutboxTransaction, write_event
 
 __all__ = ["RegisterUserOutbox"]
 

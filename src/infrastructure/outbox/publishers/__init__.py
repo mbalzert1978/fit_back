@@ -9,7 +9,7 @@ Die Richtung stimmt dabei: Infrastruktur greift nach oben in die
 `abstractions/` eines Context, nie umgekehrt.
 """
 
-from src.shared_infrastructure.outbox.publishers.identity_register_user import (
+from src.infrastructure.outbox.publishers.identity_register_user import (
     RegisterUserOutbox,
 )
 

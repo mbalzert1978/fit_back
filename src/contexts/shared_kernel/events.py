@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Protocol, final
 from uuid import UUID
 
-from src.shared_kernel.timestamp import Timestamp
+from src.contexts.shared_kernel.timestamp import Timestamp
 
 __all__ = [
     "DeliveredEvent",

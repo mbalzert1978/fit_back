@@ -33,11 +33,11 @@ from src.contexts.identity.contracts import UserRegistered
 from src.contexts.identity.infrastructure.hashing import Argon2PasswordHasher
 from src.contexts.identity.infrastructure.idn import IdnaLabels
 from src.contexts.identity.infrastructure.persistence import PostgresUserStore
-from src.shared_infrastructure.outbox import OutboxRelay
-from src.shared_infrastructure.outbox.publishers import RegisterUserOutbox
-from src.shared_kernel.events import DeliveredEvent, EventRegistry
-from src.shared_kernel.time_provider import FakeTimeProvider, SystemTimeProvider
-from src.shared_kernel.timestamp import Timestamp
+from src.contexts.shared_kernel.events import DeliveredEvent, EventRegistry
+from src.contexts.shared_kernel.time_provider import FakeTimeProvider, SystemTimeProvider
+from src.contexts.shared_kernel.timestamp import Timestamp
+from src.infrastructure.outbox import OutboxRelay
+from src.infrastructure.outbox.publishers import RegisterUserOutbox
 
 pytestmark = pytest.mark.asyncio
 

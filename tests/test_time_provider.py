@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from src.shared_kernel.time_provider import FakeTimeProvider, SystemTimeProvider
+from src.contexts.shared_kernel.time_provider import FakeTimeProvider, SystemTimeProvider
 
 
 class TestSystemTimeProvider:

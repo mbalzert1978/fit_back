@@ -19,9 +19,9 @@ from collections.abc import AsyncGenerator
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
-from src.shared_infrastructure.outbox import OutboxRelay, OutboxWorker
-from src.shared_kernel.events import EventRegistry
-from src.shared_kernel.time_provider import SystemTimeProvider
+from src.contexts.shared_kernel.events import EventRegistry
+from src.contexts.shared_kernel.time_provider import SystemTimeProvider
+from src.infrastructure.outbox import OutboxRelay, OutboxWorker
 
 __all__ = [
     "build_engine",

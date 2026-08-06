@@ -20,8 +20,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from src.shared_infrastructure.idempotency import IdempotencyKeyMiddleware
-from src.shared_kernel.time_provider import FakeTimeProvider
+from src.contexts.shared_kernel.time_provider import FakeTimeProvider
+from src.middleware.idempotency import IdempotencyKeyMiddleware
 
 pytestmark = pytest.mark.asyncio
 

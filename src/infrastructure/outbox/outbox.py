@@ -19,8 +19,8 @@ from uuid import UUID, uuid7
 
 from sqlalchemy import TextClause, text
 
-from src.shared_kernel.events import JsonValue
-from src.shared_kernel.timestamp import Timestamp
+from src.contexts.shared_kernel.events import JsonValue
+from src.contexts.shared_kernel.timestamp import Timestamp
 
 __all__ = [
     "OUTBOX_CHANNEL",

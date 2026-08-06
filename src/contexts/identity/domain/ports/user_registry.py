@@ -4,7 +4,7 @@ from typing import Protocol
 
 from src.contexts.identity.domain.entities.user import User
 from src.contexts.identity.domain.errors import DomainError
-from src.shared_kernel import Result
+from src.contexts.shared_kernel import Result
 
 __all__ = ["UserRegistry"]
 

@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import final
 
-from src.shared_kernel.events import JsonValue
+from src.contexts.shared_kernel.events import JsonValue
 
 __all__ = ["InMemoryEventLog", "RecordedEvent"]
 
@@ -26,7 +26,7 @@ class InMemoryEventLog:
     Bildet nach, was in Stufe 2 die Outbox-Tabelle tut - allerdings nur ihren
     beobachtbaren Teil: dass ein Ereignis festgehalten wurde. Ob es transaktional
     am Nutzer-Datensatz haengt, kann kein In-Memory-Fake zeigen; das entscheidet
-    Postgres und wird dort geprueft (tests/shared_infrastructure/test_outbox.py).
+    Postgres und wird dort geprueft (tests/infrastructure/test_outbox.py).
     """
 
     def __init__(self) -> None:
