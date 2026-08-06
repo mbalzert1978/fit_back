@@ -11,9 +11,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 
 from src.api.composition import build_engine, build_event_registry, run_outbox_worker
+from src.api.exception_handlers import register_exception_handlers
 from src.api.identity import register_user_router
-from src.shared_kernel.exception_handlers import register_exception_handlers
-from src.shared_kernel.idempotency import IdempotencyKeyMiddleware
+from src.shared_infrastructure.idempotency import IdempotencyKeyMiddleware
 from src.shared_kernel.time_provider import SystemTimeProvider
 
 logger = logging.getLogger(__name__)
@@ -175,7 +175,7 @@ def main() -> None:
     import uvicorn
 
     uvicorn.run(
-        "main:app",
+        "src.main:app",
         host="0.0.0.0",
         port=8000,
         reload=False,

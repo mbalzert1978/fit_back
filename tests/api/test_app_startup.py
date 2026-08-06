@@ -15,13 +15,13 @@ import pytest
 
 
 def test_der_einstiegspunkt_laesst_sich_importieren() -> None:
-    """`import main` darf keine Umgebungsvariablen und keine Datenbank brauchen.
+    """`from src import main` darf keine Umgebungsvariablen und keine Datenbank brauchen.
 
     Die Konfiguration wird erst beim Start geprueft (`lifespan`), nicht beim
     Import - sonst waere jedes Werkzeug, das das Modul nur laden will, an eine
     vollstaendige Umgebung gebunden.
     """
-    import main
+    from src import main
 
     assert main.app.title == "Fit-back API"
 
@@ -33,6 +33,6 @@ def test_die_anwendung_kennt_ihre_endpunkte(path: str) -> None:
     FastAPI haengt eingebundene Router als Referenz ein, statt ihre Routen
     flachzuziehen; das Schema ist die verlaessliche Aufzaehlung.
     """
-    import main
+    from src import main
 
     assert path in main.app.openapi()["paths"]

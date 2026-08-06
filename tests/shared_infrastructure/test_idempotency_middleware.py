@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from fastapi.responses import JSONResponse
 
-from src.shared_kernel.idempotency import (
+from src.shared_infrastructure.idempotency import (
     IdempotencyKeyMiddleware,
     calculate_request_hash,
     is_idempotent_method,

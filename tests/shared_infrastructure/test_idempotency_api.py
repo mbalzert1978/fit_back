@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
 
-from src.shared_kernel.idempotency import IdempotencyKeyMiddleware
+from src.shared_infrastructure.idempotency import IdempotencyKeyMiddleware
 from src.shared_kernel.time_provider import FakeTimeProvider
 
 

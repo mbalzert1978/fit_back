@@ -21,8 +21,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from src.api.exception_handlers import register_exception_handlers
 from src.api.identity import register_user_router
-from src.shared_kernel.exception_handlers import register_exception_handlers
 
 pytestmark = pytest.mark.asyncio
 

@@ -13,13 +13,13 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.api.identity.dependencies import RegisterUser
+from src.api.problem_details import ProblemDetails
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
     RegisterUserRequest,
     RegistrationAccepted,
     RegistrationInvalid,
 )
-from src.shared_kernel.problem_details import ProblemDetails
 from src.shared_kernel.timestamp import Timestamp
 
 __all__ = ["router"]

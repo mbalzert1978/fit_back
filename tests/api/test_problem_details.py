@@ -5,7 +5,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from ..problem_details import ProblemDetails
+from src.api.problem_details import ProblemDetails
 
 
 class TestProblemDetails:

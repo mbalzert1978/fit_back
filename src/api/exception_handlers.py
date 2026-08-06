@@ -1,4 +1,11 @@
-"""FastAPI exception handlers for domain errors and validation."""
+"""Exception-Handler des HTTP-Randes.
+
+Uebersetzt, was FastAPI selbst wirft, in das RFC-7807-Format. Fachliche
+Fehlausgaenge laufen **nicht** hierueber: die tragen die Slices in ihrer
+Response-Union, und der Router waehlt daraus Statuscode und Body. Ein
+Exception-basierter zweiter Fehlerkanal daneben waere genau die Verzweigung,
+die man beim Lesen nicht mehr sieht.
+"""
 
 import logging
 
@@ -6,40 +13,9 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from .exceptions import DomainException
-from .problem_details import ProblemDetails
+from src.api.problem_details import ProblemDetails
 
 logger = logging.getLogger(__name__)
-
-
-async def domain_exception_handler(
-    request: Request,
-    exc: DomainException,
-) -> JSONResponse:
-    """Handle domain exceptions and convert to RFC 7807 ProblemDetails.
-
-    Returns 4xx/5xx status with structured error format.
-    """
-    instance = exc.instance or str(request.url.path)
-    problem = ProblemDetails(
-        type=exc.error_type,
-        title=exc.title,
-        status=exc.http_status,
-        detail=exc.detail,
-        instance=instance,
-        errors=None,
-    )
-    logger.info(
-        "Domain error: %s at %s",
-        exc.error_type,
-        instance,
-        extra={"status": exc.http_status},
-    )
-    return JSONResponse(
-        status_code=exc.http_status,
-        content=problem.model_dump(exclude_none=True),
-        media_type="application/problem+json",
-    )
 
 
 async def validation_exception_handler(
@@ -80,12 +56,7 @@ async def validation_exception_handler(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """Register exception handlers in FastAPI app.
-
-    Args:
-        app: FastAPI application instance.
-    """
-    app.add_exception_handler(DomainException, domain_exception_handler)
+    """Registriere die Exception-Handler an der App."""
     app.add_exception_handler(
         RequestValidationError,
         validation_exception_handler,  # type: ignore[arg-type]
