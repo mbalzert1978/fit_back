@@ -59,7 +59,7 @@ Laufzeit-Dependency.
       `register_user` braucht; **nur Primitive** ueber der Naht; eigene Tagged Union als
       Naht-Ergebnis, **nicht** `Result[T, E]`
 - [x] `application/register_user/test_api.py` + `application/register_user/fakes/` (In-Memory)
-- [x] Verhaltens-Specs unter `contexts/identity/tests/register_user/`: Arrange ueber die Test-API,
+- [x] Verhaltens-Specs unter `contexts/identity/specs/register_user/`: Arrange ueber die Test-API,
       Act ueber das echte Request-DTO, Assert gegen die echte Response-Union — abgedeckt:
       erfolgreiche Registrierung, doppelte E-Mail (case-insensitive), Passwort < 10 Zeichen
 - [x] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**

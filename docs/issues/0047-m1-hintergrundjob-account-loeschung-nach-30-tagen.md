@@ -28,7 +28,7 @@ M4, M6, M7) unabhaengig seine eigenen Nutzerdaten loescht.
 - [ ] `contexts/identity/application/delete_expired_user/`: Command (userId), Handler (orchestriert nur, ladet User → prueft EffectiveAt-Bedingung → loescht), Request-Mapper und Response-Mapper, Validierungsregeln
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` fuer Nutzer-Ladevorgang und Status-Pruefung; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/delete_expired_user/test_api.py` + `application/delete_expired_user/fakes/` (In-Memory, Fake-TimeProvider)
-- [ ] Verhaltens-Specs unter `contexts/identity/tests/delete_expired_user/`: Nutzer mit EffectiveAt in der Vergangenheit wird geloescht, Nutzer mit EffectiveAt in der Zukunft bleibt unangetastet, nur PendingDeletion-Status wird geloescht
+- [ ] Verhaltens-Specs unter `contexts/identity/specs/delete_expired_user/`: Nutzer mit EffectiveAt in der Vergangenheit wird geloescht, Nutzer mit EffectiveAt in der Zukunft bleibt unangetastet, nur PendingDeletion-Status wird geloescht
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container** — verwendet gefakete Zeit (TimeProvider aus M0.4)
 
 ### Stufe 2 — Infrastruktur

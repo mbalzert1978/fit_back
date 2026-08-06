@@ -20,7 +20,27 @@ Jedes Feature ist ein eigenes Python-Paket, intern geschichtet:
 |--------|--------|--------------------------|
 | `domain/` | Value Objects (`@dataclass(frozen=True, slots=True)`), Entitaeten, Aggregatwurzel, interne Ports (`Protocol`), interne Domaenen-Regeln (`ResultRule`, fail-fast, ein typisierter Fehler je Invariante) | **nur stdlib** — kein Drittanbieter-Paket, kein DI-Framework |
 | `application/` | public Request-/Response-DTOs, public Ports (Gateway/Datenquelle) + deren Ergebnis-Typen, interner **Command** (VOs, ggf. unter `shared/` geteilt), interne **Handler** (Orchestrator), interne **Port-Adapter** (Domain-Port-Implementierung, Anti-Corruption-Layer), **Mapper** (je Richtung eine Funktion/Klasse), **Eingabe-Validierungsregeln** (`Rule Pattern`, collect-all, unter `validators/`), **Test-API + In-Memory-Fakes** (siehe unten — Teil des Slice, nicht des Testprojekts), Wiring | `domain`, gemeinsames `common`-Paket, minimales DI (z. B. reine Funktionen/`functools.partial`, kein Framework noetig) |
-| `tests/` | Tests ausschliesslich ueber die public Test-API des Use Case | nur das Feature-Paket selbst (keine `_private`-Importe quer durchs Paket) |
+| `specs/<use_case>/` | Verhaltens-Specs, ausschliesslich ueber die public Test-API des Use Case | nur das Feature-Paket selbst (keine `_private`-Importe quer durchs Paket) |
+| `specs/domain/` | Domain-Unit-Tests je Aggregat/Value Object/Union (BACKEND.md Abschnitt 9) | die Domaene direkt — das ist genau ihr Zweck |
+| `specs/contracts/` | Contract-Tests an Context-Grenzen ([`02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md), Form A) | das eigene Port-`Protocol` |
+
+Der Ordner heisst `specs/`, nicht `tests/`: er enthaelt nicht nur Tests im engeren Sinn, sondern
+die **ausfuehrbare Spezifikation** des Verhaltens. `slice-shape-check` prueft nur `specs/<use_case>/`
+gegen die Test-API-Regel; die beiden anderen Unterordner sind davon ausgenommen, weil sie
+per Definition tiefer greifen.
+
+Innerhalb eines Use Case gliedert sich `application/<use_case>/` weiter:
+
+```
+application/<use_case>/
+  abstractions/   public Naht: Protocols + Ergebnis-Unions
+  adapters/       Port-Adapter (ACL nach unten)
+  mappers/        Request-Mapper und Response-Mapper
+  validators/     Collect-all-Regeln gegen das Request-DTO
+  fakes/          In-Memory-Implementierungen der Naht
+  test_api/       Test-API
+  command.py handler.py pipeline.py request.py response.py
+```
 
 Ein **Bounded Context** ist die Feature-Paket-Grenze: **eine** `domain/`-Schicht, darunter **je Use Case
 ein eigener `application/<use_case>/`-Ordner**. Der Fehlertyp (`Result[T, E]`, siehe unten) ist damit
@@ -174,23 +194,23 @@ Drei Regeln fuer jede Naht:
 
 Do:
 ```python
-class RegisterUserIdentityGateway(Protocol):
+class RegisterUserUserStore(Protocol):
     """Public Naht des Use Case — nur Primitive, eigenes Ergebnis-Union."""
 
-    async def find_by_email(self, email: str) -> "EmailLookup": ...
+    async def insert(self, record: NewUserRecord) -> "UserInsertion": ...
 
 
-type EmailLookup = EmailTaken | EmailFree          # eigene Union, KEIN Result[T, E]
+type UserInsertion = UserStored | EmailTaken        # eigene Union, KEIN Result[T, E]
+
+
+@dataclass(frozen=True, slots=True)
+class UserStored:
+    pass
 
 
 @dataclass(frozen=True, slots=True)
 class EmailTaken:
     user_id: str                                    # Primitiv, kein UserId-VO
-
-
-@dataclass(frozen=True, slots=True)
-class EmailFree:
-    pass
 ```
 
 Don't:
@@ -200,6 +220,20 @@ class IdentityGateway(Protocol):                    # geteiltes Sammel-Gateway u
     #                              ^ VO ueber der Naht      ^ Result auf der public Seite
     async def save(self, user: User) -> None: ...   # Operation, die dieser Use Case nicht braucht
 ```
+
+### Eine Frage, die nur die Gegenseite beantworten kann, wird nicht vorab gestellt
+
+Der vierte, leicht zu uebersehende Fehler ist eine Naht mit einem **Pruefschritt vor dem
+Schreibschritt** — `find_by_email(...)` und danach `insert(...)`. Die Auskunft des ersten Aufrufs
+kann im Moment ihrer Beantwortung schon veraltet sein: zwischen Pruefung und Schreiben passt jeder
+nebenlaeufige Vorgang. Der zweite Schritt **macht das Wettrennen erst auf**, das er verhindern
+soll, und zwingt die Naht anschliessend zu einem zusaetzlichen Kollisions-Fall, der ohne ihn nie
+existiert haette.
+
+Regel: Wo eine Invariante von einer Instanz **durchgesetzt** wird (Unique-Index,
+Reservierungssystem, externe API), fragt der Slice sie nicht vorher, sondern liest ihr Urteil aus
+dem Ergebnis der eigentlichen Operation. Eine vorgelagerte Abfrage ist nur dann legitim, wenn sie
+etwas beantwortet, das sich waehrend des Vorgangs nicht aendern kann.
 
 ## Handler, Adapter, Mapper sind verschiedene Dinge
 
@@ -238,7 +272,7 @@ identische Form heisst nicht identische Bedeutung.
 
 ## Die Test-API ist Teil des Slice, nicht des Testprojekts
 
-**Je Use Case eine Test-API**, ausgeliefert unter `application/<use_case>/test_api.py`, die
+**Je Use Case eine Test-API**, ausgeliefert unter `application/<use_case>/test_api/`, die
 In-Memory-Fakes daneben unter `application/<use_case>/fakes/`. Sie ist **kein** Testcode und
 **kein** Mock-Gerüst, sondern die oeffentliche Bedien-Oberflaeche des Slice fuer alles, was ihn
 verhaltensseitig pruefen will.
@@ -323,16 +357,17 @@ Deklarativer, zeitgemaesser Stil gilt unveraendert auch in Handlern
 
 ## Review-Checkliste
 
-- [ ] `domain/` haengt nur an der stdlib; `application/` bruecke zu geteiltem `common`/minimalem Wiring; `tests/` nur an das Feature-Paket.
+- [ ] `domain/` haengt nur an der stdlib; `application/` bruecke zu geteiltem `common`/minimalem Wiring; `specs/<use_case>/` nur an das Feature-Paket.
 - [ ] **Ein Bounded Context = eine `domain/`-Schicht + je Use Case ein `application/<use_case>/`**; der `Result`-Fehlertyp ist context-eigen, nicht use-case-eigen.
 - [ ] **Die Naht gehoert dem Use Case**: eigener, schmaler Vertrag statt geteiltem Gateway; nur die Operationen, die dieser Use Case braucht.
 - [ ] **Ueber die public Naht wandern nur Primitive** — kein VO, keine Entitaet, kein Aggregat.
 - [ ] **Die public Naht liefert eine eigene, einfache Tagged Union**, nie `Result[T, E]` — der bleibt domaenenseitig.
-- [ ] **Test-API je Use Case** unter `application/<use_case>/test_api.py`, In-Memory-Fakes unter `application/<use_case>/fakes/` — Teil des ausgelieferten Slice, nicht des Testprojekts.
+- [ ] **Test-API je Use Case** unter `application/<use_case>/test_api/`, In-Memory-Fakes unter `application/<use_case>/fakes/` — Teil des ausgelieferten Slice, nicht des Testprojekts.
 - [ ] **Test-API verdrahtet die echte Pipeline** (Request-Mapper → Handler → Response-Mapper + Validierung) und tauscht nur an der aeussersten Naht den Fake ein; nichts dazwischen wird gemockt.
 - [ ] **Specs: Arrange ueber die Test-API, Act ueber das echte Request-DTO, Assert gegen die echte Response-Union** — kein Test greift auf Handler, Domaene oder Fake direkt zu.
 - [ ] **Der Slice ist ohne Infrastruktur vollstaendig gruen** (keine DB, kein HTTP, kein Container); Integrations-/E2E-Tests sind eine eigene, aeusserste Ebene.
 - [ ] **Baureihenfolge eingehalten**: `domain/` → `application/<use_case>/` → Test-API + Specs → `infrastructure/` → `src/api/`.
+- [ ] **Keine vorgelagerte Pruefung, wo die Gegenseite die Invariante durchsetzt** — kein `find_by_…` vor dem `insert`, das das Wettrennen erst aufmacht.
 - [ ] Domaene spricht nur VOs/Entitaeten; Primitive ausschliesslich in Request-/Response-DTOs + Gateway.
 - [ ] Entitaeten haben identitaetsbasierte Gleichheit; VOs sind `@dataclass(frozen=True, slots=True)`; Identitaet ist ein validierter Typ, kein freier `str`.
 - [ ] Aggregatwurzel besitzt Operationen und Iteration; der Handler orchestriert nur (~10-15 Zeilen).

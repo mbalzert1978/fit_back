@@ -28,8 +28,8 @@ GET/PUT /api/v1/goals mit der Gramm<->Prozent-Ableitung aus Abschnitt 5, inkl. d
 - [ ] `contexts/goals/application/update_goals/`: Command (userId, neue MacroDistribution), Handler (orchestriert Laden → Domaenen-Operation → Speichern, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht **je Use Case**: eigenes, schmales `Protocol` mit **nur** den Operationen, die der jeweilige Use Case braucht (`get_goals` liest, `update_goals` liest und schreibt); **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] **Je Use Case eine eigene** `test_api.py` + `fakes/`: `application/get_goals/` und `application/update_goals/`
-- [ ] Verhaltens-Specs unter `contexts/goals/tests/get_goals/`: Profil wird vollstaendig geliefert (Gramm, Prozent, kcal je Makro), unbekannter Nutzer
-- [ ] Verhaltens-Specs unter `contexts/goals/tests/update_goals/`: Update erfolgreich, PercentSum != 100 aber kein Fehler (DailyKcal wird dann nicht neu berechnet), DailyKcal-out-of-range wird abgelehnt, Rundung Up/Down x Physiological/Declaration ueber bekannte Werte
+- [ ] Verhaltens-Specs unter `contexts/goals/specs/get_goals/`: Profil wird vollstaendig geliefert (Gramm, Prozent, kcal je Makro), unbekannter Nutzer
+- [ ] Verhaltens-Specs unter `contexts/goals/specs/update_goals/`: Update erfolgreich, PercentSum != 100 aber kein Fehler (DailyKcal wird dann nicht neu berechnet), DailyKcal-out-of-range wird abgelehnt, Rundung Up/Down x Physiological/Declaration ueber bekannte Werte
 - [ ] Assertion in beiden Spec-Suiten: berechnete Ausgaben haben nie Nachkommastellen
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`

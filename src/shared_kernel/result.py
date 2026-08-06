@@ -20,6 +20,10 @@ class Ok[T]:
         """Verkette eine Funktion, die selbst Result[U, E] zurückgibt."""
         return f(self.value)
 
+    def map_err[E, F](self, f: Callable[[E], F]) -> Ok[T]:
+        """Ignoriere die Fehler-Transformation (es liegt kein Fehler vor)."""
+        return self
+
 
 @final
 @dataclass(frozen=True, slots=True)
@@ -35,6 +39,10 @@ class Err[E]:
     def bind[T, U](self, f: Callable[[T], Result[U, E]]) -> Err[E]:
         """Ignoriere den Fehler (Verkettung nicht möglich)."""
         return self
+
+    def map_err[F](self, f: Callable[[E], F]) -> Err[F]:
+        """Transformiere den Fehler - z. B. Domänenfehler in eine Anzeigemeldung."""
+        return Err(f(self.error))
 
 
 type Result[T, E] = Ok[T] | Err[E]

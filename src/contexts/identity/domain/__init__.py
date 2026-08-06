@@ -9,8 +9,26 @@ Diese Schicht haengt ausschliesslich an der stdlib und am `Result` des Shared
 Kernel - maschinell abgesichert durch den `domain-purity`-Contract in setup.cfg.
 """
 
+from src.contexts.identity.domain.email_errors import (
+    EmailAddressLiteralInvalid,
+    EmailDomainHasEmptyLabel,
+    EmailDomainLabelHasEdgeHyphen,
+    EmailDomainLabelHasInvalidCharacters,
+    EmailDomainLabelTooLong,
+    EmailDomainMissing,
+    EmailDomainTooLong,
+    EmailError,
+    EmailHasWhitespace,
+    EmailLocalPartHasInvalidCharacters,
+    EmailLocalPartHasMisplacedDot,
+    EmailLocalPartMissing,
+    EmailLocalPartTooLong,
+    EmailNeedsExactlyOneAtSign,
+    UnencodableDomainLabel,
+)
 from src.contexts.identity.domain.entities.user import User, register
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
+from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.ports.user_registry import UserRegistry
 from src.contexts.identity.domain.value_objects.account_status import (
@@ -47,15 +65,31 @@ __all__ = [
     "DisplayName",
     "DomainError",
     "Email",
+    "EmailAddressLiteralInvalid",
     "EmailAlreadyRegistered",
+    "EmailDomainHasEmptyLabel",
+    "EmailDomainLabelHasEdgeHyphen",
+    "EmailDomainLabelHasInvalidCharacters",
+    "EmailDomainLabelTooLong",
+    "EmailDomainMissing",
+    "EmailDomainTooLong",
+    "EmailError",
+    "EmailHasWhitespace",
+    "EmailLocalPartHasInvalidCharacters",
+    "EmailLocalPartHasMisplacedDot",
+    "EmailLocalPartMissing",
+    "EmailLocalPartTooLong",
+    "EmailNeedsExactlyOneAtSign",
     "English",
     "German",
+    "IdnEncoder",
     "Locale",
     "Password",
     "PasswordHash",
     "PasswordHasher",
     "PendingDeletion",
     "Suspended",
+    "UnencodableDomainLabel",
     "User",
     "UserId",
     "UserRegistry",

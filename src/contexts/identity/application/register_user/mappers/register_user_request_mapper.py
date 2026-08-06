@@ -5,6 +5,7 @@ from src.contexts.identity.application.register_user.request import RegisterUser
 from src.contexts.identity.domain import (
     DisplayName,
     Email,
+    IdnEncoder,
     Password,
     UserTimeZone,
     hydrate_locale,
@@ -13,7 +14,7 @@ from src.contexts.identity.domain import (
 __all__ = ["to_command"]
 
 
-def to_command(request: RegisterUserRequest) -> RegisterUserCommand:
+def to_command(request: RegisterUserRequest, idn: IdnEncoder) -> RegisterUserCommand:
     """Baue das Command aus dem bereits validierten Request.
 
     Infallibel und damit `hydrate` statt `parse`: die Collect-all-Validierung
@@ -22,7 +23,7 @@ def to_command(request: RegisterUserRequest) -> RegisterUserCommand:
     Fachfall - deshalb `AssertionError` aus `hydrate` und kein Fehlerkanal.
     """
     return RegisterUserCommand(
-        email=Email.hydrate(request.email),
+        email=Email.hydrate(request.email, idn),
         password=Password.hydrate(request.password),
         display_name=DisplayName.hydrate(request.display_name),
         locale=hydrate_locale(request.locale),

@@ -29,7 +29,7 @@ includes the case where no changed file looks like a test file at all).
 1. **Test co-location** — every changed file whose name matches `test_file_patterns`
    (e.g. `test_*.py`) has a path starting with one of `test_root_prefixes` — checked
    by string-prefix match (with `*` wildcarding one path segment, e.g.
-   `src/contexts/*/tests/*/`), not by any judgment call — correctness.
+   `src/contexts/*/specs/*/`), not by any judgment call — correctness.
 
 ### What this check can and cannot decide
 
@@ -91,7 +91,7 @@ Whatever the script printed, verbatim:
 ```
 Verdict: BLOCK
 Scope: 12 changed file(s), 3 test file(s) inspected
-- tests/shared_kernel/i18n/test_middleware.py: test file is outside every configured test root (src/*/tests/, src/contexts/*/tests/*/)
+- tests/shared_kernel/i18n/test_middleware.py: test file is outside every configured test root (src/*/tests/, src/contexts/*/specs/*/)
 Findings: 1
 ```
 

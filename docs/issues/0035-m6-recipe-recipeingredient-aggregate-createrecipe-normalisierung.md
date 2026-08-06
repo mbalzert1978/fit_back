@@ -26,7 +26,7 @@ Recipe-Aggregate mit RecipeIngredient-Entities (Zutaten ausschliesslich aus Prod
 - [ ] `contexts/recipes/application/create_recipe/`: Command (name, portions, ingredients[]), Handler (orchestriert nur), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht des Use Case: Protocol fuer Product-Ladevorgang (um Nutrient-Daten zu beziehen); **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/create_recipe/test_api.py` + `application/create_recipe/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/recipes/tests/create_recipe/`: Rezept mit Normalisierung (Berechnung totalGrams, gramsPerPortion, nutrientsPer100), leere Zutatenliste wird abgelehnt, portions<=0 wird abgelehnt
+- [ ] Verhaltens-Specs unter `contexts/recipes/specs/create_recipe/`: Rezept mit Normalisierung (Berechnung totalGrams, gramsPerPortion, nutrientsPer100), leere Zutatenliste wird abgelehnt, portions<=0 wird abgelehnt
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] Domain-Unit-Tests der Berechnungsformeln, Value-Object-Tests (RecipeName, Portions)
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`

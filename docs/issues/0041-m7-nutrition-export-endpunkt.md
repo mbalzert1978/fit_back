@@ -24,7 +24,7 @@ GET /api/v1/health/nutrition-export/{date} - liefert die Tageswerte (kcal/carbsG
 - [ ] `contexts/health_sync/application/export_nutrition/`: Command (date, userId), Handler (ruft Diary ueber den Port auf und transformiert Ergebnis zu Response), Request-Mapper und Response-Mapper
 - [ ] Public Naht: eigenes, schmales `Protocol` mit Operation zum Laden der Tageswerte aus Diary; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/export_nutrition/test_api.py` + `application/export_nutrition/fakes/` (In-Memory, Fake-Gateway zu Diary)
-- [ ] Verhaltens-Specs unter `contexts/health_sync/tests/export_nutrition/`: Projektion der Diary-Daten (kcal/carbsG/proteinG/fatG) in Export-Format, Verhalten des Gateway-Adapters
+- [ ] Verhaltens-Specs unter `contexts/health_sync/specs/export_nutrition/`: Projektion der Diary-Daten (kcal/carbsG/proteinG/fatG) in Export-Format, Verhalten des Gateway-Adapters
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container** — Gateway ist gefakt
 - [ ] `./make.ps1 import-lint` gruen, `slice-shape-check` liefert `Findings: 0`
 

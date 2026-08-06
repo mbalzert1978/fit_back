@@ -11,5 +11,8 @@ from src.contexts.identity.application.register_user.fakes.deterministic_passwor
 from src.contexts.identity.application.register_user.fakes.in_memory_user_store import (
     InMemoryUserStore,
 )
+from src.contexts.identity.application.register_user.fakes.passthrough_idn_labels import (
+    PassthroughIdnLabels,
+)
 
-__all__ = ["DeterministicPasswordHasher", "InMemoryUserStore"]
+__all__ = ["DeterministicPasswordHasher", "InMemoryUserStore", "PassthroughIdnLabels"]

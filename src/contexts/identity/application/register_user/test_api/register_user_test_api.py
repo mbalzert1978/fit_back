@@ -17,9 +17,11 @@ Testcontainers und HTTP gegen die laufende App sind eine eigene, aeussere Ebene
 from datetime import UTC, datetime
 from typing import Self, final
 
+from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
 from src.contexts.identity.application.register_user.fakes import (
     DeterministicPasswordHasher,
     InMemoryUserStore,
+    PassthroughIdnLabels,
 )
 from src.contexts.identity.application.register_user.pipeline import build_register_user_pipeline
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
@@ -40,6 +42,7 @@ class RegisterUserTestApi:
         """Starte mit leerem Nutzerbestand und fester Zeit."""
         self._store = InMemoryUserStore()
         self._hasher = DeterministicPasswordHasher()
+        self._labels = PassthroughIdnLabels()
         self._clock = FakeTimeProvider(_DEFAULT_NOW)
 
     # --- Arrange ---
@@ -58,10 +61,12 @@ class RegisterUserTestApi:
 
     async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
         """Fuehre das echte Request-DTO durch die echte Pipeline."""
-        pipeline = build_register_user_pipeline(self._store, self._hasher, self._clock)
+        pipeline = build_register_user_pipeline(
+            self._store, self._hasher, self._labels, self._clock
+        )
         return await pipeline.run(request)
 
 
 def _normalized(email: str) -> str:
     """Normalisiere genau wie die Produktion - die Test-API baut das nicht nach."""
-    return Email.hydrate(email).value
+    return Email.hydrate(email, IdnEncoderAdapter(PassthroughIdnLabels())).value

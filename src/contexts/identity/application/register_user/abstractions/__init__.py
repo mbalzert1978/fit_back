@@ -10,11 +10,17 @@ geteilten Identity-Gateway (.rules/python/python-feature-slices.md):
 3. Jede fallible Operation liefert ihre **eigene**, einfache Tagged Union -
    nicht `Result[T, DomainError]`. Der Fehlerkanal der Domaene bleibt drinnen.
 
-Je Mitspieler ein eigener Vertrag: Nutzerbestand und Hash-Verfahren haben nichts
-miteinander zu tun und werden in Stufe 2 von verschiedenen Dingen erfuellt
-(SQLAlchemy-Repository bzw. Argon2id).
+Je Mitspieler ein eigener Vertrag: Nutzerbestand, Hash-Verfahren und
+IDN-Umwandlung haben nichts miteinander zu tun und werden von verschiedenen
+Dingen erfuellt.
 """
 
+from src.contexts.identity.application.register_user.abstractions.idn_labels import (
+    AsciiLabel,
+    IdnLabels,
+    LabelEncoding,
+    LabelRejected,
+)
 from src.contexts.identity.application.register_user.abstractions.password_hasher import (
     RegisterUserPasswordHasher,
 )
@@ -27,7 +33,11 @@ from src.contexts.identity.application.register_user.abstractions.user_store imp
 )
 
 __all__ = [
+    "AsciiLabel",
     "EmailTaken",
+    "IdnLabels",
+    "LabelEncoding",
+    "LabelRejected",
     "NewUserRecord",
     "RegisterUserPasswordHasher",
     "RegisterUserUserStore",

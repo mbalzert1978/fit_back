@@ -26,7 +26,7 @@ NutritionPhoto-Aggregate (OcrStatus-Union Uploaded/Processing/Completed/Failed, 
 - [ ] `contexts/catalog/application/upload_nutrition_photo/`: Command (photoId, imageBinary, mediaType), Handler (orchestriert nur), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht des Use Case: BlobStorage-Port mit **nur** den Operationen, die `upload_nutrition_photo` braucht; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/upload_nutrition_photo/test_api.py` + `application/upload_nutrition_photo/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/catalog/tests/upload_nutrition_photo/`: erfolgreicher Upload (Bild > 8MB wird abgelehnt, unsupported Media Type wird abgelehnt)
+- [ ] Verhaltens-Specs unter `contexts/catalog/specs/upload_nutrition_photo/`: erfolgreicher Upload (Bild > 8MB wird abgelehnt, unsupported Media Type wird abgelehnt)
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

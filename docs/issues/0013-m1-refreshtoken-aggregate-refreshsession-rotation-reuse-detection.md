@@ -26,7 +26,7 @@ Eigenes RefreshToken-Aggregate (60 Tage Gueltigkeit). Bei Verwendung wird der al
 - [ ] `contexts/identity/application/refresh_session/`: Command (refreshToken als Primitive), Handler (orchestriert nur, ~10-15 Zeilen, kein try/except), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Operationen zum Laden und Rotieren von Tokens; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/refresh_session/test_api.py` + `application/refresh_session/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/identity/tests/refresh_session/`: erfolgreiche Rotation, abgelaufener Token, unbekannter Token, Reuse-Detection (revoked Token fuehrt zum Widerruf ALLER Tokens)
+- [ ] Verhaltens-Specs unter `contexts/identity/specs/refresh_session/`: erfolgreiche Rotation, abgelaufener Token, unbekannter Token, Reuse-Detection (revoked Token fuehrt zum Widerruf ALLER Tokens)
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 
 ### Stufe 2 — Infrastruktur

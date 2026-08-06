@@ -11,8 +11,19 @@ hier mit - oder er hat die Regel nicht verstanden.
 
 import pytest
 
+from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
 from src.contexts.identity.domain import Email
+from src.contexts.identity.infrastructure.idn import IdnaLabels
 from src.shared_kernel import Ok
+
+_IDN = IdnEncoderAdapter(IdnaLabels())
+"""Die **echte** IDN-Bibliothek, nicht der Fake des Slice.
+
+Ein Domain-Unit-Test darf tiefer greifen als ein Slice-Spec - das ist sein Zweck
+(docs/milestones/02-test-pyramide.md, unterste Ebene). Und hier muss er es: die
+Tabelle unten ist die Spezifikation der Adresspruefung, und gegen einen
+nachgebauten Punycode-Fake wuerde sie nur sich selbst bestaetigen.
+"""
 
 _CASES: list[tuple[str, bool]] = [
     # --- gueltig: gewoehnliche Adressen ---
@@ -69,12 +80,12 @@ _CASES: list[tuple[str, bool]] = [
 
 @pytest.mark.parametrize(("candidate", "expected_valid"), _CASES)
 def test_akzeptiert_genau_die_spezifizierten_adressen(candidate: str, expected_valid: bool) -> None:
-    assert isinstance(Email.parse(candidate), Ok) is expected_valid
+    assert isinstance(Email.parse(candidate, _IDN), Ok) is expected_valid
 
 
 def test_normalisiert_gross_kleinschreibung_und_umgebenden_leerraum() -> None:
-    assert Email.parse("  Markus@Example.DE  ") == Ok(Email("markus@example.de"))
+    assert Email.parse("  Markus@Example.DE  ", _IDN) == Ok(Email("markus@example.de"))
 
 
 def test_zwei_schreibweisen_derselben_adresse_sind_gleich() -> None:
-    assert Email.hydrate("Markus@Example.DE") == Email.hydrate("markus@example.de")
+    assert Email.hydrate("Markus@Example.DE", _IDN) == Email.hydrate("markus@example.de", _IDN)

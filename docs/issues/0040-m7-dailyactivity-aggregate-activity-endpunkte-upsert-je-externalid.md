@@ -28,7 +28,7 @@ DailyActivity-Aggregate (Schluessel UserId+DiaryDate), Upsert-Invariante: Extern
 - [ ] Public Naht: zwei eigene Protokolle (GetActivityGateway, UpsertActivityGateway), **nur Primitive** ueber der Naht; jeweils eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/put_activity/test_api.py` + `application/put_activity/fakes/` (In-Memory)
 - [ ] `application/get_activity/test_api.py` + `application/get_activity/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/health_sync/tests/put_activity/` und `contexts/health_sync/tests/get_activity/`: PUT mit zwei Entries kalkuliert totalKcal; zweifaches PUT mit identischer externalId erzeugt keine zweite Zeile, ueberschreibt aber vorhandene Felder; GET liefert denselben Stand wie PUT erzeugt hat
+- [ ] Verhaltens-Specs unter `contexts/health_sync/specs/put_activity/` und `contexts/health_sync/specs/get_activity/`: PUT mit zwei Entries kalkuliert totalKcal; zweifaches PUT mit identischer externalId erzeugt keine zweite Zeile, ueberschreibt aber vorhandene Felder; GET liefert denselben Stand wie PUT erzeugt hat
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen, `slice-shape-check` liefert `Findings: 0`
 

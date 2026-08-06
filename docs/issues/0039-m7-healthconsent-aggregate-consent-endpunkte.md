@@ -28,8 +28,8 @@ HealthConsent-Aggregate (Connection-Union NotConnected/Connected, ImportActivity
 - [ ] Public Naht: zwei eigene Protokolle (GetConsentGateway, UpdateConsentGateway), **nur Primitive** ueber der Naht; jeweils eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/get_consent/test_api.py` + `application/get_consent/fakes/` (In-Memory)
 - [ ] `application/update_consent/test_api.py` + `application/update_consent/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/health_sync/tests/get_consent/` und `contexts/health_sync/tests/update_consent/`: GET liefert aktuellen Stand; PATCH mit teilweise gefuellten Feldern aktualisiert nur uebergebene Flags
-- [ ] Tagged-Union-Serialisierungstest (Connection) unter `contexts/health_sync/tests/` (generischer Unit-Test)
+- [ ] Verhaltens-Specs unter `contexts/health_sync/specs/get_consent/` und `contexts/health_sync/specs/update_consent/`: GET liefert aktuellen Stand; PATCH mit teilweise gefuellten Feldern aktualisiert nur uebergebene Flags
+- [ ] Tagged-Union-Serialisierungstest (Connection) unter `contexts/health_sync/specs/` (generischer Unit-Test)
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen, `slice-shape-check` liefert `Findings: 0`
 

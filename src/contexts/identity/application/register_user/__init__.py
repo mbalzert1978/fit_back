@@ -8,7 +8,11 @@ vorbei.
 """
 
 from src.contexts.identity.application.register_user.abstractions import (
+    AsciiLabel,
     EmailTaken,
+    IdnLabels,
+    LabelEncoding,
+    LabelRejected,
     NewUserRecord,
     RegisterUserPasswordHasher,
     RegisterUserUserStore,
@@ -29,8 +33,12 @@ from src.contexts.identity.application.register_user.response import (
 from src.contexts.identity.application.register_user.test_api import RegisterUserTestApi
 
 __all__ = [
+    "AsciiLabel",
     "EmailAlreadyTaken",
     "EmailTaken",
+    "IdnLabels",
+    "LabelEncoding",
+    "LabelRejected",
     "NewUserRecord",
     "RegisterUserPasswordHasher",
     "RegisterUserPipeline",

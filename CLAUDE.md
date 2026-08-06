@@ -46,7 +46,7 @@ sind bereits auf den Python/uv/ruff/pytest-Stack dieses Repos eingerichtet.
 src/contexts/<context>/domain/            # Aggregate, Value Objects, Domain-Ports (Protocol) — nur stdlib
 src/contexts/<context>/application/<use_case>/   # ein Ordner je Use Case: Command, Handler, Mapper, Validatoren
 src/contexts/<context>/infrastructure/    # SQLAlchemy-Modelle/Repositories, externe Adapter
-src/contexts/<context>/tests/<use_case>/  # Tests ausschließlich über die öffentliche Test-API des Use Case
+src/contexts/<context>/specs/<use_case>/  # Tests ausschließlich über die öffentliche Test-API des Use Case
 src/api/<context>/                        # FastAPI-Router — nur HTTP <-> Application-DTOs
 src/shared_kernel/                        # Result[T,E], TimeProvider, RFC-7807-ProblemDetails,
                                            # Idempotency-Key-Middleware, IUserOwned, UUIDv7, Outbox

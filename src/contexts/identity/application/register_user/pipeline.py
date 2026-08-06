@@ -8,10 +8,12 @@ Fabrik; getauscht wird ausschliesslich, was hinter der public Naht steckt.
 from typing import final
 
 from src.contexts.identity.application.register_user.abstractions import (
+    IdnLabels,
     RegisterUserPasswordHasher,
     RegisterUserUserStore,
 )
 from src.contexts.identity.application.register_user.adapters import (
+    IdnEncoderAdapter,
     PasswordHasherAdapter,
     UserRegistryAdapter,
 )
@@ -23,7 +25,8 @@ from src.contexts.identity.application.register_user.mappers import (
 )
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.application.register_user.response import RegisterUserResponse
-from src.contexts.identity.application.register_user.validators import register_user_rules
+from src.contexts.identity.application.register_user.validators import build_register_user_rules
+from src.contexts.identity.domain import IdnEncoder
 from src.shared_kernel import TimeProvider
 from src.shared_kernel.validation import Rule
 
@@ -38,29 +41,34 @@ class RegisterUserPipeline:
         self,
         validate: Rule[RegisterUserRequest],
         handler: RegisterUserHandler,
+        idn: IdnEncoder,
     ) -> None:
-        """Nimm Regelwerk und Handler entgegen."""
+        """Nimm Regelwerk, Handler und den IDN-Port fuer den Request-Mapper entgegen."""
         self._validate = validate
         self._handler = handler
+        self._idn = idn
 
     async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
         """Validiere, mappe hinein, orchestriere, mappe heraus."""
         if errors := self._validate(request):
             return to_invalid_response(errors)
-        return to_response(await self._handler(to_command(request)))
+        return to_response(await self._handler(to_command(request, self._idn)))
 
 
 def build_register_user_pipeline(
     store: RegisterUserUserStore,
     hasher: RegisterUserPasswordHasher,
+    labels: IdnLabels,
     clock: TimeProvider,
 ) -> RegisterUserPipeline:
     """Verdrahte den Slice gegen eine beliebige Implementierung der public Naht."""
+    idn = IdnEncoderAdapter(labels)
     return RegisterUserPipeline(
-        validate=register_user_rules,
+        validate=build_register_user_rules(idn),
         handler=RegisterUserHandler(
             registry=UserRegistryAdapter(store),
             hasher=PasswordHasherAdapter(hasher),
             clock=clock,
         ),
+        idn=idn,
     )

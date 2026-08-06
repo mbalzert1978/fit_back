@@ -25,7 +25,7 @@ POST /api/v1/recipes/{id}/portions-to-diary. Recipes definiert ein eigenes schma
 - [ ] `contexts/recipes/application/ports/`: DiaryGateway-Protocol (Anti-Corruption-Layer), definiert **nur** die Operationen, die dieser Use Case braucht (z. B. add_entry_from_recipe); **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis (z. B. EntryAdded(entryId) | RecipeNotFound | MealSlotNotFound)
 - [ ] `contexts/recipes/application/portions_to_diary/`: Command (recipeId, portions, mealSlotId), Handler (orchestriert nur), Request-Mapper, Response-Mapper
 - [ ] `application/portions_to_diary/test_api.py` + `application/portions_to_diary/fakes/` (In-Memory DiaryGateway-Fake)
-- [ ] Verhaltens-Specs unter `contexts/recipes/tests/portions_to_diary/`: Eintrag wird ueber DiaryGateway hinzugefuegt, unit=Portion|Gram wird korrekt verarbeitet, Fehlerfall RecipeNotFound/MealSlotNotFound
+- [ ] Verhaltens-Specs unter `contexts/recipes/specs/portions_to_diary/`: Eintrag wird ueber DiaryGateway hinzugefuegt, unit=Portion|Gram wird korrekt verarbeitet, Fehlerfall RecipeNotFound/MealSlotNotFound
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 
@@ -34,7 +34,7 @@ POST /api/v1/recipes/{id}/portions-to-diary. Recipes definiert ein eigenes schma
 - [ ] SQLAlchemy-Repository implementiert die Naht aus Stufe 1 (laedt Recipe)
 - [ ] In-Process-Adapter implementiert DiaryGateway-Protocol, ruft ausschliesslich Diary's Application-Service auf (nicht dessen Domain/Handler/ORM)
 - [ ] Integrationstest gegen Testcontainers-Postgres: Eintrag wird korrekkt angelegt (mit unit-Umrechnung in Gramm), bei fehlender Recipe/MealSlot wird Fehler gehoben
-- [ ] **Contract-Test** (siehe `docs/milestones/02-test-pyramide.md`, Form A): Recipes definiert eine implementierungsunabhaengige Test-Suite `assert_diary_gateway_contract(gateway)` unter `contexts/recipes/tests/contracts/`, Diary importiert sie und fuehrt sie gegen seinen eigenen In-Process-Adapter aus
+- [ ] **Contract-Test** (siehe `docs/milestones/02-test-pyramide.md`, Form A): Recipes definiert eine implementierungsunabhaengige Test-Suite `assert_diary_gateway_contract(gateway)` unter `contexts/recipes/specs/contracts/`, Diary importiert sie und fuehrt sie gegen seinen eigenen In-Process-Adapter aus
 
 ### Stufe 3 — HTTP
 

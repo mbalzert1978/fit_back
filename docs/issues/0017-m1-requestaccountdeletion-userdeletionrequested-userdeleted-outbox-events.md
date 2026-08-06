@@ -25,7 +25,7 @@ Use Case RequestAccountDeletion() setzt Status PendingDeletion (Loeschung nach 3
 - [ ] `contexts/identity/application/request_account_deletion/`: Command (userId), Handler (orchestriert nur, setzt Status, generiert EffectiveAt), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` fuer Status-Update; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/request_account_deletion/test_api.py` + `application/request_account_deletion/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/identity/tests/request_account_deletion/`: erfolgreiches Setzen auf PendingDeletion, bereits-pending-Konto lehnt Anfrage ab, angemeldeter Status ist danach nachweislich PendingDeletion(EffectiveAt)
+- [ ] Verhaltens-Specs unter `contexts/identity/specs/request_account_deletion/`: erfolgreiches Setzen auf PendingDeletion, bereits-pending-Konto lehnt Anfrage ab, angemeldeter Status ist danach nachweislich PendingDeletion(EffectiveAt)
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 
 ### Stufe 2 — Infrastruktur

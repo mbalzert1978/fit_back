@@ -24,7 +24,7 @@ GET /api/v1/diary/recent?take= liefert die zuletzt erfassten Produkte UND Rezept
 - [ ] `contexts/diary/application/get_recent_sources/`: Command (userId, take), Handler (ladet zuletzt verwendete DiaryEntrys pro Nutzer → extrahiert distinct Products/Recipes sortiert nach lastUsedUtc absteigend → begrenzt auf take-Wert → mappt zu Response), Request-Mapper und Response-Mapper
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` fuer Abruf der zuletzt verwendeten Sources; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/get_recent_sources/test_api.py` + `application/get_recent_sources/fakes/` (In-Memory, fake DiaryEntry/Source-Gateway)
-- [ ] Verhaltens-Specs unter `contexts/diary/tests/get_recent_sources/`: Quellen korrekt sortiert (absteigend nach lastUsedUtc), take-Parameter limitiert Ergebnisliste, sourceType und sourceId korrekt gemappt, lastGrams und kcalPerPortion aus letztem Entry, leere Liste wenn nichts erfasst
+- [ ] Verhaltens-Specs unter `contexts/diary/specs/get_recent_sources/`: Quellen korrekt sortiert (absteigend nach lastUsedUtc), take-Parameter limitiert Ergebnisliste, sourceType und sourceId korrekt gemappt, lastGrams und kcalPerPortion aus letztem Entry, leere Liste wenn nichts erfasst
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 
 ### Stufe 2 — Infrastruktur

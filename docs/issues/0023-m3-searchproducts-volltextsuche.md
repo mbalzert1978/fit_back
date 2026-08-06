@@ -25,7 +25,7 @@ GET /api/v1/catalog/products?query=&take=&skip= - Volltext ueber Name und Brand 
 - [ ] `contexts/catalog/application/search_products/`: Command (userId, query, take, skip als Primitive), Handler (orchestriert Query → Suche → Priorisierung, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Such-Operation; **nur Primitive** ueber der Naht; eigene TaggedUnion als Naht-Ergebnis
 - [ ] `application/search_products/test_api.py` + `application/search_products/fakes/` (In-Memory, mit einfacher In-Memory-Suche oder Mock-Treffer)
-- [ ] Verhaltens-Specs unter `contexts/catalog/tests/search_products/`: Suche findet ueber Name und Brand, Groß-/Kleinschreibung egal, eigene private Produkte vor Public, Pagination (take/skip)
+- [ ] Verhaltens-Specs unter `contexts/catalog/specs/search_products/`: Suche findet ueber Name und Brand, Groß-/Kleinschreibung egal, eigene private Produkte vor Public, Pagination (take/skip)
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

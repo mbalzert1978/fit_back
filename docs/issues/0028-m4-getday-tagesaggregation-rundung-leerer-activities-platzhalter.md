@@ -24,7 +24,7 @@ GET /api/v1/diary/days/{date} liefert date/isPlanned/goal/totals/slots(mit entri
 - [ ] `contexts/diary/application/get_day/`: Command (userId, date), Handler (ladet DiaryDay + User-Profil fuer Rundungseinstellung → aggregiert Entries pro Slot → rechnet Goal + Computed per Slot + Gesamt → appliziert Rundung → prueft isPlanned-Bedingung → gibt Outcome zurueck), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` fuer DiaryDay-Ladevorgang und User-Profil-Abruf; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/get_day/test_api.py` + `application/get_day/fakes/` (In-Memory, fake DiaryDay- und User-Gateway mit konfigurierbarer Rundungseinstellung)
-- [ ] Verhaltens-Specs unter `contexts/diary/tests/get_day/`: Aggregation von Entries pro Slot, computed nach Nutzer-Rundungseinstellung gerundet, nutrientsPer100 ungerundet, isPlanned=true bei date > heute, isPlanned=false bei date <= heute, activities = leeres Array
+- [ ] Verhaltens-Specs unter `contexts/diary/specs/get_day/`: Aggregation von Entries pro Slot, computed nach Nutzer-Rundungseinstellung gerundet, nutrientsPer100 ungerundet, isPlanned=true bei date > heute, isPlanned=false bei date <= heute, activities = leeres Array
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container** — verwendet gefakete Zeitzone + TimeProvider (M0.4)
 
 ### Stufe 2 — Infrastruktur

@@ -26,7 +26,7 @@ NutritionGoal-Aggregate (DailyKcal, MacroDistribution, EnergyFactors-Union, Roun
 - [ ] `contexts/goals/application/create_default_nutrition_goal/`: Command (userId), Handler (orchestriert nur, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
 - [ ] Public Naht des Use Case: eigenes, schmales `Protocol` fuer Event-Konsum; **nur Primitive** ueber der Naht (userId als str); eigene Tagged Union als Naht-Ergebnis
 - [ ] `application/create_default_nutrition_goal/test_api.py` + `application/create_default_nutrition_goal/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/goals/tests/create_default_nutrition_goal/`: erfolgreiche Erstellung eines Default-Profils, Invarianten validieren
+- [ ] Verhaltens-Specs unter `contexts/goals/specs/create_default_nutrition_goal/`: erfolgreiche Erstellung eines Default-Profils, Invarianten validieren
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

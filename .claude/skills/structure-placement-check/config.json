@@ -1,5 +1,5 @@
 {
   "test_file_patterns": ["test_*.py", "*_test.py"],
-  "test_root_prefixes": ["tests/", "src/*/tests/", "src/contexts/*/tests/*/"],
+  "test_root_prefixes": ["tests/", "src/*/tests/", "src/contexts/*/specs/*/"],
   "exempt_file_names": ["test_api.py"]
 }

@@ -1,22 +1,25 @@
 """Der eine, flache Fehlertyp des Identity-Context.
 
-Ein Fall je Fehlerursache, jeder mit typisierter Nutzlast statt vorformatiertem
-Text. Alle Domain-Ports, Domaenen-Regeln und Aggregat-Operationen dieses
+Ein Fall je Fehlerursache, jeder mit **typisierter Nutzlast statt vorformatiertem
+Text**. Alle Domain-Ports, Domaenen-Regeln und Aggregat-Operationen dieses
 Contexts sprechen `Result[T, DomainError]` mit **diesem** `E` - dadurch braucht
 es an den Port-Grenzen keine Fehleruebersetzung.
 
-Die Union waechst mit jedem weiteren Use Case des Contexts (Login, ChangePassword,
-RequestAccountDeletion). Heute traegt sie genau den einen Fehlschlag, den
-`register_user` kennt; weitere Faelle kommen hinzu, sie werden nicht vorgezogen.
+Die Faelle liegen teils hier, teils in [`email_errors.py`](./email_errors.py)
+(Importzyklus, dort begruendet) - die Union unten ist die vollstaendige
+Aufzaehlung dessen, was in diesem Context schiefgehen kann, und waechst mit
+jedem weiteren Use Case.
 
-Formatfehler roher Eingaben gehoeren *nicht* hierher: ein Value Object meldet sie
-als `Result[T, str]` aus seiner `parse`-Factory, bevor ueberhaupt eine Domaenen-
-Operation laeuft (siehe .rules/python/python-error-handling.md).
+Die Formulierung fuer Menschen gehoert **nicht** hierher, sondern in die
+Application-Schicht: die Domaene sagt, *was* der Fall ist, nicht *wie* er heisst.
+Der vollstaendige `match` in `application/shared/domain_error_message.py` meldet
+sofort, wenn zu einem neuen Fall die Meldung fehlt.
 """
 
 from dataclasses import dataclass
 from typing import final
 
+from src.contexts.identity.domain.email_errors import EmailError
 from src.contexts.identity.domain.value_objects.email import Email
 from src.contexts.identity.domain.value_objects.user_id import UserId
 
@@ -32,4 +35,4 @@ class EmailAlreadyRegistered:
     registered_to: UserId
 
 
-type DomainError = EmailAlreadyRegistered
+type DomainError = EmailAlreadyRegistered | EmailError
