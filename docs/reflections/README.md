@@ -23,6 +23,9 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_first-live-execution-surfaces-latent-bugs.md](exp_first-live-execution-surfaces-latent-bugs.md) — erster echter Lauf einer bislang nur "auf dem Papier" existierenden Infrastruktur deckt Bug-Kaskaden auf
 - [exp_gh-cli-full-path-required.md](exp_gh-cli-full-path-required.md) — `gh` im Bash-Tool nie ueber PATH aufrufbar, immer vollen Windows-Pfad nutzen
 - [exp_gruenes-gate-ohne-scope-angabe.md](exp_gruenes-gate-ohne-scope-angabe.md) — jeder Checker muss seinen tatsaechlichen Pruefumfang mitausgeben, sonst ist „nichts gefunden" nicht von „nichts geprueft" zu unterscheiden
+- [exp_infrastruktur-erfuellt-naht-adapter-implementiert-port.md](exp_infrastruktur-erfuellt-naht-adapter-implementiert-port.md) — Infrastruktur erfuellt nur die Naht, ein Adapter implementiert den Domain-Port; der Port spricht DomainError, nie `str`
+- [exp_kein-vorauseilendes-shared.md](exp_kein-vorauseilendes-shared.md) — `shared/` entsteht erst beim zweiten Nutzer; beim ersten Slice gehoert alles in den Slice
+- [exp_keine-vorpruefung-wo-die-gegenseite-entscheidet.md](exp_keine-vorpruefung-wo-die-gegenseite-entscheidet.md) — ein Pruefschritt vor dem Schreibschritt macht das Wettrennen erst auf, das er verhindern soll
 - [exp_maschinelle-absicherung-statt-review-regel.md](exp_maschinelle-absicherung-statt-review-regel.md) — mechanisch entscheidbare Architektur-Regeln gehoeren in einen Linter-Contract, nicht in ein LLM-Review
 - [exp_parallele-agenten-brauchen-eigene-worktrees.md](exp_parallele-agenten-brauchen-eigene-worktrees.md) — parallele Agenten im selben Working Tree halten fremde Aenderungen fuer eigene Fehler und raeumen destruktiv auf
 - [exp_pipeline-artefakte-gitignore.md](exp_pipeline-artefakte-gitignore.md) — Pipeline-Arbeitsdateien (Task.md) von Anfang an gitignored halten
@@ -31,6 +34,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_pytest-exit-5-lastexitcode-reset.md](exp_pytest-exit-5-lastexitcode-reset.md) — pytest exit 5 tolerieren UND `$global:LASTEXITCODE` zuruecksetzen
 - [exp_referenzimplementierung-schlaegt-prosa.md](exp_referenzimplementierung-schlaegt-prosa.md) — ohne gebautes Referenz-Feature erfindet jeder Agent die Zielform neu
 - [exp_regel-lesen-bevor-referenzieren.md](exp_regel-lesen-bevor-referenzieren.md) — eine Regel-Datei, auf die ich verweise, muss ich selbst gelesen haben
+- [exp_review-agent-null-findings-ist-kein-freibrief.md](exp_review-agent-null-findings-ist-kein-freibrief.md) — APPROVE mit 0 Findings ist ein Rohbefund; gruene Matrix und selbst geschlossene Zweifelsfaelle sind Warnsignale
 - [exp_security-gate-triage-teamlead.md](exp_security-gate-triage-teamlead.md) — generische Security-Findings ohne Spezifikations-Basis selbst triagieren
 - [exp_spec-prueft-ergebnis-nicht-implementierung.md](exp_spec-prueft-ergebnis-nicht-implementierung.md) — viele Eingabefaelle rechtfertigen keine tiefere Testebene; fremde Bibliotheken werden nie mitgetestet
 - [exp_subprocess-python-literal-vs-sys-executable.md](exp_subprocess-python-literal-vs-sys-executable.md) — `subprocess.run(["python", ...])` loest ueber PATH auf, nicht zum aktiven Venv - `sys.executable` verwenden

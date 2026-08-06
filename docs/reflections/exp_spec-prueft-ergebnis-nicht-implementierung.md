@@ -1,4 +1,5 @@
 ---
+schema_version: 1
 name: spec-prueft-ergebnis-nicht-implementierung
 description: Viele Eingabefaelle rechtfertigen keine tiefere Testebene - Tabellen laufen durch die Test-API, und fremde Bibliotheken werden nie mitgetestet
 type: feedback

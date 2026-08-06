@@ -3,7 +3,7 @@ schema_version: 1
 name: gruenes-gate-ohne-scope-angabe
 description: Ein Gate, das APPROVE meldet ohne zu sagen WIE VIEL es geprueft hat, ist nicht unterscheidbar von einem Gate, das nichts gefunden hat - jeder Checker muss seinen tatsaechlichen Pruefumfang mitausgeben
 type: project
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-06
 decay_eligible: false
 ---

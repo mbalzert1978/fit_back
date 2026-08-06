@@ -3,7 +3,7 @@ schema_version: 1
 name: maschinelle-absicherung-statt-review-regel
 description: Eine Architektur-Regel, die sich mechanisch pruefen laesst (Import-Richtung, Schichtung, Dateiablage), gehoert in einen Linter-Contract - nicht in ein LLM-Review; als blosse Prosa-Regel wird sie zuverlaessig verletzt und vom Gate durchgewunken
 type: project
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-06
 decay_eligible: false
 ---
