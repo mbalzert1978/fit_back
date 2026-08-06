@@ -3,7 +3,7 @@ schema_version: 1
 name: review-agent-null-findings-ist-kein-freibrief
 description: Ein Review-Agent, der APPROVE mit 0 Findings meldet, hat nichts belegt - besonders eine lueckenlos gruene Pruefmatrix und selbst geschlossene Zweifelsfaelle sind Warnsignale, keine Bestaetigung
 type: feedback
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-06
 decay_eligible: false
 ---

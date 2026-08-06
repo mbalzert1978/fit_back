@@ -3,7 +3,7 @@ schema_version: 1
 name: kein-vorauseilendes-shared
 description: Ein `shared/`-Ordner entsteht erst, wenn ein ZWEITER Nutzer existiert - beim ersten Slice gehoert alles in den Slice, egal wie allgemein es wirkt
 type: feedback
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-06
 decay_eligible: true
 ---

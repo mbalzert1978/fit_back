@@ -3,7 +3,7 @@ schema_version: 1
 name: keine-vorpruefung-wo-die-gegenseite-entscheidet
 description: Ein Pruefschritt vor dem Schreibschritt macht das Wettrennen erst auf, das er verhindern soll - wo eine Invariante von aussen durchgesetzt wird, liest man ihr Urteil aus dem Ergebnis der eigentlichen Operation
 type: feedback
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-06
 decay_eligible: true
 ---

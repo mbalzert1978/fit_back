@@ -3,7 +3,7 @@ schema_version: 1
 name: infrastruktur-erfuellt-naht-adapter-implementiert-port
 description: Infrastruktur implementiert NIE direkt einen Domain-Port - sie erfuellt nur die public Naht (Primitive rein, eigene Union raus), und ein Adapter uebersetzt das in Result[T, DomainError]
 type: feedback
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-06
 decay_eligible: true
 ---

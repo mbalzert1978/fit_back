@@ -3,8 +3,8 @@ schema_version: 1
 name: first-live-execution-surfaces-latent-bugs
 description: Wenn ein Ticket als erstes eine bislang nur "auf dem Papier" existierende Infrastruktur (Migrationen, Multi-Schema-Setup) wirklich gegen eine Live-Ressource ausfuehrt, ist eine Kaskade zuvor unentdeckter Bugs zu erwarten
 type: project
-frequency: 1
-last_triggered: 2026-08-05
+frequency: 2
+last_triggered: 2026-08-06
 decay_eligible: false
 ---
 
