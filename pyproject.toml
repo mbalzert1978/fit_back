@@ -19,6 +19,7 @@ dependencies = [
     # Die stdlib kann nur IDNA 2003 (encodings.idna) und liegt bei mehreren
     # Labels und bei der Normalisierung anders.
     "idna>=3.18",
+    "argon2-cffi>=25.1.0",
 ]
 
 [project.optional-dependencies]

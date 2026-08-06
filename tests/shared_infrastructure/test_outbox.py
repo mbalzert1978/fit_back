@@ -321,3 +321,28 @@ async def test_event_ohne_registrierten_handler_gilt_als_erledigt(
     relay = _relay(clean_outbox, EventRegistry())
     assert await relay.relay_due_events() == 1
     assert await relay.relay_due_events() == 0
+
+
+async def test_ein_ereignis_aus_der_zukunft_ist_trotzdem_sofort_faellig(
+    clean_outbox: AsyncEngine,
+) -> None:
+    """`occurred_at` ist ein fachlicher Zeitpunkt, kein Zustelltermin.
+
+    Geht die Uhr des schreibenden Context vor - oder traegt ein Ereignis
+    absichtlich ein spaeteres Datum -, darf die Zeile nicht liegenbleiben, bis
+    die Wanduhr aufgeholt hat. Genau das passierte, solange `next_attempt_at`
+    mit `occurred_at` initialisiert wurde.
+    """
+    handler = RecordingHandler()
+    registry = EventRegistry()
+    registry.register(DummyAggregateChanged, handler)
+
+    weit_in_der_zukunft = Timestamp(4_000_000_000)
+    async with clean_outbox.begin() as connection:
+        await write_event(
+            connection, DummyAggregateChanged.EVENT_TYPE, {"index": 1}, weit_in_der_zukunft
+        )
+
+    relay_uhr_steht_frueher = 1_000_000
+    assert await _relay(clean_outbox, registry, relay_uhr_steht_frueher).relay_due_events() == 1
+    assert handler.delivered[0].occurred_at == weit_in_der_zukunft

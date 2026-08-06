@@ -22,15 +22,15 @@ class InMemoryUserStore:
 
     def __init__(self) -> None:
         """Starte mit leerem Bestand."""
-        self._by_email: dict[str, str] = {}
+        self._taken: set[str] = set()
 
-    def register(self, normalized_email: str, user_id: str) -> None:
+    def register(self, normalized_email: str) -> None:
         """Lege ein bereits bestehendes Konto an."""
-        self._by_email[normalized_email] = user_id
+        self._taken.add(normalized_email)
 
     async def insert(self, record: NewUserRecord) -> UserInsertion:
         """Schreibe den Datensatz oder melde die bereits vergebene E-Mail."""
-        if (owner := self._by_email.get(record.email)) is not None:
-            return EmailTaken(owner)
-        self._by_email[record.email] = record.user_id
+        if record.email in self._taken:
+            return EmailTaken()
+        self._taken.add(record.email)
         return UserStored()

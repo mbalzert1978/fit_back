@@ -40,9 +40,13 @@ class UserStored:
 @final
 @dataclass(frozen=True, slots=True)
 class EmailTaken:
-    """Die E-Mail gehoert bereits einem Konto - der Bestand hat abgelehnt."""
+    """Die E-Mail gehoert bereits einem Konto - der Bestand hat abgelehnt.
 
-    user_id: str
+    Ohne Angabe, wem: der Ausgang wird nach aussen zu "diese Adresse ist
+    vergeben", nie zu "sie gehoert diesem Konto". Damit kommt der Bestand mit
+    einem einzigen Statement aus (`ON CONFLICT DO NOTHING RETURNING`) statt mit
+    einem Konflikt plus Nachschlage-Abfrage.
+    """
 
 
 type UserInsertion = UserStored | EmailTaken

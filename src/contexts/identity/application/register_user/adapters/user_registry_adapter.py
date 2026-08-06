@@ -12,7 +12,6 @@ from src.contexts.identity.domain import (
     DomainError,
     EmailAlreadyRegistered,
     User,
-    UserId,
     account_status_tag,
     locale_tag,
 )
@@ -34,8 +33,8 @@ class UserRegistryAdapter:
         match await self._store.insert(_record_of(user)):
             case UserStored():
                 return Ok(user)
-            case EmailTaken(user_id=user_id):
-                return Err(EmailAlreadyRegistered(user.email, UserId.hydrate(user_id)))
+            case EmailTaken():
+                return Err(EmailAlreadyRegistered(user.email))
 
 
 def _record_of(user: User) -> NewUserRecord:

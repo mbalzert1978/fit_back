@@ -21,7 +21,6 @@ from typing import final
 
 from src.contexts.identity.domain.email_errors import EmailError
 from src.contexts.identity.domain.value_objects.email import Email
-from src.contexts.identity.domain.value_objects.user_id import UserId
 
 __all__ = ["DomainError", "EmailAlreadyRegistered"]
 
@@ -29,10 +28,16 @@ __all__ = ["DomainError", "EmailAlreadyRegistered"]
 @final
 @dataclass(frozen=True, slots=True)
 class EmailAlreadyRegistered:
-    """Die (normalisierte) E-Mail gehoert bereits einem anderen Konto."""
+    """Die (normalisierte) E-Mail gehoert bereits einem anderen Konto.
+
+    Traegt bewusst **nicht**, wem: der Slice gibt es nach aussen nie preis - wer
+    hinter einer fremden Adresse steckt, geht dem Anfragenden nichts an - und der
+    Bestand muesste es nach einem Schreibkonflikt in einer zweiten Abfrage
+    nachschlagen, die bei nebenlaeufigem, noch nicht committetem Insert nichts
+    faende. Ein Feld, das niemand liest und das den Schreibpfad unkorrekt macht.
+    """
 
     email: Email
-    registered_to: UserId
 
 
 type DomainError = EmailAlreadyRegistered | EmailError

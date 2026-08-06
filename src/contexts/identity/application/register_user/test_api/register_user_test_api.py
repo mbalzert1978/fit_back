@@ -29,7 +29,7 @@ from src.contexts.identity.application.register_user.fakes import (
 from src.contexts.identity.application.register_user.pipeline import build_register_user_pipeline
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.application.register_user.response import RegisterUserResponse
-from src.contexts.identity.domain import Email, UserId
+from src.contexts.identity.domain import Email
 from src.shared_kernel import FakeTimeProvider, Timestamp
 
 __all__ = ["RegisterUserTestApi"]
@@ -51,9 +51,9 @@ class RegisterUserTestApi:
 
     # --- Arrange ---
 
-    def with_registered_user(self, email: str, user_id: str | None = None) -> Self:
+    def with_registered_user(self, email: str) -> Self:
         """Es gibt bereits ein Konto zu dieser E-Mail."""
-        self._store.register(_normalized(email), user_id or str(UserId.generate()))
+        self._store.register(_normalized(email))
         return self
 
     def at_unix_time(self, unix_seconds: int) -> Self:

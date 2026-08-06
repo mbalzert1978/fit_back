@@ -141,6 +141,19 @@ Weg, über den Infrastruktur in den `shared_kernel` geriet. Die Statements stehe
 Bestand statt ein achtes Schema aufzumachen. Soll die Doku recht behalten, ist das eine Umbenennung
 in den Migrationen 001/002 und keine Änderung an der Outbox.
 
+## `next_attempt_at` ist ein Termin, `occurred_at` ein fachlicher Zeitpunkt
+
+Beim Schreiben steht `next_attempt_at = 0`, also „sofort fällig" — bewusst **nicht**
+`occurred_at`. Der erste Lauf gegen echte Infrastruktur brachte das zutage: der Test registriert
+mit einer festgestellten Uhr auf Heiligabend 2026, der Relay läuft auf der Systemuhr, und die Zeile
+wäre bis dahin liegengeblieben. Dieselbe Falle stünde im Betrieb offen, sobald die Uhr eines
+Context vorgeht oder ein Ereignis absichtlich ein späteres Datum trägt.
+
+Die Null hält den ersten Versuch zusätzlich von jedem Uhrenvergleich frei; erst die Retries planen
+über die Uhr des Relays, und die vergleicht nur mit sich selbst. Die Outbox-Tests konnten das nicht
+finden, weil dort beide Uhren übereinstimmten — abgesichert ist es jetzt durch einen eigenen
+Regressionstest.
+
 ## Zustellgarantie
 
 **At-least-once.** Zustellung und Statuswechsel liegen in einer Transaktion; bricht der Prozess

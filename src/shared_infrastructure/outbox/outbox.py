@@ -53,9 +53,15 @@ class OutboxTransaction(Protocol):
         ...
 
 
+# `next_attempt_at = 0` heisst "sofort faellig". Bewusst **nicht** `occurred_at`:
+# das ist der fachliche Zeitpunkt des Ereignisses, kein Termin. Geht die Uhr des
+# schreibenden Context vor - oder traegt ein Ereignis absichtlich ein spaeteres
+# Datum -, laege die Zeile sonst still, bis die Wanduhr aufgeholt hat. Die Null
+# haelt den ersten Versuch ausserdem von jedem Uhrenvergleich frei; erst die
+# Retries planen ueber die Uhr des Relays, und die vergleicht nur mit sich selbst.
 _INSERT_EVENT: TextClause = text("""
     INSERT INTO shared_kernel.outbox (id, event_type, payload, occurred_at, next_attempt_at)
-    VALUES (:id, :event_type, CAST(:payload AS jsonb), :occurred_at, :occurred_at)
+    VALUES (:id, :event_type, CAST(:payload AS jsonb), :occurred_at, 0)
 """)
 
 # `pg_notify` statt `NOTIFY <kanal>`: NOTIFY ist reine Syntax und nimmt keine

@@ -34,7 +34,9 @@ def upgrade() -> None:
         sa.Column("occurred_at", sa.BigInteger(), nullable=False),
         # Faelligkeit des naechsten Zustellversuchs. Traegt den Backoff als
         # Zustand, damit kein Worker unter gehaltenen Row-Locks schlafen muss.
-        sa.Column("next_attempt_at", sa.BigInteger(), nullable=False),
+        # `0` beim Schreiben = sofort faellig; bewusst unabhaengig von
+        # `occurred_at`, das ein fachlicher Zeitpunkt ist und kein Termin.
+        sa.Column("next_attempt_at", sa.BigInteger(), nullable=False, server_default="0"),
         sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
         # Zugestellt. Bewusst getrennt von `failed_at`: ein aufgegebenes Event
         # ist nicht verarbeitet, es ist liegengeblieben.
