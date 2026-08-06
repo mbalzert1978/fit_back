@@ -1,7 +1,7 @@
 ---
 id: "0011"
 title: M1: User-Aggregate + RegisterUser + UserRegistered-Outbox-Event
-status: blocked
+status: open
 milestone: M1
 type: AFK
 ---
@@ -87,4 +87,4 @@ sein.
 - Blocked by [0006](0006-m0-shared-kernel-idempotency-key-middleware-shared-idempotency-keys.md)
 - Blocked by [0007](0007-m0-shared-kernel-iuserowned-mixin-uuidv7-helper-rowversion-if-match.md)
 - Blocked by [0009](0009-m0-pytest-testcontainers-postgres-fixture.md)
-- Blocked by [0010](0010-m0-shared-kernel-postgres-outbox-event-relay-skip-locked-listen-notify.md)
+- Blocked by [0010](0010-m0-shared-kernel-postgres-outbox-event-relay-skip-locked-listen-notify.md) — **nur Stufe 2**; Stufe 1 ist davon unabhaengig

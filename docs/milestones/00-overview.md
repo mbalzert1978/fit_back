@@ -89,6 +89,18 @@ Slices, nicht ein Flag im Handler", und „kein Mapper bedient mehrere Operation
 mit `+` oder `/` (`GetMe + UpdateProfile`, `UpdateEntryAmount / MoveEntry / DeleteEntry`) ist das
 sichtbare Signal: so viele Operationen im Titel, so viele Use-Case-Ordner in Stufe 1.
 
+**Abhängigkeiten gelten je Stufe, nicht je Ticket.** Ein `Blocked by`-Eintrag trägt deshalb einen
+Stufen-Qualifier, wenn er nur einen Teil des Tickets betrifft:
+
+```
+- Blocked by [0010](…) — **nur Stufe 2**; Stufe 1 ist davon unabhaengig
+```
+
+Das ist kein Detail: Stufe 1 hat per Definition **keine** Infrastruktur, also kann sie auch nicht
+von einem Infrastruktur-Ticket blockiert sein. Ohne den Qualifier bleibt ein Ticket unnötig als
+`blocked` stehen, obwohl sein wertvollster Teil — die Domäne — sofort baubar wäre. Ein Ticket gilt
+als `blocked` nur, wenn **Stufe 1** blockiert ist; ist bloß Stufe 2 oder 3 blockiert, ist es `open`.
+
 **Aufteilen in mehrere Tickets** nur, wenn eine einzelne Stufe für sich genommen groß ist (z. B.
 ein OCR-Adapter mit eigener Queue). Der Regelfall ist **ein Ticket je Feature mit drei gestuften
 Kriterienblöcken** — das hält die Ticket-Zahl beherrschbar und die Verticality erhalten.

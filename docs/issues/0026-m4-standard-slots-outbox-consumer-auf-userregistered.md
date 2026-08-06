@@ -38,4 +38,4 @@ Outbox-Consumer, der auf UserRegistered (M1.1, ueber M0.10) reagiert und die dre
 
 - Blocked by [0011](0011-m1-user-aggregate-registeruser-userregistered-outbox-event.md)
 - Blocked by [0025](0025-m4-mealslot-aggregate-slot-crud-reorder.md)
-- Blocked by [0010](0010-m0-shared-kernel-postgres-outbox-event-relay-skip-locked-listen-notify.md)
+- Blocked by [0010](0010-m0-shared-kernel-postgres-outbox-event-relay-skip-locked-listen-notify.md) — **nur Stufe 2**; Stufe 1 ist davon unabhaengig

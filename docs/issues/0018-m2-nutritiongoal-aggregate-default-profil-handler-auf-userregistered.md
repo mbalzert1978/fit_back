@@ -41,4 +41,4 @@ NutritionGoal-Aggregate (DailyKcal, MacroDistribution, EnergyFactors-Union, Roun
 ## Blocked by
 
 - Blocked by [0011](0011-m1-user-aggregate-registeruser-userregistered-outbox-event.md)
-- Blocked by [0010](0010-m0-shared-kernel-postgres-outbox-event-relay-skip-locked-listen-notify.md)
+- Blocked by [0010](0010-m0-shared-kernel-postgres-outbox-event-relay-skip-locked-listen-notify.md) — **nur Stufe 2**; Stufe 1 ist davon unabhaengig
