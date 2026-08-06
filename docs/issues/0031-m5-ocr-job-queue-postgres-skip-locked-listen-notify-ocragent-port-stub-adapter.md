@@ -1,7 +1,7 @@
 ---
 id: "0031"
 title: M5: OCR-Job-Queue (Postgres SKIP LOCKED/LISTEN NOTIFY) + OcrAgent-Port + Stub-Adapter
-status: blocked
+status: open
 milestone: M5
 type: AFK
 ---

@@ -1,7 +1,7 @@
 ---
 id: "0046"
 title: "M0: Idempotency-Key-Cleanup-Job (TTL 7 Tage)"
-status: blocked
+status: open
 milestone: M0
 type: AFK
 ---
