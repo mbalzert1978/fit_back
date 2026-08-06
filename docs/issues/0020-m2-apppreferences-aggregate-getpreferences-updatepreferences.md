@@ -23,10 +23,13 @@ AppPreferences-Aggregate (Theme-Union Dark/Light, Language-Union, MeasurementSys
 
 - [ ] `contexts/goals/domain/`: AppPreferences-Aggregatwurzel mit identitaetsbasierter Gleichheit; Value Objects Theme/Language/MeasurementSystem als geschlossene Tagged Unions; **nur stdlib**
 - [ ] Ein flacher, **context-eigener** `DomainError` (TaggedUnion); Domain-Port zum Laden/Speichern
-- [ ] `contexts/goals/application/get_and_update_preferences/`: Command (userId, neue Preferences), Handler (orchestriert nur, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
-- [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Laden/Speichern; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
-- [ ] `application/get_and_update_preferences/test_api.py` + `application/get_and_update_preferences/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/goals/tests/get_and_update_preferences/`: Update erfolgreich, nur uebergebene Felder werden aktualisiert
+- [ ] **Zwei getrennte Use Cases** — Abfrage und Kommando sind zwei Operationen, nie ein zusammengelegter Slice (siehe [`00-overview.md`](../milestones/00-overview.md), „Ein Ticket ist eine Liefereinheit, ein Use Case eine Code-Struktur"). Sie teilen sich die Domaene und den `DomainError` des Contexts, sonst nichts:
+- [ ] `contexts/goals/application/get_preferences/`: Command (userId), Handler (orchestriert nur das Laden, ~5-10 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
+- [ ] `contexts/goals/application/update_preferences/`: Command (userId, neue Preferences), Handler (orchestriert Laden → Domaenen-Operation → Speichern, ~10-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten
+- [ ] Public Naht **je Use Case**: eigenes, schmales `Protocol` mit **nur** den Operationen, die der jeweilige Use Case braucht (`get_preferences` liest, `update_preferences` liest und schreibt); **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
+- [ ] **Je Use Case eine eigene** `test_api.py` + `fakes/`: `application/get_preferences/` und `application/update_preferences/`
+- [ ] Verhaltens-Specs unter `contexts/goals/tests/get_preferences/`: Preferences werden vollstaendig geliefert, Default-Werte fuer einen Nutzer ohne gespeicherte Preferences
+- [ ] Verhaltens-Specs unter `contexts/goals/tests/update_preferences/`: Update erfolgreich, nur uebergebene Felder werden aktualisiert (Partial-Set)
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 - [ ] `./make.ps1 import-lint` gruen; `slice-shape-check` und `structure-placement-check` liefern `Findings: 0`
 

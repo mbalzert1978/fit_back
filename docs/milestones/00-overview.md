@@ -45,7 +45,7 @@ vergessen wird.
 
 Verbindlich seit
 [`2026-08-06-0751-slice-form-test-api-baureihenfolge.md`](../decisions/2026-08-06-0751-slice-form-test-api-baureihenfolge.md).
-Ein Ticket bleibt ein **Tracer Bullet** — ein Use Case, durchgehend — aber seine
+Ein Ticket bleibt ein **Tracer Bullet** — durchgehend von der Domäne bis nach außen — aber seine
 Akzeptanzkriterien sind **in drei geordnete Stufen gegliedert**, und die Pipeline gibt Stufe 1
 frei, bevor Stufe 2 beginnt:
 
@@ -75,8 +75,22 @@ tragen keine Domäne, behalten flache Kriterien und sind als solche erkennbar. D
 in der Aufgabe eine **Fachregel**, die man falsch implementieren könnte? Dann ist es ein Use Case
 mit Stufe 1, egal ob ihn jemals ein HTTP-Request auslöst.
 
+**Ein Ticket ist eine Liefereinheit, ein Use Case eine Code-Struktur — das ist nicht dasselbe.**
+Ein Ticket darf mehrere Use Cases liefern, und tut es regelmäßig: „GetGoals + UpdateGoals" ist
+**ein** Ticket mit **zwei** Use-Case-Ordnern (`application/get_goals/` und
+`application/update_goals/`), jeder mit eigenem Command, eigenem Handler, eigenen beiden Mappern,
+**eigener `test_api.py` und eigenen `fakes/`**. Sie teilen sich die Domäne des Contexts und den
+`DomainError`, sonst nichts.
+
+Was es **nie** gibt, ist ein zusammengelegter Use Case wie `get_and_update_goals`. Eine Abfrage und
+ein Kommando sind zwei Operationen, und `python-feature-slices.md` ist da eindeutig: „Eine
+Operation, die zwei Fragen in einem Flag beantwortet, ist zwei Operationen — trenne sie in zwei
+Slices, nicht ein Flag im Handler", und „kein Mapper bedient mehrere Operationen". Ein Ticket-Titel
+mit `+` oder `/` (`GetMe + UpdateProfile`, `UpdateEntryAmount / MoveEntry / DeleteEntry`) ist das
+sichtbare Signal: so viele Operationen im Titel, so viele Use-Case-Ordner in Stufe 1.
+
 **Aufteilen in mehrere Tickets** nur, wenn eine einzelne Stufe für sich genommen groß ist (z. B.
-ein OCR-Adapter mit eigener Queue). Der Regelfall ist **ein Ticket je Use Case mit drei gestuften
+ein OCR-Adapter mit eigener Queue). Der Regelfall ist **ein Ticket je Feature mit drei gestuften
 Kriterienblöcken** — das hält die Ticket-Zahl beherrschbar und die Verticality erhalten.
 
 ## Tests (Abschnitt 9)

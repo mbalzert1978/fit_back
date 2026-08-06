@@ -23,10 +23,11 @@ MealSlot-Aggregate (Name, Position, IsArchived) mit den Invarianten: mindestens 
 
 - [ ] `contexts/diary/domain/`: MealSlot-Aggregatwurzel mit Value Objects (SlotName, SlotPosition, IsArchived); Invarianten: mindestens ein Slot pro Nutzer, Position lueckenlos, Löschen eines Slots mit Eintraegen nicht erlaubt; **nur stdlib**
 - [ ] Ein flacher, **context-eigener** `DiaryError` (Tagged Union) mit Fehlerfall je Invarianten-Verletzung; Domain-Ports als `Protocol`
-- [ ] `contexts/diary/application/manage_meal_slots/`: Commands (CreateMealSlot, UpdateMealSlot, DeleteMealSlot, ReorderMealSlots), Handler (orchestriert nur, ~15-20 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten, Validierungsregeln
-- [ ] Public Naht des Use Case: eigenes, schmales `Protocol` mit Operationen zur Slot-Verwaltung; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
-- [ ] `application/manage_meal_slots/test_api.py` + `application/manage_meal_slots/fakes/` (In-Memory)
-- [ ] Verhaltens-Specs unter `contexts/diary/tests/manage_meal_slots/`: Slot anlegen, Slot aendern, Slot loeschen (ohne Eintraege erfolgreich, mit Eintraegen → Fehler), Slots reordern, mindestens ein Slot bleibt erhalten
+- [ ] **Vier getrennte Use Cases** — jede Operation ist ein eigener Slice, nie ein zusammengelegter „manage"-Handler mit vier Commands (siehe [`00-overview.md`](../milestones/00-overview.md), „Ein Ticket ist eine Liefereinheit, ein Use Case eine Code-Struktur"). Sie teilen sich die Domaene und den `DiaryError` des Contexts, sonst nichts:
+- [ ] `contexts/diary/application/create_meal_slot/`, `.../update_meal_slot/`, `.../delete_meal_slot/`, `.../reorder_meal_slots/` — je Ordner ein eigener Command, ein eigener Handler (orchestriert nur, ~5-15 Zeilen), Request-Mapper und Response-Mapper als **getrennte** Einheiten, eigene Validierungsregeln
+- [ ] Public Naht **je Use Case**: eigenes, schmales `Protocol` mit **nur** den Operationen, die der jeweilige Use Case braucht; **nur Primitive** ueber der Naht; eigene Tagged Union als Naht-Ergebnis
+- [ ] **Je Use Case eine eigene** `test_api.py` + `fakes/`
+- [ ] Verhaltens-Specs je Use Case unter `contexts/diary/tests/<use_case>/`: Slot anlegen; Slot aendern; Slot loeschen (ohne Eintraege erfolgreich, mit Eintraegen → Fehler, letzter verbleibender Slot → Fehler); Slots reordern (Position bleibt lueckenlos)
 - [ ] Value-Object-Tests (SlotName, SlotPosition); Invarianten-Tests
 - [ ] **Diese Specs sind gruen ohne Datenbank, ohne HTTP, ohne Container**
 
