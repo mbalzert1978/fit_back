@@ -31,6 +31,13 @@ includes the case where no changed file looks like a test file at all).
    by string-prefix match (with `*` wildcarding one path segment, e.g.
    `src/contexts/*/tests/*/`), not by any judgment call — correctness.
 
+`exempt_file_names` (optional) lists file names that merely *look* like test files
+but are shipped parts of a slice and therefore judged by their own rules. In this
+repo that is `test_api.py`: the public Test-API of a use case is an artifact of the
+slice and belongs inside `application/<use_case>/`, never under a test root — see
+`.rules/python/python-feature-slices.md`, "Die Test-API ist Teil des Slice". Whether
+each use case actually *has* one is `slice-shape-check`'s job, not this check's.
+
 ## External data
 
 None — self-contained. The check needs only the repo's own git history (to resolve
@@ -69,6 +76,7 @@ Whatever the script printed, verbatim:
 
 ```
 Verdict: BLOCK
+Scope: 12 changed file(s), 3 test file(s) inspected
 - tests/shared_kernel/i18n/test_middleware.py: test file is outside every configured test root (src/*/tests/, src/contexts/*/tests/*/)
 Findings: 1
 ```
@@ -77,8 +85,12 @@ or, on a clean pass:
 
 ```
 Verdict: APPROVE
+Scope: 42 changed file(s), 1 test file(s) inspected
 Findings: 0
 ```
+
+The `Scope:` line is not decoration: without it, "nothing found" reads exactly like
+"nothing checked" (`docs/reflections/exp_gruenes-gate-ohne-scope-angabe.md`).
 
 For a step-1 abort, the `Verdict: CONFIG ERROR` block instead, per
 `_shared/validator-contract.md`.

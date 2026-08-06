@@ -2,8 +2,12 @@
 
 > Uebersetzt `csharp-feature-slices.md` sinngemaess. Die
 > C#-Vorlage referenziert ein konkretes fremdes Projekt (ADR-0009, `DhcpMacVerwaltung`,
-> `MacSuche` als Vorlage-Feature) — hier stattdessen generisch. Sobald dieses Projekt ein erstes
-> Referenz-Feature hat, diese Datei darauf verweisen lassen (analog zum C#-Original).
+> `MacSuche` als Vorlage-Feature).
+>
+> **Referenzimplementierung dieses Repos: `src/contexts/identity`, Use Case `register_user`**
+> (Ticket 0011, Stufe 1). Jede Regel unten ist dort gebaut zu sehen — im Zweifel gilt der Code
+> als Vorbild, nicht die Prosa. Wer einen neuen Slice anlegt, liest zuerst
+> `src/contexts/identity/application/register_user/` und danach diese Datei.
 
 Gilt fuer jede Vertical-Slice-Operation: **`domain → application`**-Abhaengigkeitsrichtung strikt
 einseitig, nie umgekehrt.

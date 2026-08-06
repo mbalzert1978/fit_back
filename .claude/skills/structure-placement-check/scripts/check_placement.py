@@ -14,6 +14,13 @@ test file dropped straight into a domain/application/infrastructure folder —
 is a finding. Both patterns come from config.json, so the check stays
 portable across repos with a different layout.
 
+`exempt_file_names` carves out files that merely *look* like test files but are
+shipped parts of a slice — `test_api.py` is the public Test-API of a use case
+and belongs inside `application/<use_case>/`, not under a test root.
+
+The report ALWAYS states how many changed files were actually inspected — a run
+that had nothing to check must not read like a run that verified everything.
+
 Usage:
   check_placement.py [base-ref] [--json]
 """
@@ -33,8 +40,10 @@ CONFIG = HERE.parent / "config.json"
 REQUIRED_KEYS = ("test_file_patterns", "test_root_prefixes")
 
 
-def is_test_file(path: str, patterns: list[str]) -> bool:
+def is_test_file(path: str, patterns: list[str], exempt: list[str]) -> bool:
     name = path.rsplit("/", 1)[-1]
+    if name in exempt:
+        return False
     return any(fnmatch.fnmatch(name, p) for p in patterns)
 
 
@@ -42,14 +51,18 @@ def matches_any_prefix(path: str, prefixes: list[str]) -> bool:
     return any(fnmatch.fnmatch(path, prefix.rstrip("/") + "/*") for prefix in prefixes)
 
 
-def check(paths: tuple[str, ...], config: dict) -> list[str]:
+def check(paths: tuple[str, ...], config: dict) -> tuple[list[str], int]:
+    """Return the findings plus how many changed files were actually judged."""
     test_patterns = config["test_file_patterns"]
     test_prefixes = config["test_root_prefixes"]
-    return [
+    exempt = config.get("exempt_file_names", [])
+    inspected = [p for p in paths if is_test_file(p, test_patterns, exempt)]
+    findings = [
         f"{path}: test file is outside every configured test root ({', '.join(test_prefixes)})"
-        for path in paths
-        if is_test_file(path, test_patterns) and not matches_any_prefix(path, test_prefixes)
+        for path in inspected
+        if not matches_any_prefix(path, test_prefixes)
     ]
+    return findings, len(inspected)
 
 
 def main() -> int:
@@ -76,13 +89,14 @@ def main() -> int:
             pass
 
     paths = changed_paths(merge_base)
-    findings = check(paths, config)
+    findings, inspected = check(paths, config)
 
     if args.json:
-        print(json.dumps({"findings": findings}, indent=2))
+        print(json.dumps({"findings": findings, "inspected": inspected}, indent=2))
         return 0
 
     print("Verdict: BLOCK" if findings else "Verdict: APPROVE")
+    print(f"Scope: {len(paths)} changed file(s), {inspected} test file(s) inspected")
     for f in findings:
         print(f"- {f}")
     print(f"Findings: {len(findings)}")
