@@ -39,7 +39,27 @@ jede Aenderung einem Kind gehoert, erzeugt gar keine Zeile mehr.
 
 Ein Testort kann in diesem Repo selbst unter `src/` liegen — die Slice-Specs tun das.
 Solche Pfade werden verworfen, bevor irgendetwas zugeordnet wird; sonst meldete ein
-Commit, der nur eine Spec anfasst, seinen eigenen Context als ungedeckte Luecke.
+Commit, der nur eine Spec anfasst, seinen eigenen Context als ungedeckte Luecke. Welche
+Pfade Testgebiet sind, leitet sich aus den Regeln selbst ab (Platzhalter durch `*`
+ersetzt), damit es nicht als zweite Konfiguration danebensteht und abdriften kann.
+
+**Loeschungen und Umbenennungen zaehlen mit.** Aus dem Review kam der Einwand, dass eine
+geloeschte Einheit ihre Deckungszuordnung verliert. Der beschriebene Mechanismus traf
+nicht zu — `unmapped` wird sie nie, weil `skill_git.changed_paths` mit
+`--diff-filter=d` Loeschungen herausfiltert —, aber das Ergebnis war schlimmer als
+behauptet: die Loeschung war restlos unsichtbar, `gaps: 0`. Zwei Aenderungen:
+
+- Der Diff dieses Skripts laesst Loeschungen zu. Eine geloeschte Produktionsdatei ist
+  eine Aenderung, der ihre Tests folgen muessen. Der gemeinsame Helfer bleibt, wie er
+  ist — seine anderen Aufrufer lesen Dateiinhalte, und eine geloeschte Datei hat keinen.
+- `--no-renames`, weil Gits Umbenennungserkennung eine Verschiebung zum neuen Pfad
+  zusammenfasst. Hier zaehlen beide Seiten: der alte Pfad ist die Einheit, deren Tests
+  gerade verwaist sind, der neue die, die noch keine hat.
+
+Einheiten werden deshalb nicht mehr von der Platte aufgezaehlt, sondern aus dem Pfad
+selbst aufgeloest — eine entfernte Einheit steht im Checkout nicht mehr und liesse sich
+dort nie finden. Die Regelreihenfolge (speziell vor allgemein) leistet dabei genau das,
+was vorher die laengste gemeinsame Wegstrecke leistete.
 
 Zwei Ausgaenge sind neu und bewusst sichtbar statt still: `no-test-location`, wenn der
 gemappte Testort gar nicht existiert, und `unmapped` fuer einen geaenderten `src/`-Pfad,

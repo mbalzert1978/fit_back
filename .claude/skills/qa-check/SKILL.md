@@ -43,11 +43,18 @@ where its tests live — lives in `config.json`. Nothing repo-specific belongs i
    ```
 
    The script reads `coverage_rules` from `config.json` — an ordered list pairing a glob
-   that enumerates production units with a template naming where that unit's tests live
-   (`{0}`, `{1}`, … are the glob's wildcard captures, in order). First matching rule wins,
-   so specific rules precede general ones. Units nest, and each changed path counts toward
-   the **most specific** unit containing it, so a change inside a slice is judged against
-   that slice's own tests rather than also against its parent package.
+   matching a production unit with a template naming where that unit's tests live
+   (`{0}`, `{1}`, … are the glob's wildcard captures, in order). Rules are matched against
+   the changed **path itself**, in order, first match winning; since they run
+   specific-before-general, that also yields the most specific unit containing the path, so
+   a change inside a slice is judged against the slice's own tests rather than its parent
+   package.
+
+   Deletions and renames count. A deleted production file is a change its tests must keep
+   up with, and a renamed unit is reported from both sides — the old path as a `gap` (its
+   tests just went stale) and the new one as `no-test-location` (it may have none yet).
+   This is why units are resolved from the path rather than from what currently sits on
+   disk: a removed unit is gone from the checkout and could never be enumerated there.
 
    Exit 2 with `Verdict: CONFIG ERROR` means `coverage_rules` is missing — per
    `_shared/validator-contract.md`, stop and report that, don't treat it as a pass.

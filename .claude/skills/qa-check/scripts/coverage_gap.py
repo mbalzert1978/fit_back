@@ -12,8 +12,7 @@ candidates.
 
 The production-unit -> test-location mapping is **not** hardcoded. A repo
 declares it as an ordered list of rules in config.json, each pairing a glob
-that enumerates production units with a template naming where that unit's
-tests live:
+matching a production unit with a template naming where that unit's tests live:
 
     "coverage_rules": [
       {"unit_glob": "src/contexts/*/application/*",
@@ -21,11 +20,23 @@ tests live:
       {"unit_glob": "src/*", "test_template": "tests/{0}"}
     ]
 
-`{0}`, `{1}`, ... are the wildcard captures of `unit_glob`, in order. Rules are
-matched in order and the first rule to claim a path wins, so specific rules go
-before general ones. A changed path under `src/` that no rule claims is
-reported as `unmapped` rather than dropped -- an unmappable path means the
-config has drifted from the layout, and silence there would read as "clean".
+`{0}`, `{1}`, ... are the wildcard captures of `unit_glob`, in order.
+
+A changed path is attributed by matching the rules against the **path itself**,
+in order, first match winning -- not by enumerating what currently sits on disk.
+That distinction is the whole point: a deleted or renamed unit is gone from the
+checkout, so disk enumeration could never map it, and its now-stale tests would
+go unnoticed. Since rules are ordered specific-before-general, the first rule to
+match a path prefix also yields the most specific unit containing it, so a slice
+change is judged against the slice's own tests rather than its parent package.
+
+Deletions are deliberately part of the diff here (unlike `skill_git.changed_paths`,
+which excludes them for callers that read file contents): deleting production code
+is a change its tests must keep up with.
+
+A changed path under `src/` that no rule claims is reported as `unmapped` rather
+than dropped -- an unmappable path means the config has drifted from the layout,
+and silence there would read as "clean".
 
 Usage:
   coverage_gap.py [base-ref] [--json]
@@ -41,12 +52,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "_shared"))
 from skill_config import load_config
-from skill_git import GitError, changed_paths, resolve_merge_base
+from skill_git import GitError, git, resolve_merge_base
 
 HERE = Path(__file__).resolve().parent
 CONFIG = HERE.parent / "config.json"
 REQUIRED_KEYS = ("coverage_rules",)
 SRC_PREFIX = "src/"
+PLACEHOLDER = re.compile(r"\{\d+\}")
 
 
 class CoverageStatus(Enum):
@@ -72,42 +84,67 @@ class UnitRow:
     status: CoverageStatus
 
 
-def captures(unit_glob: str, path: str) -> tuple[str, ...] | None:
-    """Pull the wildcard captures out of `path` for `unit_glob`.
+def changed_paths_including_deletions(merge_base: str) -> tuple[str, ...]:
+    """Every path the diff touches, deletions and both sides of a rename included.
+
+    Two departures from `skill_git.changed_paths`, both because this caller maps
+    path strings instead of reading file contents:
+
+    - it drops `--diff-filter=d`, so deletions count -- deleting production code is
+      a change its tests must keep up with;
+    - it passes `--no-renames`, because rename detection collapses a move into the
+      new path alone. Here both sides matter: the old path is the unit whose tests
+      just went stale, the new one is the unit that may have none yet.
+    """
+    names = git("diff", "--name-only", "--no-renames", merge_base)
+    return tuple(n for n in names.stdout.splitlines() if n.strip())
+
+
+def match_prefix(glob: str, path: str) -> tuple[str, tuple[str, ...]] | None:
+    """Match `glob` against the leading segments of `path`.
 
     Segment-wise so a `*` never eats a `/`: each glob segment becomes a regex
-    where `*` is a capturing `(.*)`, everything else is literal. Returns None
-    when the path does not match the glob at all.
+    where `*` is a capturing `(.*)`, everything else literal. Returns the matched
+    prefix and the captures, or None when the leading segments don't match.
     """
-    glob_parts, path_parts = unit_glob.split("/"), path.split("/")
-    if len(glob_parts) != len(path_parts):
+    glob_parts, path_parts = glob.split("/"), path.split("/")
+    if len(path_parts) < len(glob_parts):
         return None
+    head = path_parts[: len(glob_parts)]
     found: list[str] = []
-    for glob_part, path_part in zip(glob_parts, path_parts):
+    for glob_part, path_part in zip(glob_parts, head):
         pattern = "".join("(.*)" if ch == "*" else re.escape(ch) for ch in glob_part)
         match = re.fullmatch(pattern, path_part)
         if match is None:
             return None
         found.extend(match.groups())
-    return tuple(found)
+    return "/".join(head), tuple(found)
 
 
-def discover_units(rules: list[dict], exclude: frozenset[str]) -> tuple[Unit, ...]:
-    """Enumerate every production unit on disk, first matching rule winning."""
-    claimed: set[str] = set()
-    units: list[Unit] = []
+def resolve_unit(rules: list[dict], path: str, exclude: frozenset[str]) -> Unit | None:
+    """Find the unit owning `path` by applying the rules in order."""
     for rule in rules:
-        unit_glob, template = rule["unit_glob"], rule["test_template"]
-        for found in sorted(Path().glob(unit_glob)):
-            path = found.as_posix()
-            if path in claimed or found.name in exclude:
-                continue
-            groups = captures(unit_glob, path)
-            if groups is None:
-                continue
-            claimed.add(path)
-            units.append(Unit(path, template.format(*groups)))
-    return tuple(units)
+        matched = match_prefix(rule["unit_glob"], path)
+        if matched is None:
+            continue
+        unit_path, groups = matched
+        # A directory named here isn't a unit of its own (`shared`, `__pycache__`);
+        # fall through so a more general rule can claim the path instead.
+        if unit_path.rsplit("/", 1)[-1] in exclude:
+            continue
+        return Unit(unit_path, rule["test_template"].format(*groups))
+    return None
+
+
+def test_area_globs(rules: list[dict]) -> tuple[str, ...]:
+    """The path globs that are test territory, derived from the rules themselves.
+
+    A test location can sit under `src/` (slice specs do). Substituting `*` for each
+    template placeholder turns `src/contexts/{0}/specs/{1}` into
+    `src/contexts/*/specs/*` -- so test areas need no config of their own, and can't
+    drift from the mapping they come from.
+    """
+    return tuple({PLACEHOLDER.sub("*", rule["test_template"]) for rule in rules})
 
 
 def is_under(path: str, root: str) -> bool:
@@ -142,42 +179,30 @@ def main() -> int:
         case merge_base:
             pass
 
-    # Two lists, deliberately: production units are looked for under src/, but a
-    # test location may live anywhere (this repo has both src/.../specs/ and a
-    # top-level tests/), so the "did tests change too" question needs the
-    # unfiltered diff.
-    all_changed = changed_paths(merge_base)
-    units = discover_units(rules, exclude)
+    all_changed = changed_paths_including_deletions(merge_base)
+    test_areas = test_area_globs(rules)
 
-    # A test location can itself sit under src/ (this repo keeps slice specs at
-    # src/contexts/<ctx>/specs/<use_case>/). Changing a spec is not a production
-    # change, so those paths are dropped before anything is attributed -- without
-    # this, a spec-only commit would report its own context as an uncovered gap.
-    test_locations = {u.test_location for u in units}
-    changed = tuple(
+    # Changing a test is not a production change. Slice specs live under src/, so
+    # this can't be a plain prefix filter -- without it, a spec-only commit would
+    # report its own context as an uncovered gap.
+    production = tuple(
         p
         for p in all_changed
-        if p.startswith(SRC_PREFIX) and not any(is_under(p, loc) for loc in test_locations)
+        if p.startswith(SRC_PREFIX)
+        and not any(match_prefix(area, p) is not None for area in test_areas)
     )
 
-    # Units nest (a slice package sits inside its context, which sits inside
-    # src/contexts). A changed path counts toward the *most specific* unit that
-    # contains it, so a slice change is judged against the slice's own specs and
-    # never also against its parent -- and a pure container, whose every change
-    # belongs to some child, produces no row at all.
-    owner: dict[str, list[str]] = {u.path: [] for u in units}
-    mapped: set[str] = set()
-    for path in changed:
-        containing = [u.path for u in units if is_under(path, u.path)]
-        if not containing:
+    units: dict[str, Unit] = {}
+    unmapped: list[str] = []
+    for path in production:
+        unit = resolve_unit(rules, path, exclude)
+        if unit is None:
+            unmapped.append(path)
             continue
-        owner[max(containing, key=len)].append(path)
-        mapped.add(path)
+        units[unit.path] = unit
 
     rows: list[UnitRow] = []
-    for unit in units:
-        if not owner[unit.path]:
-            continue
+    for unit in units.values():
         if not Path(unit.test_location).exists():
             status = CoverageStatus.NO_TEST_LOCATION
         elif any(is_under(p, unit.test_location) for p in all_changed):
@@ -186,7 +211,8 @@ def main() -> int:
             status = CoverageStatus.GAP
         rows.append(UnitRow(unit.path, unit.test_location, status))
 
-    unmapped = sorted(set(changed) - mapped)
+    rows.sort(key=lambda r: r.unit)
+    unmapped.sort()
 
     if args.json:
         print(
