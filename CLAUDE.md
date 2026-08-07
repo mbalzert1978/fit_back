@@ -23,6 +23,10 @@ Diese Datei gibt Claude Code (claude.ai/code) Orientierung für die Arbeit in di
 - [`.rules/`](.rules/) — Coding-Standards (`common/` sprachunabhängig, `python/`
   Python-spezifisch). Zuerst `.rules/python/README.md` lesen — dort stehen Leseweg und
   Auflösung von Konflikten zwischen den Dateien.
+- [`docs/reference/`](docs/reference/) — Lesenotizen zu **fremden** Quellen (Artikel, Muster,
+  Bibliotheken), die für dieses Repo erwogen wurden: je Datei ein Abgleich mit dem, was hier schon
+  gebaut ist, und getrennt davon die Vorschläge samt Status. Eine Notiz dort ändert **nichts** an
+  `.rules/` — wird ein Vorschlag angenommen, wandert er in die Regel und bekommt ein Decision-Doc.
 - [`docs/decisions/`](docs/decisions/) — siehe „Entscheidungen und Memory-Policy" unten.
 
 ## Befehle
