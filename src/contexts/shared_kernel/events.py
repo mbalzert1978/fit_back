@@ -33,7 +33,7 @@ __all__ = [
     "JsonValue",
 ]
 
-type JsonValue = str | int | float | bool | None | list["JsonValue"] | Mapping[str, "JsonValue"]
+type JsonValue = str | int | float | bool | list["JsonValue"] | Mapping[str, "JsonValue"] | None
 
 
 class DomainEvent(Protocol):

@@ -66,14 +66,14 @@ eine Zeile weiter nach oben.
 """
 
 
-def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
+def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- Closure factory for dependency injection
     """Regel-Fabrik: die einzige Regel mit einer Abhaengigkeit.
 
     Die E-Mail-Pruefung braucht den IDN-Port, alle anderen Regeln nicht. Statt
     ihn allen aufzudraengen, bekommt genau diese Regel ihn per Closure.
     """
 
-    def email_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:
+    def email_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:  # noqa: C901, PLR0911, PLR0912 -- Exhaustive match over 15+ email error types
         """Die E-Mail-Adresse muss wohlgeformt sein.
 
         Vierzehn Arme, einer je Regel aus `Email.parse` - das ist der Preis

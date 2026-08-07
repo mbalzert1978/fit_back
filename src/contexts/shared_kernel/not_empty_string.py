@@ -57,4 +57,5 @@ class NotEmptyString:
             case Ok(value=text):
                 return text
             case Err():
-                raise AssertionError("unreachable: Text wurde vorgelagert validiert")
+                msg = "unreachable: Text wurde vorgelagert validiert"
+                raise AssertionError(msg)

@@ -24,7 +24,7 @@ class User:
     ausserhalb des Moduls.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913, PLR0917 -- Aggregate root with 8 typed value objects
         self,
         user_id: UserId,
         email: Email,
@@ -58,7 +58,7 @@ class User:
         return f"User(id={self.id}, email={self.email.value!r})"
 
 
-def register(
+def register(  # noqa: PLR0913, PLR0917 -- Aggregate root factory with 7 typed value objects
     user_id: UserId,
     email: Email,
     password_hash: PasswordHash,

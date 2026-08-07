@@ -1,0 +1,1 @@
+"""Infrastrukturschicht der Rezepte."""

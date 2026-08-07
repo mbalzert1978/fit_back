@@ -1,4 +1,4 @@
-"""Startup-Pruefung: kennt das installierte Pydantic noch die Fehlertypen, die wir behandeln?
+"""Startup-Prüfung — Pydantic-Fehlertypen-Kompatibilität beim Start verifizieren.
 
 `_fault_of` in [`exception_handlers.py`](./exception_handlers.py) bildet Pydantics
 Fehlertyp-Strings auf eigene Faelle ab und schliesst mit `assert_never` - ein unbekannter
@@ -35,6 +35,7 @@ def verify_pydantic_contract() -> None:
 
     Raises:
         ValueError: wenn ein behandelter Typ fehlt - mit allen fehlenden auf einmal.
+
     """
     bekannt = set(get_args(ErrorType))
     if verschwunden := sorted(HANDLED_PYDANTIC_ERROR_TYPES - bekannt):

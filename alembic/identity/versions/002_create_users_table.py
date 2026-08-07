@@ -20,6 +20,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """Aktualisiere Datenbankschema."""
     op.create_table(
         "users",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -47,4 +48,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Entferne Datenbankschema-Änderungen."""
     op.drop_table("users", schema="identity")

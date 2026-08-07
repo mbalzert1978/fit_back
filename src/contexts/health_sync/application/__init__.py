@@ -1,0 +1,1 @@
+"""Anwendungsschicht von Health-Sync."""

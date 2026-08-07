@@ -25,6 +25,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """Aktualisiere Datenbankschema."""
     op.alter_column(
         "idempotency_keys",
         "response_body",
@@ -35,6 +36,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Entferne Datenbankschema-Änderungen."""
     # Reservierungen ohne Antwort koennen unter der alten Regel nicht existieren.
     op.execute("DELETE FROM shared_kernel.idempotency_keys WHERE response_body IS NULL")
     op.alter_column(

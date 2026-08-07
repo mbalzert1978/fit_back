@@ -56,7 +56,7 @@ _ID_GENERATOR_BROKEN = (
 )
 
 
-def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
+def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:  # noqa: C901, PLR0911, PLR0912 -- Exhaustive match over all domain errors
     """Uebersetze den Domaenen-Ausgang in die public Antwort.
 
     Hier wird gematcht statt `map`/`bind` verkettet, und das ist Absicht: aus

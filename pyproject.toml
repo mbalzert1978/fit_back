@@ -45,8 +45,23 @@ target-version = "py314"
 exclude = [".claude", ".rules"]
 
 [tool.ruff.lint]
-extend-select = ["ANN"]
+select = ["ALL"]
+
+ignore = [
+    "CPY001",  # Copyright-Kopf je Datei - dieses Repo hat die Konvention nicht
+    "COM812",  # Trailing-Comma-Regel kollidiert mit dem ruff-Formatter (dessen eigene Warnung)
+    "ISC001",  # implizite String-Verkettung - dieselbe Kollision mit dem Formatter
+    "D203",    # unvereinbar mit D211; ruff waehlt ohnehin D211
+    "D213",    # unvereinbar mit D212; ruff waehlt ohnehin D212
+    "D401",    # "imperative mood" ist eine Heuristik auf englischen Verben; die
+               # Docstrings dieses Repos sind deutsch (CLAUDE.md), die Regel misst dort nichts
+    "TC001",   # Imports unter `if TYPE_CHECKING` verstecken. Dieser Stack laeuft bewusst ohne
+    "TC002",   # mypy/pyright (.rules/python/README.md) - die Trennung braechte keinen Nutzen,
+    "TC003",   # und zur Laufzeit aufloesbare Annotationen sind uns lieber als gesparte Imports
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["ANN001", "ANN002", "ANN003"]
-"**/test_*.py" = ["ANN001", "ANN002", "ANN003"]
+"tests/**" = ["ALL"]
+"src/contexts/*/specs/**" = ["ALL"]
+"alembic/*/versions/**" = ["INP001"]  # Alembic verwaltet diese Revisionen über seinen eigenen Loader
+"alembic/env.py" = ["INP001"]  # Alembic führt env.py direkt auf, kein importierbares Paket

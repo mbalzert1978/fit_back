@@ -1,0 +1,1 @@
+"""Domänenschicht des Tagebuchs."""

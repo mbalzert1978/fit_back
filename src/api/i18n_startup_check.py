@@ -1,4 +1,4 @@
-"""Drift-Pruefung beim Start: stimmen Fehlerfaelle und Textvorlagen noch ueberein?
+"""Drift-Prüfung beim Start — Konsistenz zwischen Fehlerfällen und Textvorlagen.
 
 Die erwartete Code-Menge wird **aus den Fehler-Unions abgeleitet**, nicht danebengepflegt.
 Damit kann ein neuer Slice keine Fehlerfaelle mitbringen, deren Texte niemand hinterlegt
@@ -50,6 +50,7 @@ def verify_error_codes_complete(
         ValueError: sobald eine der drei Ebenen nicht aufgeht - mit allen Abweichungen
             auf einmal, nicht nur der ersten. Wer eine Sprachdatei ergaenzt, will nicht
             beim naechsten Start die naechste Meldung sehen.
+
     """
     by_code = codes_of(*error_unions)  # Ebene 1: wirft, wenn ein Fall keinen Code traegt
     expected = set(by_code) | set(presentation_codes)

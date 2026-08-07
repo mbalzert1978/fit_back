@@ -126,8 +126,6 @@ async def register_user(
 
         case RegistrationInvalid(errors=errors):
             # Übersetze error codes zu Texten
-            # errors: Mapping[str, tuple[FieldErrorDetail, ...]]
-            # FieldErrorDetail = tuple[str, Mapping[str, object]]
             translated_errors: dict[str, list[str]] = {}
             for field, field_errors in errors.items():
                 messages: list[str] = []
@@ -152,7 +150,7 @@ async def register_user(
             assert_never(outcome)
 
 
-def _problem(
+def _problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, status, type, and text
     request: Request,
     http_status: int,
     error_type: str,

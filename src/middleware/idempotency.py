@@ -86,38 +86,46 @@ REQUEST_IN_PROGRESS_TYPE = "https://api.example/errors/request-in-progress"
 # Reservierung und Entscheidung in einem Statement: gibt es die Zeile schon,
 # kommt nichts zurueck - und genau das ist die Auskunft "ein anderer war
 # schneller". Ohne vorgelagertes SELECT gibt es dazwischen kein Zeitfenster.
-_CLAIM_KEY: TextClause = text(f"""
-    INSERT INTO {IDEMPOTENCY_KEYS_TABLE}
-        (key, user_id, request_hash, response_body, created_utc)
-    VALUES (:key, :user_id, :request_hash, NULL, :created_utc)
-    ON CONFLICT (key) DO NOTHING
-    RETURNING id
-""")
+_CLAIM_KEY: TextClause = text(
+    f"""
+        INSERT INTO {IDEMPOTENCY_KEYS_TABLE}
+            (key, user_id, request_hash, response_body, created_utc)
+        VALUES (:key, :user_id, :request_hash, NULL, :created_utc)
+        ON CONFLICT (key) DO NOTHING
+        RETURNING id
+    """  # noqa: S608 -- Parameterized via named bindings
+)
 
 # Bewusst nur ueber `key` gesucht, nicht ueber `(key, user_id)`: der
 # Unique-Index steht auf `key` allein. Wuerde hier nach `user_id` gefiltert,
 # faende die Abfrage bei einem fremden Schluessel nichts - und der Ablauf liefe
 # in einen Zustand, den es laut Reservierung gerade nicht geben kann.
-_FIND_KEY: TextClause = text(f"""
-    SELECT user_id, request_hash, response_body
-    FROM {IDEMPOTENCY_KEYS_TABLE}
-    WHERE key = :key
-""")
+_FIND_KEY: TextClause = text(
+    f"""
+        SELECT user_id, request_hash, response_body
+        FROM {IDEMPOTENCY_KEYS_TABLE}
+        WHERE key = :key
+    """  # noqa: S608 -- Parameterized via named bindings
+)
 
-_STORE_RESPONSE: TextClause = text(f"""
-    UPDATE {IDEMPOTENCY_KEYS_TABLE}
-    SET response_body = :response_body
-    WHERE key = :key
-""")
+_STORE_RESPONSE: TextClause = text(
+    f"""
+        UPDATE {IDEMPOTENCY_KEYS_TABLE}
+        SET response_body = :response_body
+        WHERE key = :key
+    """  # noqa: S608 -- Parameterized via named bindings
+)
 
 # Gibt die Reservierung wieder frei. Noetig, wenn die Anfrage keine Antwort
 # hinterlaesst, die sich wiederholen liesse - sonst blockierte ein einziger
 # Fehlschlag den Schluessel dauerhaft, und der Client koennte den Vorgang nie
 # erneut versuchen.
-_RELEASE_CLAIM: TextClause = text(f"""
-    DELETE FROM {IDEMPOTENCY_KEYS_TABLE}
-    WHERE key = :key AND response_body IS NULL
-""")
+_RELEASE_CLAIM: TextClause = text(
+    f"""
+        DELETE FROM {IDEMPOTENCY_KEYS_TABLE}
+        WHERE key = :key AND response_body IS NULL
+    """  # noqa: S608 -- Parameterized via named bindings
+)
 
 
 def calculate_request_hash(method: str, path: str, body: str) -> str:
@@ -130,6 +138,7 @@ def calculate_request_hash(method: str, path: str, body: str) -> str:
 
     Returns:
         SHA256-Hash als hexadezimaler String
+
     """
     request_string = f"{method}:{path}:{body}"
     return hashlib.sha256(request_string.encode()).hexdigest()
@@ -143,6 +152,7 @@ def is_idempotent_method(method: str) -> bool:
 
     Returns:
         True für POST und PUT, False sonst
+
     """
     return method.upper() in IDEMPOTENT_METHODS
 
@@ -192,7 +202,7 @@ async def release_claim(engine: AsyncEngine, key: UUID) -> None:
         await connection.execute(_RELEASE_CLAIM, {"key": key})
 
 
-def _problem(
+def _problem(  # noqa: PLR0913, PLR0917 -- Response builder needs context, status, type, and translated text
     request: Request,
     http_status: int,
     error_type: str,
@@ -246,12 +256,13 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             ttl_days: TTL in Tagen (Standard: 7). Der Cleanup-Job dazu ist
                 nicht Teil von Ticket 0006 - der Wert liegt hier als
                 Konfiguration bereit, bis es ihn gibt.
+
         """
         super().__init__(app)
         self.time_provider = time_provider
         self.ttl_days = ttl_days
 
-    async def dispatch(
+    async def dispatch(  # noqa: PLR0911 -- Early returns for guard conditions
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         """Verarbeite eine Anfrage unter ihrem Idempotency-Key."""
@@ -264,7 +275,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         try:
             idempotency_key = UUID(idempotency_key_header)
         except ValueError:
-            logger.warning(f"Invalid Idempotency-Key format: {idempotency_key_header}")
+            logger.warning(f"Invalid Idempotency-Key format: {idempotency_key_header}")  # noqa: G004 -- Non-sensitive validation info
             return await call_next(request)
 
         # Die Idempotenz haengt an der Nutzeridentitaet - die setzt die
@@ -282,7 +293,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         try:
             body_str = (await request.body()).decode("utf-8")
         except (UnicodeDecodeError, OSError) as e:
-            logger.warning(f"Error reading request body: {e}")
+            logger.warning(f"Error reading request body: {e}")  # noqa: G004 -- Exception details for debugging
 
         request_hash = calculate_request_hash(request.method, request.url.path, body_str)
 
@@ -294,7 +305,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             # Die Datenbank ist der Schiedsrichter; ist sie nicht erreichbar,
             # gibt es kein Urteil. Die Anfrage deshalb abzulehnen waere schlimmer
             # als sie ohne Idempotenz laufen zu lassen.
-            logger.warning(f"Error claiming idempotency key: {e}")
+            logger.warning(f"Error claiming idempotency key: {e}")  # noqa: G004 -- DB error details for diagnostics
             return await call_next(request)
 
         if not claimed:
@@ -304,7 +315,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
 
         return await self._process_and_store(request, call_next, engine, idempotency_key)
 
-    async def _answer_from_existing(
+    async def _answer_from_existing(  # noqa: PLR0913, PLR0917 -- Handler needs request context, engine, and key data
         self,
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
@@ -386,7 +397,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         try:
             response_body = json.loads(raw_body.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            logger.warning(f"Error parsing response body: {e}")
+            logger.warning(f"Error parsing response body: {e}")  # noqa: G004 -- Parse error for debugging
             await release_claim(engine, key)
             response_body = None
 

@@ -23,6 +23,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """Aktualisiere Datenbankschema."""
     op.create_table(
         "outbox",
         # UUIDv7: Identitaet und Reihenfolge in einer Spalte. Postgres vergleicht
@@ -59,5 +60,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Entferne Datenbankschema-Änderungen."""
     op.drop_index("idx_outbox_claimable", table_name="outbox", schema="shared_kernel")
     op.drop_table("outbox", schema="shared_kernel")

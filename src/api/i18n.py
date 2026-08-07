@@ -45,14 +45,16 @@ class ResourcesCache:
             with path.open("r", encoding="utf-8") as f:
                 content = json.load(f)
             if not isinstance(content, dict):
-                raise TypeError(f"Resource file {path} must contain a JSON object")
+                msg = f"Resource file {path} must contain a JSON object"
+                raise TypeError(msg)
             self._resources[language] = content
             all_codes.update(content.keys())
 
         # Zweite Pass: auf Vollständigkeit prüfen
         for language in SUPPORTED_LANGUAGES:
             if missing := all_codes - self._resources[language].keys():
-                raise ValueError(f"Language '{language}' is missing codes: {sorted(missing)}")
+                msg = f"Language '{language}' is missing codes: {sorted(missing)}"
+                raise ValueError(msg)
 
     @property
     def languages(self) -> frozenset[str]:
@@ -77,15 +79,15 @@ class ResourcesCache:
             template = self.get(DEFAULT_LANGUAGE, code)
         if template is None:
             # Sollte nie vorkommen, da beim Start geprüft
-            raise AssertionError(f"Code '{code}' not found in any language")
+            msg = f"Code '{code}' not found in any language"
+            raise AssertionError(msg)
 
         # Benannte Platzhalter aus Parametern ausfüllen
         try:
             return template.format(**parameters)
         except KeyError as e:
-            raise AssertionError(
-                f"Template for '{code}' references unknown parameter {e.args[0]!r}"
-            ) from e
+            msg = f"Template for '{code}' references unknown parameter {e.args[0]!r}"
+            raise AssertionError(msg) from e
 
 
 def create_resources() -> ResourcesCache:
@@ -108,14 +110,17 @@ def translate(
     """Übersetze einen Code + Parameter zu Text in einer Sprache.
 
     Args:
-        resources: Die ResourcesCache-Instanz (aus request.app.state.resources, garantiert im Lifespan)
-        code: Der zu übersetzende Fehlercode (aus Fehler-Union, beim Start gegen Ressourcen geprüft)
+        resources: Die ResourcesCache-Instanz (aus request.app.state.resources,
+            garantiert im Lifespan)
+        code: Der zu übersetzende Fehlercode (aus Fehler-Union, beim Start gegen
+            Ressourcen geprüft)
         parameters: Optional dict mit Parametern für Template-Platzhalter
         language: Zielsprache (de-DE oder en-US). Default: de-DE. In HTTP-Kontext IMMER explizit
             von Accept-Language-Header übergeben; None-Default ist nur für Tests/Logging sinnvoll.
 
     Wirft AssertionError, wenn der Code nicht existiert oder Parameter fehlen — das ist ein
     Programmierfehler und beruht auf fehlgeschlagener Startup-Prüfung der Drift-Abgleiche.
+
     """
     if parameters is None:
         parameters = {}
@@ -124,7 +129,7 @@ def translate(
     return resources.translate(code, parameters, language)
 
 
-def get_language_from_header(accept_language: str | None) -> str:
+def get_language_from_header(accept_language: str | None) -> str:  # noqa: C901, PLR0912 -- RFC 7231 parsing with q-weight, normalization, and fallbacks
     """Parse den Accept-Language-Header und wähle die beste passende Sprache.
 
     Regeln (RFC 7231):
@@ -137,6 +142,7 @@ def get_language_from_header(accept_language: str | None) -> str:
 
     Returns:
         Ein unterstütztes Sprach-Tag oder DEFAULT_LANGUAGE.
+
     """
     if not accept_language or not accept_language.strip():
         return DEFAULT_LANGUAGE
@@ -145,26 +151,26 @@ def get_language_from_header(accept_language: str | None) -> str:
     languages_with_quality: list[tuple[str, float, int]] = []
 
     for i, part in enumerate(accept_language.split(",")):
-        part = part.strip()
-        if not part:
+        part_stripped = part.strip()
+        if not part_stripped:
             continue
 
         # Splitze in Sprache und Parameter (z.B. "de;q=0.9")
         quality = 1.0
-        if ";" in part:
-            lang_part, params_part = part.split(";", 1)
+        if ";" in part_stripped:
+            lang_part, params_part = part_stripped.split(";", 1)
             lang = lang_part.strip()
 
             # Parse q-Gewicht — defekte q-Werte werden mit Defaultgewicht ignoriert
             for param in params_part.split(";"):
-                param = param.strip()
-                if param.startswith("q="):
+                param_stripped = param.strip()
+                if param_stripped.startswith("q="):
                     with contextlib.suppress(ValueError):
-                        quality = float(param[2:])
+                        quality = float(param_stripped[2:])
                         # Begrenze auf [0, 1]
                         quality = max(0.0, min(1.0, quality))
         else:
-            lang = part.strip()
+            lang = part_stripped.strip()
 
         if lang and lang != "*":
             # Speichere auch den Index für Gleichstand-Auflösung

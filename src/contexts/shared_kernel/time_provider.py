@@ -49,7 +49,8 @@ class FakeTimeProvider:
         if fixed_time is None:
             fixed_time = datetime(2000, 1, 1, 0, 0, 0, tzinfo=UTC)
         elif fixed_time.tzinfo is None:
-            raise ValueError("FakeTimeProvider erfordert tz-aware datetime")
+            msg = "FakeTimeProvider erfordert tz-aware datetime"
+            raise ValueError(msg)
         self._time = fixed_time
 
     def now(self) -> Timestamp:
@@ -63,5 +64,6 @@ class FakeTimeProvider:
     def set_time(self, new_time: datetime) -> None:
         """Setze eine neue Zeit (muss tz-aware sein)."""
         if new_time.tzinfo is None:
-            raise ValueError("set_time erfordert tz-aware datetime")
+            msg = "set_time erfordert tz-aware datetime"
+            raise ValueError(msg)
         self._time = new_time

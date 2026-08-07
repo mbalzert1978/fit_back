@@ -50,7 +50,8 @@ def hydrate_locale(raw: str) -> Locale:
         case Ok(value=locale):
             return locale
         case Err():
-            raise AssertionError(f"unreachable: {raw!r} wurde vorgelagert validiert")
+            msg = f"unreachable: {raw!r} wurde vorgelagert validiert"
+            raise AssertionError(msg)
 
 
 def locale_tag(locale: Locale) -> str:

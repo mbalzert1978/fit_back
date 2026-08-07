@@ -56,12 +56,12 @@ def _split(candidate: str) -> tuple[str, str]:
 
 
 def has_no_whitespace(candidate: str) -> Result[str, EmailError]:
-    """Kein Leerraum - irgendwo in der Adresse.
+    r"""Kein Leerraum - irgendwo in der Adresse.
 
     Laeuft **nach** dem Abschneiden umgebender Leerzeichen und Tabs, aber vor
     allem anderen: ein Zeilenumbruch in einer Adresse ist kein Tippfehler,
     sondern der klassische Header-Injection-Vektor
-    (`opfer@example.com\\nBcc: ...`), und muss deshalb abgelehnt statt bereinigt
+    (`opfer@example.com\nBcc: ...`), und muss deshalb abgelehnt statt bereinigt
     werden.
     """
     if any(character.isspace() for character in candidate):
@@ -230,4 +230,5 @@ class Email:
             case Ok(value=email):
                 return email
             case Err():
-                raise AssertionError(f"unreachable: {raw!r} wurde vorgelagert validiert")
+                msg = f"unreachable: {raw!r} wurde vorgelagert validiert"
+                raise AssertionError(msg)

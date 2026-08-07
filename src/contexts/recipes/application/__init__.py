@@ -1,0 +1,1 @@
+"""Anwendungsschicht der Rezepte."""

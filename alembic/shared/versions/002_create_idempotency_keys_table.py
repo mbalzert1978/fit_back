@@ -18,6 +18,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """Aktualisiere Datenbankschema."""
     op.create_table(
         "idempotency_keys",
         sa.Column("id", sa.BigInteger(), nullable=False),
@@ -42,4 +43,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Entferne Datenbankschema-Änderungen."""
     op.drop_table("idempotency_keys", schema="shared_kernel")

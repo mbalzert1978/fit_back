@@ -45,4 +45,5 @@ class UserTimeZone:
             case Ok(value=time_zone):
                 return time_zone
             case Err():
-                raise AssertionError(f"unreachable: {raw!r} wurde vorgelagert validiert")
+                msg = f"unreachable: {raw!r} wurde vorgelagert validiert"
+                raise AssertionError(msg)

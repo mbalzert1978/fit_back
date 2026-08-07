@@ -1,0 +1,1 @@
+"""Domänenschicht der Ziele."""

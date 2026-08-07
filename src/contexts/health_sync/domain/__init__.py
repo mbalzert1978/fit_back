@@ -1,0 +1,1 @@
+"""Domänenschicht von Health-Sync."""
