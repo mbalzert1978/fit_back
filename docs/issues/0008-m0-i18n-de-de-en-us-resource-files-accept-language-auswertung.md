@@ -98,7 +98,10 @@ Flach, ohne Stufengliederung: Praesentations-/Infrastruktur-Arbeit ohne eigene F
 
 - [ ] Jede `parse`-Factory liefert im Fehlerfall eine **Tagged Union** mit Nutzlast statt eines
       `str` — Vorbild `Email.parse`/`EmailError`. Betroffen: die 7 Stellen in Shared Kernel und
-      Domaene aus der Tabelle oben.
+      Domaene aus der Tabelle oben. Die Form ist seit dem 2026-08-07 verbindliche Regel, siehe
+      `.rules/python/python-error-handling.md`, Abschnitt „Die Fehlernutzlast ist ein typisierter
+      Fall, nie ein fertiger Satz" — dieses Ticket zieht den Bestand nach, es erfindet die Form
+      nicht.
 - [ ] Die public Response-Union von `register_user` traegt ueber der Naht Code + Parameter statt
       eines Satzes (`RegistrationInvalid.errors` aendert seine Form); Test-API und die Specs unter
       `contexts/identity/specs/register_user/` ziehen mit. `email_message` entfaellt.

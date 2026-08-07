@@ -66,9 +66,9 @@ type OrderResult = Found | NotFound
 ## Ein gemeinsamer `Result[T, E]` fuer die binaere "Wert oder Fehlschlag"-Form — feature-lokale Tagged Unions fuer echte Algebren
 
 Jeder Ausgang der Form "Erfolg mit einem Wert, oder Fehlschlag mit einer Nutzlast" — unabhaengig
-davon, ob die Nutzlast ein `str` oder ein eigener Fehlertyp ist — ist ein gemeinsamer
+davon, wie die Nutzlast geformt ist — ist ein gemeinsamer
 `Result[T, E]`, keine feature-lokale Zwei-Fall-Union. Das deckt Value-Object-Parsing
-(`Mac.parse(...)`, `ScopeId.parse(...)` → `Result[Mac, str]`) genauso ab wie "gefunden oder mit
+(`Mac.parse(...)`, `ScopeId.parse(...)` → `Result[Mac, MacError]`) genauso ab wie "gefunden oder mit
 der nicht getroffenen Anfrage fehlgeschlagen" (`Result[MacMatch, ScopeId]` — der Fehlerfall traegt
 die angefragte `ScopeId` als typisierte Daten, nicht als Text). Das gilt **nicht** fuer einen
 Ausgang mit mehr als zwei, unabhaengig geformten *Erfolgs*faellen (eine echte Domaenenalgebra) —
@@ -77,7 +77,7 @@ das bleibt eine feature-lokale Tagged Union, wie jede andere geschlossene Wertem
 
 Do:
 ```python
-def parse(raw: str) -> "Result[Mac, str]": ...
+def parse(raw: str) -> "Result[Mac, MacError]": ...
 def check(server: DhcpServer, ...) -> "Result[Reservation, DomainError]": ...
 ```
 
@@ -144,6 +144,75 @@ match outcome:
         ...
 ```
 
+## Die Fehlernutzlast ist ein typisierter Fall, nie ein fertiger Satz
+
+Das `E` in `Result[T, E]` sagt, **was** der Fall ist — nicht, **wie er heisst**. Jeder Fehlschlag,
+dessen Formulierung je einen Menschen erreichen kann, ist ein eigener `@final
+@dataclass(frozen=True, slots=True)`-Fall mit typisierter Nutzlast, zusammengefasst zu einer
+geschlossenen Union ([python-types.md](./python-types.md)). Ein `str` als `E` ist an dieser Stelle
+ein Regelverstoss.
+
+Do:
+```python
+@final
+@dataclass(frozen=True, slots=True)
+class PasswordTooShort:
+    actual_length: int
+    minimum: int
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class PasswordHasNoDigit: ...
+
+
+type PasswordError = PasswordTooShort | PasswordHasNoDigit
+
+
+@classmethod
+def parse(cls, raw: str) -> "Result[Password, PasswordError]":
+    if len(raw) < MINIMUM_LENGTH:
+        return Err(PasswordTooShort(len(raw), MINIMUM_LENGTH))
+    return Ok(cls(raw))
+```
+
+Don't:
+```python
+@classmethod
+def parse(cls, raw: str) -> "Result[Password, str]":
+    # Die Sprache ist damit dort entschieden, wo niemand weiss, wer fragt -
+    # und die 10 ist aus dem Satz nicht mehr herauszuholen.
+    return Err(f"Passwort muss mindestens {MINIMUM_LENGTH} Zeichen lang sein")
+```
+
+Vier Dinge haengen daran:
+
+1. **Die Sprache wird spaet entschieden.** Der Text entsteht erst, wo bekannt ist, wer fragt — am
+   HTTP-Rand mit dem `Accept-Language`-Header in der Hand. Eine Domaene, die Saetze zurueckgibt,
+   ist einsprachig, egal welche Middleware davorsteht.
+2. **Die Vollstaendigkeit wird bewacht.** Der `match` ohne Auffangzweig, der den Fall formuliert,
+   meldet beim naechsten neuen Fall, dass die Meldung dafuer fehlt
+   ([python-control-flow.md](./python-control-flow.md)). Ueber Strings kann das niemand pruefen.
+3. **Die Nutzlast ueberlebt bis zur Formulierung.** Das `{minimum}` einer Textvorlage wird aus dem
+   Fehlerwert gefuellt, nicht aus einem Satz rekonstruiert. Deutsch und Englisch duerfen die Zahl
+   verschieden platzieren, ohne dass die Domaene davon weiss.
+4. **Der Fall wird der stabile Vertrag.** Der Klassenname ist der Fehlercode, `title`/`detail` sind
+   Kosmetik darueber. Ein umformulierter Satz ist damit keine API-Aenderung mehr.
+
+Die Nutzlast traegt genau das, was die Formulierung braucht (Maximum, ungueltige Zeichen, den
+Rohwert) — nichts, das niemand liest, und nichts, das der Aufrufer nach aussen nie preisgeben darf.
+
+**Abgrenzung.** Ein `str` bleibt richtig, wo die Zeichenkette **Diagnose** ist und nie zu einer
+Nutzermeldung wird: die `OSError`-Meldung im IO-Adapter (`RenameFailed(str(error))` weiter unten),
+Log-Text, der Grund eines Infrastruktur-Fehlschlags. Faustregel: erreicht die Formulierung je eine
+Antwort an einen Aufrufer, ist sie ein typisierter Fall.
+
+**Ueber die Naht des Use Case gehen weiterhin nur Primitive**
+([python-feature-slices.md](./python-feature-slices.md)). Die Domaenen-Union endet also an der
+Application-Grenze; dort wird sie in Code plus Parameter uebersetzt, nicht in einen Satz.
+Referenz im Repo: `contexts/identity/domain/email_errors.py` und der `EmailError`-`match`, der sie
+auswertet.
+
 ## Zwei Factories je Value Object: fallibles `parse` vs. infallibles `hydrate`
 
 Ein Value Object, dessen Gueltigkeit nicht strukturell durch seinen Typ garantiert ist (eine
@@ -166,9 +235,9 @@ nie ein erwarteter Ausgang — genau deshalb wirft es, statt einen `Result` zuru
 
 Do:
 ```python
-def parse(raw: str) -> "Result[Mac, str]":
+def parse(raw: str) -> "Result[Mac, MacError]":
     if not _MAC_PATTERN.match(raw):
-        return Err(f"invalid mac address: {raw}")
+        return Err(MacMalformed(raw))
     return Ok(Mac(raw))
 
 

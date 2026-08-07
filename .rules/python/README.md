@@ -14,7 +14,7 @@ Architektur-Klammer (7), dann die Spezialthemen (8-12).
 | 3 | [python-modern-syntax.md](./python-modern-syntax.md) | f-Strings, Walrus, `uuid7`, PEP-695-Generics, noqa-Scoping |
 | 4 | [python-control-flow.md](./python-control-flow.md) | `match`/`case`, Exhaustivitaet, Slicing, Literale |
 | 5 | [python-null-safety.md](./python-null-safety.md) | Guards an public Grenzen, explizite Nullability |
-| 6 | [python-error-handling.md](./python-error-handling.md) | `Result[T, E]`, `parse`/`hydrate`, Fangen nur an der IO-Naht |
+| 6 | [python-error-handling.md](./python-error-handling.md) | `Result[T, E]`, Fehlernutzlast als typisierter Fall statt Satz, `parse`/`hydrate`, Fangen nur an der IO-Naht |
 | 7 | [python-feature-slices.md](./python-feature-slices.md) | Drei-Schichten-Feature-Paket, Handler/Adapter/Mapper, Review-Checkliste |
 | 8 | [python-rule-pattern.md](./python-rule-pattern.md) | Collect-all-`Rule` vs. Fail-fast-`ResultRule` |
 | 9 | [python-factories.md](./python-factories.md) | Domaenen-benannte Factories, `hydrate`/`parse`, ein Wiring-Einstiegspunkt |
