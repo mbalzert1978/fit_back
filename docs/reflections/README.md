@@ -17,9 +17,12 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 ## Experiences
 
 - [exp_agent-credential-scanning-incident.md](exp_agent-credential-scanning-incident.md) — Subagent darf bei fehlendem `gh` nie selbst nach Credentials suchen, nur stoppen und melden
+- [exp_agenten-instruktionen-ueber-refine-prompt.md](exp_agenten-instruktionen-ueber-refine-prompt.md) — jeder Agenten-Prompt laeuft vor dem Start durch `refine-prompt`, auf jeder Ebene
 - [exp_alembic-ini-path-separator-windows.md](exp_alembic-ini-path-separator-windows.md) — `path_separator = os` bricht unter Windows still, wenn `version_locations` mit `":"` authored ist
 - [exp_alembic-multi-schema-pitfalls.md](exp_alembic-multi-schema-pitfalls.md) — Revision-IDs global eindeutig halten, `alembic upgrade heads` (Plural) verwenden
+- [exp_beauftragtes-nicht-als-befund-buchen.md](exp_beauftragtes-nicht-als-befund-buchen.md) — vor „out of scope"/„Regression" pruefen, ob der Nutzer die Aenderung beauftragt hat
 - [exp_brief-traegt-die-form-nicht-die-loesung.md](exp_brief-traegt-die-form-nicht-die-loesung.md) — Agenten-Brief beschreibt WAS gelten muss, nie WIE zu loesen ist
+- [exp_entwickler-agent-delegiert-nicht-in-den-worktree.md](exp_entwickler-agent-delegiert-nicht-in-den-worktree.md) — Delegieren bleibt erlaubt, aber nur mit weitergereichter `cd`-Anweisung und eigenem Arbeitspaket
 - [exp_first-live-execution-surfaces-latent-bugs.md](exp_first-live-execution-surfaces-latent-bugs.md) — erster echter Lauf einer bislang nur "auf dem Papier" existierenden Infrastruktur deckt Bug-Kaskaden auf
 - [exp_fixture-die-none-liefert-ist-ein-ausschalter.md](exp_fixture-die-none-liefert-ist-ein-ausschalter.md) — eine Fixture, die `None` liefert, damit die Tests durchlaufen, ist kein Test-Double, sondern ein Ausschalter
 - [exp_gate-finding-gegen-die-spezifikation-halten.md](exp_gate-finding-gegen-die-spezifikation-halten.md) — ein Finding, das einer woertlich spezifizierten Entscheidung widerspricht, wird abgelehnt, nicht umgesetzt
@@ -34,6 +37,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_parallele-agenten-brauchen-eigene-worktrees.md](exp_parallele-agenten-brauchen-eigene-worktrees.md) — parallele Agenten im selben Working Tree halten fremde Aenderungen fuer eigene Fehler und raeumen destruktiv auf
 - [exp_pipeline-artefakte-gitignore.md](exp_pipeline-artefakte-gitignore.md) — Pipeline-Arbeitsdateien (Task.md) von Anfang an gitignored halten
 - [exp_powershell-set-content-bom.md](exp_powershell-set-content-bom.md) — PowerShell `Set-Content -Encoding utf8` schreibt eine BOM, bricht TOML-Parser
+- [exp_pruefkommando-muss-messen-was-es-behauptet.md](exp_pruefkommando-muss-messen-was-es-behauptet.md) — eine leere Ausgabe belegt nichts, solange nicht gezeigt ist, dass das Kommando greifen kann (Git-Pathspec-Glob)
 - [exp_push-main-before-worktree-fanout.md](exp_push-main-before-worktree-fanout.md) — `main` vor dem Erstellen neuer Worktrees pushen, sonst Scope-Creep in jedem PR-Diff
 - [exp_pytest-exit-5-lastexitcode-reset.md](exp_pytest-exit-5-lastexitcode-reset.md) — pytest exit 5 tolerieren UND `$global:LASTEXITCODE` zuruecksetzen
 - [exp_referenzimplementierung-schlaegt-prosa.md](exp_referenzimplementierung-schlaegt-prosa.md) — ohne gebautes Referenz-Feature erfindet jeder Agent die Zielform neu

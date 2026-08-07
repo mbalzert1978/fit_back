@@ -3,8 +3,8 @@ schema_version: 1
 name: workflow-agent-cd-explizit
 description: Workflow-Pipeline-Prompts fuer Git-Operationen brauchen ein explizites cd, nicht nur den Worktree-Pfad als Kontext
 type: feedback
-frequency: 2
-last_triggered: 2026-08-06
+frequency: 3
+last_triggered: 2026-08-07
 decay_eligible: false
 ---
 
