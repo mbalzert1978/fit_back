@@ -183,6 +183,18 @@ hoch.
       nichts.
 - [ ] Validierung wird das **erste Behavior**, nicht mehr ein `if` im Slice: es hebt
       `list[FieldError]` in den Fehlerkanal der Pipeline und kuerzt ab.
+- [ ] **Asynchrone Regelform** neben `Rule[T]`:
+      `type AsyncRule[T] = Callable[[T], Awaitable[list[FieldError]]]` mit passendem `all_of`.
+      Heute ist jede Regel synchron; eine Regel, die IO braucht — Nachschlagen in einer
+      Referenzliste, Rueckfrage bei einem fremden Context ueber einen Port — laesst sich gar nicht
+      als Regel formulieren und wandert zwangslaeufig in den Handler, wo sie niemand als Regel
+      wiederfindet. Gehoert in **diesen** Schnitt und nicht davor: `bind_async` und die
+      Behavior-Kette entstehen hier ohnehin, einzeln davor gebaut waere es zweimal angefasst.
+      Herkunft: [`docs/reference/rule-engine-pattern.md`](../reference/rule-engine-pattern.md)
+      (`IAsyncRule<T>` / `ILinearAsyncRule<T>`) — die dort ebenfalls beschriebenen Kombinatoren
+      OR und Conditional sind **nicht** Teil dieser Stufe, siehe Entscheidung
+      [`2026-08-07-1331`](../decisions/2026-08-07-1331-or-und-conditional-rule-erst-beim-ersten-fall.md).
+      Kein `CancellationToken`-Aequivalent: asyncio bringt Cancellation ueber `CancelledError` mit.
 - [ ] Ein gemeinsamer Fehlertyp je Use Case, damit beide Kanaele zusammenfallen:
       `type RegisterUserError = RequestInvalid | EmailAlreadyRegistered`, wobei `RequestInvalid`
       die gesammelten `FieldError` traegt.
