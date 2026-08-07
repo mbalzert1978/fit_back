@@ -37,7 +37,10 @@ from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.ports.user_registry import UserRegistry
 from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
-from src.contexts.identity.domain.user_time_zone_errors import UserTimeZoneError, UserTimeZoneUnknown
+from src.contexts.identity.domain.user_time_zone_errors import (
+    UserTimeZoneError,
+    UserTimeZoneUnknown,
+)
 from src.contexts.identity.domain.value_objects.account_status import (
     AccountStatus,
     Active,

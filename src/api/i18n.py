@@ -44,7 +44,7 @@ class _ResourcesCache:
             with path.open("r", encoding="utf-8") as f:
                 content = json.load(f)
             if not isinstance(content, dict):
-                raise ValueError(f"Resource file {path} must contain a JSON object")
+                raise TypeError(f"Resource file {path} must contain a JSON object")
             self._resources[language] = content
             all_codes.update(content.keys())
 

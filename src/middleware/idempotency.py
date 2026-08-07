@@ -300,6 +300,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         request_hash: str,
     ) -> Response:
         """Der Schluessel war schon vergeben - entscheide, was der Aufrufer bekommt."""
+        language = get_language_from_header(request.headers.get("accept-language"))
         existing = await find_key(engine, key)
         if existing is None:
             # Zwischen Reservierung und Abfrage geloescht (TTL-Bereinigung).

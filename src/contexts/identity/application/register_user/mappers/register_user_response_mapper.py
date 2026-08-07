@@ -9,8 +9,8 @@ from src.contexts.identity.application.register_user.response import (
     RegistrationInvalid,
 )
 from src.contexts.identity.domain import (
-    DomainError,
     DisplayNameTooLong,
+    DomainError,
     EmailAlreadyRegistered,
     LocaleNotSupported,
     PasswordHashIsEmpty,
@@ -39,7 +39,7 @@ from src.contexts.identity.domain.email_errors import (
     UnencodableDomainLabel,
 )
 from src.contexts.shared_kernel import Err, Ok, Result
-from src.contexts.shared_kernel.validation import FieldError, FieldErrorDetail, group_by_field
+from src.contexts.shared_kernel.validation import FieldError, group_by_field
 
 __all__ = ["to_invalid_response", "to_response"]
 

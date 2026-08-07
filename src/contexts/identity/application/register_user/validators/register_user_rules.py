@@ -124,7 +124,7 @@ def _user_time_zone_error_to_code_params(error: Exception) -> tuple[str, Mapping
 
 
 def _as_field_errors_generic(
-    field: str, outcome: Result[object, Exception], converter
+    field: str, outcome: Result[object, Exception], converter: Callable[[Exception], tuple[str, Mapping[str, object]]]
 ) -> list[FieldError]:
     """Uebersetze einen typisierten Fehler in Feldfehler mit Code + Parametern.
 
