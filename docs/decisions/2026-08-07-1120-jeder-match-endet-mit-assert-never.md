@@ -32,11 +32,20 @@ dreifach gefuehrte Fehlertabelle fand. Beim Entfernen zeigte sich die Luecke dah
 **Jeder `match` ist vollstaendig.** Der letzte Zweig beantwortet einen echten Restfall oder wirft;
 er endet nie offen.
 
-Geworfen wird mit [`typing.assert_never`](https://docs.python.org/3/library/typing.html#typing.assert_never),
-nicht mit einem selbstgebauten `RuntimeError`. Es ist der stdlib-Weg und traegt doppelt: zur
-Laufzeit ein `AssertionError` mit dem unerwarteten Wert, und kaeme je ein Typpruefer dazu, meldete
-er den nicht behandelten Fall schon beim Pruefen. Python hat keine `UnreachableException`;
-`assert_never` ist das Gegenstueck.
+Geworfen wird mit [`typing.assert_never`](https://docs.python.org/3/library/typing.html#typing.assert_never).
+Es ist der stdlib-Weg und traegt doppelt: zur Laufzeit ein `AssertionError` mit dem unerwarteten
+Wert, und kaeme je ein Typpruefer dazu, meldete er den nicht behandelten Fall schon beim Pruefen.
+Python hat keine `UnreachableException`; `assert_never` ist das Gegenstueck.
+
+**Nachgeschaerft:** die erste Fassung dieser Entscheidung schrieb `assert_never` als einzige
+zulaessige Ausnahme fest ("nicht mit einem selbstgebauten `RuntimeError`"). Das war zu grob und hat
+prompt zu einem Fehlbefund im Review gefuehrt. `assert_never` behauptet, ein Wert sei **dem Typ
+nach** unmoeglich. Ein Fall, der typmaessig gueltig ist und nur **durch Konstruktion**
+ausgeschlossen wird — `PasswordTooShort` erreicht `to_response` nicht, weil die Pipeline vorher
+validiert —, ist etwas anderes. Dort waere `assert_never` eine falsche Behauptung und zugleich die
+schlechtere Meldung: "unerwarteter Wert" statt "diese Annahme ist gebrochen". Dorthin gehoert eine
+benannte Ausnahme (`PipelineBroken`). Die Regel bleibt: der letzte Zweig wirft. Die Wahl der
+Ausnahme folgt der Unterscheidung *unmoeglich* vs. *ausgeschlossen*.
 
 ## Ohne Ausnahme — auch bei fremden Fallmengen
 

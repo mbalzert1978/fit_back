@@ -61,12 +61,18 @@ def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
     waere eine Wahrheit zu viel - genau die Drift, gegen die dieser Slice den
     Startup-Check hat.
 
-    Welche `DomainError`-Faelle erreichbar sind, haelt
+    Der Abschlusszweig wirft `PipelineBroken` und **nicht** `assert_never`, und
+    das ist der Unterschied, auf den es hier ankommt: `PasswordTooShort` & Co.
+    sind gueltige `DomainError`-Werte, ihr Auftreten ist also nicht typmaessig
+    unmoeglich, sondern nur durch die Reihenfolge in der Pipeline ausgeschlossen.
+    `assert_never` behauptete an dieser Stelle etwas Falsches - und wuerde bei
+    einem Bruch nur "unerwarteter Wert" melden, wo `PipelineBroken` sagt, welche
+    Annahme gebrochen ist (.rules/python/python-error-handling.md, "Jeder `match`
+    ist vollstaendig").
+
+    Welche Faelle abgebildet und welche ausgeschlossen sind, haelt
     `tests/contexts/identity/test_register_user_response_mapping.py` fest;
-    waechst die Union, faellt es dort auf. Auf ein vollzaehliges `match` ohne
-    Auffangzweig ist hier kein Verlass: Python erzwingt Vollzaehligkeit zur
-    Laufzeit nicht, und dieses Repo faehrt bewusst ohne Typpruefer - ein neuer
-    Fall fiele stillschweigend durch und `to_response` gaebe `None` zurueck.
+    waechst `DomainError`, wird der Test rot und verlangt die Entscheidung.
     """
     match outcome:
         case Ok(value=user):

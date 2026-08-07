@@ -256,6 +256,28 @@ mit dem unerwarteten Wert, und kaeme je ein Typpruefer dazu, meldete er einen ni
 schon beim Pruefen statt erst im Betrieb. Ein selbstgebauter `raise RuntimeError("unreachable")`
 kann das zweite nicht.
 
+**Unmoeglich ist nicht gleich ausgeschlossen.** `assert_never` sagt: dieser Wert kann es dem Typ
+nach nicht geben. Das ist etwas anderes als: diesen Wert schliesst der Ablauf davor aus. Faelle der
+zweiten Sorte sind typmaessig voellig gueltig — sie kommen nur nicht an, weil eine Stufe davor sie
+abgefangen hat. Dort ist `assert_never` eine falsche Behauptung und obendrein eine schlechtere
+Meldung: "unerwarteter Wert" statt "diese Annahme ist gebrochen". Dorthin gehoert eine **benannte
+Ausnahme, die die gebrochene Annahme nennt**:
+
+```python
+case Err(error=EmailAlreadyRegistered(email=email)):
+    return EmailAlreadyTaken(email.value)
+case Err(error=error):
+    # PasswordTooShort & Co. sind gueltige DomainError - die Pipeline validiert
+    # aber vorher und baut das Command mit `hydrate`. Kommt trotzdem einer an,
+    # ist die Reihenfolge kaputt, nicht die Eingabe.
+    raise PipelineBroken(error)
+```
+
+Die Regel bleibt dieselbe — der letzte Zweig wirft. Nur die Wahl der Ausnahme folgt der Frage, ob
+der Fall **typmaessig unmoeglich** (`assert_never`) oder **durch Konstruktion ausgeschlossen**
+(benannte Ausnahme) ist. Referenz im Repo: `PipelineBroken` in
+`contexts/identity/application/register_user/mappers/register_user_response_mapper.py`.
+
 **Das Subjekt muss ein Name sein.** `assert_never` braucht den gematchten Wert; ein
 `match await pipeline.run(request):` gibt ihn nicht her. Also erst binden, dann matchen:
 
