@@ -1,1 +1,1 @@
-"""Initialize health_sync application layer."""
+"""Anwendungsschicht von Health-Sync."""

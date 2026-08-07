@@ -1,1 +1,1 @@
-"""Initialize goals infrastructure layer."""
+"""Infrastrukturschicht der Ziele."""

@@ -1,1 +1,1 @@
-"""Initialize recipes application layer."""
+"""Anwendungsschicht der Rezepte."""

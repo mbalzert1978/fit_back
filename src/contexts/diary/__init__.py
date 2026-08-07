@@ -1,1 +1,1 @@
-"""Initialize diary context."""
+"""Tagebuch-Kontext."""

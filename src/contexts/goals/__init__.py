@@ -1,1 +1,1 @@
-"""Initialize goals context."""
+"""Ziele-Kontext."""

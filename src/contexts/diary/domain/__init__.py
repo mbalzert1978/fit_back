@@ -1,1 +1,1 @@
-"""Initialize diary domain layer."""
+"""Domänenschicht des Tagebuchs."""

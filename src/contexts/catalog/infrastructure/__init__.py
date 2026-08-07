@@ -1,1 +1,1 @@
-"""Initialize catalog infrastructure layer."""
+"""Infrastrukturschicht des Katalogs."""

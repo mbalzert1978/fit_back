@@ -1,1 +1,1 @@
-"""Initialize goals application layer."""
+"""Anwendungsschicht der Ziele."""

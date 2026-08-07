@@ -1,1 +1,1 @@
-"""Initialize identity context."""
+"""Identitäts-Kontext."""

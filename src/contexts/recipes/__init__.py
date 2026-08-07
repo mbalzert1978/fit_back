@@ -1,1 +1,1 @@
-"""Initialize recipes context."""
+"""Rezepte-Kontext."""

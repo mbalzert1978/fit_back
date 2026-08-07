@@ -1,1 +1,1 @@
-"""Initialize health_sync infrastructure layer."""
+"""Infrastrukturschicht von Health-Sync."""

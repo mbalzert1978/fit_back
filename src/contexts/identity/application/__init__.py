@@ -1,1 +1,1 @@
-"""Application-Schicht des Identity-Context - ein Ordner je Use Case."""
+"""Anwendungsschicht des Identitäts-Kontexts — ein Ordner je Use Case."""

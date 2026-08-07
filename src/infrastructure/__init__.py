@@ -1,1 +1,1 @@
-"""Initialize shared infrastructure layer."""
+"""Gemeinsame Infrastrukturschicht."""

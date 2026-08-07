@@ -1,1 +1,1 @@
-"""Initialize diary application layer."""
+"""Anwendungsschicht des Tagebuchs."""

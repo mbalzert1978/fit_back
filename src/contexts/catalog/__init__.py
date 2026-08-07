@@ -1,1 +1,1 @@
-"""Initialize catalog context."""
+"""Katalog-Kontext."""

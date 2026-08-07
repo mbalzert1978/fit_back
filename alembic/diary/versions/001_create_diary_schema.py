@@ -16,10 +16,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Upgrade database schema."""
+    """Aktualisiere Datenbankschema."""
     op.execute("CREATE SCHEMA IF NOT EXISTS diary")
 
 
 def downgrade() -> None:
-    """Downgrade database schema."""
+    """Entferne Datenbankschema-Änderungen."""
     op.execute("DROP SCHEMA IF EXISTS diary")

@@ -1,1 +1,1 @@
-"""Initialize recipes domain layer."""
+"""Domänenschicht der Rezepte."""

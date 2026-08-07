@@ -1,1 +1,1 @@
-"""Initialize catalog domain layer."""
+"""Domänenschicht des Katalogs."""

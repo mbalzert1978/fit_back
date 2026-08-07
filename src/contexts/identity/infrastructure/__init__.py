@@ -1,1 +1,1 @@
-"""Initialize identity infrastructure layer."""
+"""Infrastrukturschicht des Identitäts-Kontexts."""

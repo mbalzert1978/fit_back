@@ -1,1 +1,1 @@
-"""Initialize recipes infrastructure layer."""
+"""Infrastrukturschicht der Rezepte."""

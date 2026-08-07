@@ -1,1 +1,1 @@
-"""Initialize health_sync context."""
+"""Health-Sync-Kontext."""

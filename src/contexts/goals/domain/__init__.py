@@ -1,1 +1,1 @@
-"""Initialize goals domain layer."""
+"""Domänenschicht der Ziele."""

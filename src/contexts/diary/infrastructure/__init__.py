@@ -1,1 +1,1 @@
-"""Initialize diary infrastructure layer."""
+"""Infrastrukturschicht des Tagebuchs."""

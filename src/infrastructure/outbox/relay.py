@@ -154,7 +154,7 @@ class OutboxRelay:
             # teure Reaktionen hat.
             for handler in self._registry.handlers_for(event.event_type):
                 await handler.handle(event)
-        except Exception as failure:  # noqa: BLE001 - ein Consumer darf beliebig scheitern
+        except Exception as failure:  # noqa: BLE001 -- ein Consumer darf beliebig scheitern
             await self._record_failure(connection, event_id, attempt, failure, now)
             return
 

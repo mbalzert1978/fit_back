@@ -1,1 +1,1 @@
-"""Initialize catalog application layer."""
+"""Anwendungsschicht des Katalogs."""

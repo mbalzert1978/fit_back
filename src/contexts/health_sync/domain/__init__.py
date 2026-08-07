@@ -1,1 +1,1 @@
-"""Initialize health_sync domain layer."""
+"""Domänenschicht von Health-Sync."""
