@@ -61,7 +61,7 @@ def has_no_whitespace(candidate: str) -> Result[str, EmailError]:
     Laeuft **nach** dem Abschneiden umgebender Leerzeichen und Tabs, aber vor
     allem anderen: ein Zeilenumbruch in einer Adresse ist kein Tippfehler,
     sondern der klassische Header-Injection-Vektor
-    (`opfer@example.com\\nBcc: ...`), und muss deshalb abgelehnt statt bereinigt
+    (`opfer@example.com\nBcc: ...`), und muss deshalb abgelehnt statt bereinigt
     werden.
     """
     if any(character.isspace() for character in candidate):
