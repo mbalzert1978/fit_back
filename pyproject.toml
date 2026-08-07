@@ -10,7 +10,14 @@ dependencies = [
     "asyncpg>=0.31.0",
     "pydantic>=2.13.4",
     "alembic>=1.19.0",
-    "sqlalchemy>=2.0.51",
+    "sqlalchemy[asyncio]>=2.0.51",
+    # Explizit und nicht bloss ueber `sqlalchemy[asyncio]`: SQLAlchemy schraenkt
+    # `greenlet` per Umgebungs-Marker ein und liefert es auf Python 3.14 nicht
+    # mit. Ohne die Bibliothek bricht die Async-Engine bei jedem
+    # Verbindungsaufbau ab ("the greenlet library is required to use this
+    # function") - und der Abbruch erscheint als Alembic-Fehler in der
+    # Test-Fixture, also weit weg von seiner Ursache.
+    "greenlet>=3.5.4",
     # IANA-Zeitzonendatenbank fuer zoneinfo. Windows liefert keine mit, ohne
     # tzdata ist available_timezones() dort leer und jede gueltige Zeitzone
     # (Europe/Berlin) wuerde als unbekannt abgelehnt.
