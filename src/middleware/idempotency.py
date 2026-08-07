@@ -70,7 +70,8 @@ from starlette.status import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_CONTENT
 from starlette.types import ASGIApp
 
 from src.api.problem_details import ProblemDetails
-from src.contexts.shared_kernel.time_provider import TimeProvider
+from src.api.i18n import get_language_from_header, translate
+from src.contextsfrom src.contexts.shared_kernel.time_provider import TimeProvider
 
 logger = logging.getLogger(__name__)
 
@@ -316,8 +317,8 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                 request,
                 HTTP_422_UNPROCESSABLE_CONTENT,
                 KEY_REUSED_TYPE,
-                "Idempotency-Key bereits vergeben",
-                "Dieser Idempotency-Key gehoert zu einer anderen Anfrage.",
+                translate("idempotency-key-reused", {}, language),
+                translate("idempotency-key-reused-detail", {}, language),
             )
 
         if existing["response_body"] is None:
@@ -326,8 +327,8 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                 request,
                 HTTP_409_CONFLICT,
                 REQUEST_IN_PROGRESS_TYPE,
-                "Anfrage wird bereits verarbeitet",
-                "Zu diesem Idempotency-Key laeuft bereits eine Anfrage.",
+                translate("idempotency-request-in-progress", {}, language),
+                translate("idempotency-request-in-progress-detail", {}, language),
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)

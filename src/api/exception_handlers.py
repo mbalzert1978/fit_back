@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from src.api.i18n import get_language_from_header, translate
 from src.api.problem_details import ProblemDetails
 
 logger = logging.getLogger(__name__)
@@ -35,24 +36,30 @@ async def validation_exception_handler(
             errors_dict[field] = []
         errors_dict[field].append(message)
 
+    language = get_language_from_header(request.headers.get("accept-language"))
+    title = translate("validation-failed", {}, language)
+    detail = translate("validation-failed-detail", {}, language)
+
     problem = ProblemDetails(
         type="https://api.example/errors/validation-failed",
-        title="Validierung fehlgeschlagen",
+        title=title,
         status=status.HTTP_400_BAD_REQUEST,
-        detail="Die Eingabe erfüllt nicht die erforderlichen Bedingungen.",
+        detail=detail,
         instance=str(request.url.path),
-        errors=errors_dict if errors_dict else None,
+        errors=errors_dict or None,
     )
     logger.info(
         "Validation error at %s: %s fields",
         str(request.url.path),
         len(errors_dict),
     )
-    return JSONResponse(
+    response = JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content=problem.model_dump(exclude_none=True),
         media_type="application/problem+json",
     )
+    response.headers["Content-Language"] = language
+    return response
 
 
 def register_exception_handlers(app: FastAPI) -> None:
