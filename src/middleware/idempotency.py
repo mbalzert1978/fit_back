@@ -193,9 +193,21 @@ async def release_claim(engine: AsyncEngine, key: UUID) -> None:
 
 
 def _problem(
-    request: Request, http_status: int, error_type: str, title: str, detail: str
+    request: Request,
+    http_status: int,
+    error_type: str,
+    title: str,
+    detail: str,
+    language_tag: str,
 ) -> Response:
-    """Baue eine RFC-7807-Antwort - dasselbe Format wie ueberall sonst."""
+    """Baue eine RFC-7807-Antwort - dasselbe Format wie ueberall sonst.
+
+    `language_tag` hat bewusst **keinen** Vorgabewert: `title` und `detail` sind
+    hier bereits uebersetzt, und ein Vorgabewert liesse sich vergessen, ohne dass
+    etwas auffaellt - der Aufrufer bekaeme dann einen englischen Text mit
+    `Content-Language: de-DE`. Wer die Antwort baut, hat die ausgehandelte
+    Sprache ohnehin in der Hand.
+    """
     problem = ProblemDetails(
         type=error_type,
         title=title,
@@ -203,11 +215,13 @@ def _problem(
         detail=detail,
         instance=request.url.path,
     )
-    return JSONResponse(
+    response = JSONResponse(
         status_code=http_status,
         content=problem.model_dump(exclude_none=True),
         media_type="application/problem+json",
     )
+    response.headers["Content-Language"] = language_tag
+    return response
 
 
 @final
@@ -323,6 +337,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                 KEY_REUSED_TYPE,
                 title,
                 detail,
+                language,
             )
 
         if existing["response_body"] is None:
@@ -337,6 +352,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                 REQUEST_IN_PROGRESS_TYPE,
                 title,
                 detail,
+                language,
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)
