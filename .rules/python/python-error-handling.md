@@ -207,6 +207,15 @@ Nutzermeldung wird: die `OSError`-Meldung im IO-Adapter (`RenameFailed(str(error
 Log-Text, der Grund eines Infrastruktur-Fehlschlags. Faustregel: erreicht die Formulierung je eine
 Antwort an einen Aufrufer, ist sie ein typisierter Fall.
 
+**Verketten oder matchen — die Grenze verlaeuft am Container.** Bleibt der Ausgang ein `Result` und
+aendert sich nur der Fehlertyp, wird **verkettet**: `Email.parse(raw, idn).map_err(to_field_fault)`.
+Wird der `Result` **verlassen** (Fold in eine Response-Union) oder aus einer fremden Union heraus
+**betreten** (Naht-Ergebnis → `Result[T, DomainError]` im Port-Adapter), wird **gematcht** — dort
+gibt es kein `Err`, auf dem eine Kette sitzen koennte, und `map` kaeme nie aus dem Ok-Zweig heraus.
+Der `match` ohne Auffangzweig ist an dieser Grenze kein Notbehelf, sondern der Wachposten: kommt ein
+Fall dazu, bricht er laut auf, waehrend eine Kette aus zwei Funktionen ihn still durchreichen wuerde
+([python-control-flow.md](./python-control-flow.md)).
+
 **Ueber die Naht des Use Case gehen weiterhin nur Primitive**
 ([python-feature-slices.md](./python-feature-slices.md)). Die Domaenen-Union endet also an der
 Application-Grenze; dort wird sie in Code plus Parameter uebersetzt, nicht in einen Satz.
