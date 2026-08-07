@@ -54,11 +54,10 @@ def verify_error_codes_complete(
     by_code = codes_of(*error_unions)  # Ebene 1: wirft, wenn ein Fall keinen Code traegt
     expected = set(by_code) | set(presentation_codes)
 
-    problems = [
+    if problems := [
         *_missing_and_orphaned(resources, expected),
         *_placeholder_mismatches(resources, by_code),
-    ]
-    if problems:
+    ]:
         listing = "\n  - ".join(problems)
         msg = f"i18n-Drift zwischen Fehlerfaellen und Resource-Files:\n  - {listing}"
         raise ValueError(msg)

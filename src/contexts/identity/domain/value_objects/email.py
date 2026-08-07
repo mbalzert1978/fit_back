@@ -86,9 +86,7 @@ def has_both_parts(candidate: str) -> Result[str, EmailError]:
     local, domain = _split(candidate)
     if not local:
         return Err(EmailLocalPartMissing(candidate))
-    if not domain:
-        return Err(EmailDomainMissing(candidate))
-    return Ok(candidate)
+    return Ok(candidate) if domain else Err(EmailDomainMissing(candidate))
 
 
 def local_part_fits_length(candidate: str) -> Result[str, EmailError]:

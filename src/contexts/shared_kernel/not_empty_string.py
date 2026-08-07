@@ -35,9 +35,7 @@ def not_blank(raw: str) -> Result[str, NotEmptyStringError]:
     und wer es vergisst, laesst Leerraum in ein Value Object.
     """
     trimmed = raw.strip()
-    if not trimmed:
-        return Err(TextIsEmpty())
-    return Ok(trimmed)
+    return Ok(trimmed) if trimmed else Err(TextIsEmpty())
 
 
 @final

@@ -23,9 +23,7 @@ class PasswordHash:
     @classmethod
     def parse(cls, raw: str) -> Result[PasswordHash, PasswordHashError]:
         """Pruefe, dass der Hasher ueberhaupt einen Wert geliefert hat."""
-        if not raw.strip():
-            return Err(PasswordHashIsEmpty())
-        return Ok(cls(raw))
+        return Ok(cls(raw)) if raw.strip() else Err(PasswordHashIsEmpty())
 
     @classmethod
     def hydrate(cls, raw: str) -> PasswordHash:
