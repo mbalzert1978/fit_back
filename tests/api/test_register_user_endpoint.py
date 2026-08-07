@@ -22,6 +22,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.api.exception_handlers import register_exception_handlers
+from src.api.i18n import create_resources
 from src.api.identity import register_user_router
 
 pytestmark = pytest.mark.asyncio
@@ -43,6 +44,7 @@ async def client(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncClient]:
         await connection.execute(text("TRUNCATE shared_kernel.outbox"))
 
     app = FastAPI()
+    app.state.resources = create_resources()
     register_exception_handlers(app)
     app.include_router(register_user_router)
     app.state.engine = postgres_engine

@@ -37,14 +37,9 @@ async def validation_exception_handler(
         errors_dict[field].append(message)
 
     language = get_language_from_header(request.headers.get("accept-language"))
-    resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
-    if resources is None:
-        logger.warning("Resources not available in app.state, using fallback messages")
-        title = "Validation error"
-        detail = "Please check the fields marked with errors"
-    else:
-        title = translate(resources, "validation-failed", language=language)
-        detail = translate(resources, "validation-failed-detail", language=language)
+    resources: ResourcesCache = request.app.state.resources
+    title = translate(resources, "validation-failed", language=language)
+    detail = translate(resources, "validation-failed-detail", language=language)
 
     problem = ProblemDetails(
         type="https://api.example/errors/validation-failed",

@@ -20,6 +20,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from src.api.i18n import create_resources
 from src.contexts.shared_kernel.time_provider import FakeTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware, calculate_request_hash
 
@@ -49,6 +50,7 @@ def _build_app(engine: AsyncEngine, user_id: UUID | None) -> FastAPI:
     liegen, sonst sieht die Idempotenz-Pruefung noch keine `user_id`.
     """
     app = FastAPI()
+    app.state.resources = create_resources()
 
     @app.post("/api/v1/test-idempotency")
     async def create() -> JSONResponse:

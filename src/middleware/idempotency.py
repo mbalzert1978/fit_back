@@ -301,7 +301,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """Der Schluessel war schon vergeben - entscheide, was der Aufrufer bekommt."""
         language = get_language_from_header(request.headers.get("accept-language"))
-        resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
+        resources: ResourcesCache = request.app.state.resources
         existing = await find_key(engine, key)
         if existing is None:
             # Zwischen Reservierung und Abfrage geloescht (TTL-Bereinigung).
@@ -315,16 +315,8 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             # beiden bewusst nicht - sonst verriete sie, dass der Schluessel
             # jemand anderem gehoert.
             logger.warning("Idempotency key %s fuer eine abweichende Anfrage verwendet", key)
-            title = (
-                translate(resources, "idempotency-key-reused", language=language)
-                if resources
-                else "Idempotency key already in use"
-            )
-            detail = (
-                translate(resources, "idempotency-key-reused-detail", language=language)
-                if resources
-                else "This idempotency key belongs to a different request"
-            )
+            title = translate(resources, "idempotency-key-reused", language=language)
+            detail = translate(resources, "idempotency-key-reused-detail", language=language)
             return _problem(
                 request,
                 HTTP_422_UNPROCESSABLE_CONTENT,
@@ -335,15 +327,9 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
 
         if existing["response_body"] is None:
             logger.info("Idempotency key %s: die erste Anfrage laeuft noch", key)
-            title = (
-                translate(resources, "idempotency-request-in-progress", language=language)
-                if resources
-                else "Request is already being processed"
-            )
-            detail = (
-                translate(resources, "idempotency-request-in-progress-detail", language=language)
-                if resources
-                else "A request with this idempotency key is already in progress"
+            title = translate(resources, "idempotency-request-in-progress", language=language)
+            detail = translate(
+                resources, "idempotency-request-in-progress-detail", language=language
             )
             return _problem(
                 request,

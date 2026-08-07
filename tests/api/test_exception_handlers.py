@@ -23,6 +23,7 @@ from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel, field_validator
 
 from src.api.exception_handlers import register_exception_handlers
+from src.api.i18n import create_resources
 
 
 class TestValidationErrorHandler:
@@ -32,6 +33,7 @@ class TestValidationErrorHandler:
     async def test_ungueltiger_body_wird_zu_problem_json(self) -> None:
         """400 statt FastAPIs 422 - der Aufrufer sieht ueberall dasselbe Format."""
         app = FastAPI()
+        app.state.resources = create_resources()
         register_exception_handlers(app)
 
         class RegisterRequest(BaseModel):

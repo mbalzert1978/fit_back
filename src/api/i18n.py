@@ -99,12 +99,14 @@ def translate(
     """Übersetze einen Code + Parameter zu Text in einer Sprache.
 
     Args:
-        resources: Die ResourcesCache-Instanz (normalerweise aus request.app.state.resources)
-        code: Der zu übersetzende Fehlercode
+        resources: Die ResourcesCache-Instanz (aus request.app.state.resources, garantiert im Lifespan)
+        code: Der zu übersetzende Fehlercode (aus Fehler-Union, beim Start gegen Ressourcen geprüft)
         parameters: Optional dict mit Parametern für Template-Platzhalter
-        language: Zielsprache (de-DE oder en-US). Wenn None, wird DEFAULT_LANGUAGE verwendet.
+        language: Zielsprache (de-DE oder en-US). Default: de-DE. In HTTP-Kontext IMMER explizit
+            von Accept-Language-Header übergeben; None-Default ist nur für Tests/Logging sinnvoll.
 
-    Wirft AssertionError, wenn der Code nicht existiert oder Parameter fehlen.
+    Wirft AssertionError, wenn der Code nicht existiert oder Parameter fehlen — das ist ein
+    Programmierfehler und beruht auf fehlgeschlagener Startup-Prüfung der Drift-Abgleiche.
     """
     if parameters is None:
         parameters = {}

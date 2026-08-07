@@ -61,14 +61,9 @@ class UnhandledExceptionMiddleware(BaseHTTPMiddleware):
                 request.url.path,
             )
             language = get_language_from_header(request.headers.get("accept-language"))
-            resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
-
-            if resources is None:
-                title = "Internal Server Error"
-                detail = "The request could not be processed."
-            else:
-                title = translate(resources, "internal-server-error", language=language)
-                detail = translate(resources, "internal-server-error-detail", language=language)
+            resources: ResourcesCache = request.app.state.resources
+            title = translate(resources, "internal-server-error", language=language)
+            detail = translate(resources, "internal-server-error-detail", language=language)
 
             problem = ProblemDetails(
                 type=UNHANDLED_ERROR_TYPE,
