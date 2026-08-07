@@ -40,7 +40,7 @@ Dass ein M0-Ticket damit auf ein M1-Ticket (0011) wartet, ist gewollt und die Ko
 Zurueckstellung: der Meilenstein-Schnitt hat hier keine Steuerungswirkung mehr, weil 0008 selbst
 nichts blockiert.
 
-## Der eigentliche Umfang: 32 fest verdrahtete deutsche Texte in 8 Dateien
+## Der eigentliche Umfang: 34 fest verdrahtete deutsche Texte in 9 Dateien
 
 Die Ueberschrift „Resource-Files + Accept-Language" verdeckt, wo die Arbeit wirklich liegt. Deutsche
 Prosa entsteht heute in **drei** Schichten, und der groessere Teil davon **nicht** am HTTP-Rand —
@@ -51,7 +51,7 @@ eine Middleware am Rand erreicht ihn also nicht:
 | Shared Kernel | `src/contexts/shared_kernel/not_empty_string.py:30` | 1 |
 | Domaene | `identity/domain/value_objects/`: `display_name.py:22`, `password.py:29`, `locale.py:42`, `password_hash.py:26`, `user_id.py:34`, `user_time_zone.py:34` | 6 |
 | Application | `identity/application/register_user/validators/register_user_rules.py`, Funktion `email_message` | 14 |
-| HTTP-Rand | `api/identity/register_user_router.py:103,110,111`; `api/exception_handlers.py:40,42`; `api/problem_details.py:45,49` (OpenAPI-Beispiele); `middleware/idempotency.py:319,320,329,330` | 11 |
+| HTTP-Rand | `api/identity/register_user_router.py:103,110,111`; `api/exception_handlers.py:40,42`; `api/problem_details.py:45,49` (OpenAPI-Beispiele); `middleware/idempotency.py:319,320,329,330`; `middleware/unhandled_exceptions.py:64,68` | 13 |
 
 `Email.parse` ist der einzige Ort, der es schon richtig macht: es liefert die Tagged Union
 `EmailError` mit Nutzlast, und erst die Application formuliert daraus einen Satz. Alle anderen
@@ -105,7 +105,7 @@ Flach, ohne Stufengliederung: Praesentations-/Infrastruktur-Arbeit ohne eigene F
 - [ ] Die public Response-Union von `register_user` traegt ueber der Naht Code + Parameter statt
       eines Satzes (`RegistrationInvalid.errors` aendert seine Form); Test-API und die Specs unter
       `contexts/identity/specs/register_user/` ziehen mit. `email_message` entfaellt.
-- [ ] Alle 32 bestehenden Texte sind migriert — keiner bleibt inline im Code stehen. Der Nachweis
+- [ ] Alle 34 bestehenden Texte sind migriert — keiner bleibt inline im Code stehen. Der Nachweis
       ist ein Test, der die Quelldateien der drei nicht-Rand-Schichten auf verbleibende deutsche
       Prosa in Rueckgabewerten prueft (Kommentare und Docstrings bleiben deutsch, siehe CLAUDE.md).
 
@@ -113,7 +113,7 @@ Flach, ohne Stufengliederung: Praesentations-/Infrastruktur-Arbeit ohne eigene F
 
 - [ ] Derselbe Domaenenfehler liefert je nach `Accept-Language` `title` und `detail` auf Deutsch
       oder Englisch
-- [ ] Dasselbe gilt fuer **Feldfehler** (`errors.*`) — sie machen mit 20 von 32 Texten die Masse aus
+- [ ] Dasselbe gilt fuer **Feldfehler** (`errors.*`) — sie machen mit 20 von 34 Texten die Masse aus
       und sind der eigentliche Pruefstein
 - [ ] Fehlt der Header, ist de-DE der Default; die vier Sonderfaelle oben (unbekannt, `q=0`, leer,
       defekt) sind je durch einen Test belegt
@@ -121,6 +121,17 @@ Flach, ohne Stufengliederung: Praesentations-/Infrastruktur-Arbeit ohne eigene F
       dieselbe Anfrage zweisprachig stellt und identische `type`/`code`-Werte, aber verschiedene
       `title`/`detail` erwartet
 - [ ] Die Antwort traegt `Content-Language` mit dem tatsaechlich gewaehlten Tag (`de-DE`/`en-US`)
+- [ ] **Auch die strukturellen Request-Fehler tragen eigene Codes** (2026-08-07 nachgetragen). Der
+      Pydantic-Pfad in `api/exception_handlers.py` uebernahm die Rohmeldung der Bibliothek
+      unveraendert in `errors.*` — `title`/`detail` zweisprachig, die Feldfehler dieses Pfades
+      immer englisch. Diese Meldungen waren nie Teil der 34 gezaehlten Texte; die Grenze faellt
+      trotzdem, weil eine `errors`-Struktur mit teils eigenen Codes und teils fremden Rohmeldungen
+      zwei Vertraege in einem Feld waere. Der HTTP-Rand fuehrt seine strukturellen Request-Fehler
+      als **eigene geschlossene Tagged Union** mit `code`-Attribut, die mit in die Aufzaehlung des
+      Zusammenbaus geht — sonst staenden diese Codes ausserhalb der Drift-Pruefung und waeren die
+      zweite Wahrheit, die
+      [`…-0805-fehlercodes-werden-abgeleitet-nicht-gepflegt.md`](../decisions/2026-08-07-0805-fehlercodes-werden-abgeleitet-nicht-gepflegt.md)
+      abschafft. Der Feldname ist Parameter der Nutzlast, nicht Teil des Codes.
 - [ ] Neue Fehlertexte werden zentral in den Resource-Files gepflegt, nicht inline im Code
 
 ## Blocked by
