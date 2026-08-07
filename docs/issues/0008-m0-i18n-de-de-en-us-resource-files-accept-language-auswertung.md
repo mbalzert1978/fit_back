@@ -1,7 +1,7 @@
 ---
 id: "0008"
 title: M0: i18n - de-DE/en-US Resource-Files + Accept-Language-Auswertung
-status: open
+status: closed
 milestone: M0
 type: AFK
 ---
@@ -139,3 +139,19 @@ Flach, ohne Stufengliederung: Praesentations-/Infrastruktur-Arbeit ohne eigene F
 - Blocked by [0005](0005-m0-shared-kernel-rfc-7807-problemdetails-exception-handler.md)
 - Blocked by [0006](0006-m0-shared-kernel-idempotency-key-middleware-shared-idempotency-keys.md) — vier der Texte liegen in dieser Middleware
 - Blocked by [0011](0011-m1-user-aggregate-registeruser-userregistered-outbox-event.md) — 20 der Texte liegen in dessen Slice; die Response-Union, die hier umgebaut wird, entsteht dort
+
+## Abschluss (2026-08-07)
+
+Umgesetzt und gemergt als PR #13 („0008: Fehlermeldungen zweisprachig ueber Codes statt
+Prosa", Squash-Merge, `bba1f4d` auf `main`). Fehlermeldungen werden nicht mehr als Prosa
+aus dem Slice gereicht, sondern als abgeleitete Codes gegen Resource-Files in de-DE/en-US
+aufgeloest; die `Accept-Language`-Auswertung setzt `Content-Language` auch auf den
+ProblemDetails der Idempotency-Middleware.
+
+Die dabei getroffenen Entscheidungen liegen unter `docs/decisions/` (u. a.
+`2026-08-07-0634-fehlercodes-statt-prosa-aus-dem-slice.md`,
+`2026-08-07-0805-fehlercodes-werden-abgeleitet-nicht-gepflegt.md`,
+`2026-08-07-0750-ressourcen-per-dependency-injection-statt-modulglobal.md`).
+
+Der Inhalt wurde nach dem Squash-Merge per `git diff origin/main <branch-head>` als
+identisch verifiziert; Worktree und lokaler Branch sind abgebaut.
