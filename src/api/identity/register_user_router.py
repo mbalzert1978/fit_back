@@ -10,7 +10,6 @@ schon fest, wenn die Pipeline zurückkommt. Die Sprachauswahl ist rein
 präsentativ und beeinflußt das fachliche Ergebnis nicht.
 """
 
-from collections.abc import Mapping
 from typing import final
 
 from fastapi import APIRouter, Request, status

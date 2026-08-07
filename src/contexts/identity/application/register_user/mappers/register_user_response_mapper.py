@@ -110,48 +110,74 @@ def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
             code, params = ("email-has-whitespace", {})
             return _to_invalid_field_response("email", code, params)
         case Err(error=EmailNeedsExactlyOneAtSign(at_sign_count=count)):
-            return _to_invalid_field_response("email", "email-needs-exactly-one-at-sign", {"count": count})
+            return _to_invalid_field_response(
+                "email", "email-needs-exactly-one-at-sign", {"count": count}
+            )
         case Err(error=EmailLocalPartMissing()):
             return _to_invalid_field_response("email", "email-local-part-missing", {})
         case Err(error=EmailDomainMissing()):
             return _to_invalid_field_response("email", "email-domain-missing", {})
         case Err(error=EmailLocalPartTooLong(maximum=maximum)):
-            return _to_invalid_field_response("email", "email-local-part-too-long", {"maximum": maximum})
+            return _to_invalid_field_response(
+                "email", "email-local-part-too-long", {"maximum": maximum}
+            )
         case Err(error=EmailLocalPartHasInvalidCharacters(invalid_characters=invalid)):
-            return _to_invalid_field_response("email", "email-local-part-has-invalid-characters", {"invalid": "".join(invalid)})
+            return _to_invalid_field_response(
+                "email", "email-local-part-has-invalid-characters", {"invalid": "".join(invalid)}
+            )
         case Err(error=EmailLocalPartHasMisplacedDot()):
             return _to_invalid_field_response("email", "email-local-part-has-misplaced-dot", {})
         case Err(error=EmailDomainTooLong(maximum=maximum)):
-            return _to_invalid_field_response("email", "email-domain-too-long", {"maximum": maximum})
+            return _to_invalid_field_response(
+                "email", "email-domain-too-long", {"maximum": maximum}
+            )
         case Err(error=EmailDomainHasEmptyLabel()):
             return _to_invalid_field_response("email", "email-domain-has-empty-label", {})
         case Err(error=EmailDomainLabelTooLong(maximum=maximum)):
-            return _to_invalid_field_response("email", "email-domain-label-too-long", {"maximum": maximum})
+            return _to_invalid_field_response(
+                "email", "email-domain-label-too-long", {"maximum": maximum}
+            )
         case Err(error=EmailDomainLabelHasEdgeHyphen()):
             return _to_invalid_field_response("email", "email-domain-label-has-edge-hyphen", {})
         case Err(error=EmailDomainLabelHasInvalidCharacters()):
-            return _to_invalid_field_response("email", "email-domain-label-has-invalid-characters", {})
+            return _to_invalid_field_response(
+                "email", "email-domain-label-has-invalid-characters", {}
+            )
         case Err(error=EmailAddressLiteralInvalid()):
             return _to_invalid_field_response("email", "email-address-literal-invalid", {})
         case Err(error=UnencodableDomainLabel(reason=reason)):
-            return _to_invalid_field_response("email", "email-unencodable-domain-label", {"reason": reason})
+            return _to_invalid_field_response(
+                "email", "email-unencodable-domain-label", {"reason": reason}
+            )
         case Err(error=PasswordTooShort(actual_length=actual, minimum=minimum)):
-            return _to_invalid_field_response("password", "password-too-short", {"actual_length": actual, "minimum": minimum})
+            return _to_invalid_field_response(
+                "password", "password-too-short", {"actual_length": actual, "minimum": minimum}
+            )
         case Err(error=TextIsEmpty()):
             return _to_invalid_field_response("displayName", "display-name-is-empty", {})
         case Err(error=DisplayNameTooLong(actual_length=actual, maximum=maximum)):
-            return _to_invalid_field_response("displayName", "display-name-too-long", {"actual_length": actual, "maximum": maximum})
+            return _to_invalid_field_response(
+                "displayName",
+                "display-name-too-long",
+                {"actual_length": actual, "maximum": maximum},
+            )
         case Err(error=LocaleNotSupported(candidate=candidate)):
-            return _to_invalid_field_response("locale", "locale-not-supported", {"candidate": candidate})
+            return _to_invalid_field_response(
+                "locale", "locale-not-supported", {"candidate": candidate}
+            )
         case Err(error=PasswordHashIsEmpty()):
             raise RuntimeError("Password hash creation failed unexpectedly")
         case Err(error=UserIdMalformed(candidate=candidate)):
             raise RuntimeError(f"User ID generation failed: {candidate}")
         case Err(error=UserTimeZoneUnknown(candidate=candidate)):
-            return _to_invalid_field_response("timeZoneId", "user-time-zone-unknown", {"candidate": candidate})
+            return _to_invalid_field_response(
+                "timeZoneId", "user-time-zone-unknown", {"candidate": candidate}
+            )
 
 
-def _to_invalid_field_response(field: str, code: str, params: Mapping[str, object]) -> RegisterUserResponse:
+def _to_invalid_field_response(
+    field: str, code: str, params: Mapping[str, object]
+) -> RegisterUserResponse:
     """Hilfsfunktion: erstelle aus einem Feldfehler die Response."""
     field_errors = [FieldError(field, code, params)]
     return to_invalid_response(field_errors)

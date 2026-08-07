@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import final
 
-__all__ = ["get_language_from_header", "translate", "load_resources"]
+__all__ = ["get_language_from_header", "load_resources", "translate"]
 
 SUPPORTED_LANGUAGES = {"de-DE", "en-US"}
 DEFAULT_LANGUAGE = "de-DE"
@@ -52,9 +52,7 @@ class _ResourcesCache:
         for language in SUPPORTED_LANGUAGES:
             missing = all_codes - self._resources[language].keys()
             if missing:
-                raise ValueError(
-                    f"Language '{language}' is missing codes: {sorted(missing)}"
-                )
+                raise ValueError(f"Language '{language}' is missing codes: {sorted(missing)}")
 
     def get(self, language: str, code: str) -> str | None:
         """Hole die Vorlage für einen Code in einer Sprache."""
@@ -62,9 +60,7 @@ class _ResourcesCache:
             return None
         return self._resources[language].get(code)
 
-    def translate(
-        self, code: str, parameters: Mapping[str, object], language: str
-    ) -> str:
+    def translate(self, code: str, parameters: Mapping[str, object], language: str) -> str:
         """Übersetze einen Code + Parameter zu Text."""
         template = self.get(language, code)
         if template is None:
