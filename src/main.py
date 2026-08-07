@@ -25,6 +25,7 @@ from fastapi import FastAPI
 from src.api.composition import build_engine, build_event_registry, run_outbox_worker
 from src.api.exception_handlers import register_exception_handlers
 from src.api.health_router import health_router
+from src.api.i18n import load_resources
 from src.api.identity import register_user_router
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
@@ -39,6 +40,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Lege die Ressourcen des Prozesses an und raeume sie wieder weg."""
     settings = validate_settings()
     app.state.settings = settings
+
+    # Lade und validiere i18n Resource-Files beim Start
+    load_resources()
+    logger.info("i18n Resource-Dateien geladen")
+
     app.state.engine = build_engine(settings.database_url)
     app.state.event_registry = build_event_registry()
     logger.info("Datenbank-Engine erstellt")
