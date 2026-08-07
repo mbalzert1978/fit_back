@@ -5,6 +5,7 @@ from functools import cache
 from typing import final
 from zoneinfo import available_timezones
 
+from src.contexts.identity.domain.user_time_zone_errors import UserTimeZoneError, UserTimeZoneUnknown
 from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = ["DEFAULT_TIME_ZONE_ID", "UserTimeZone"]
@@ -27,11 +28,11 @@ class UserTimeZone:
     value: str
 
     @classmethod
-    def parse(cls, raw: str) -> Result[UserTimeZone, str]:
+    def parse(cls, raw: str) -> Result[UserTimeZone, UserTimeZoneError]:
         """Pruefe eine moeglicherweise unbekannte Zeitzonen-Id gegen die IANA-Datenbank."""
         trimmed = raw.strip()
         if trimmed not in _known_time_zone_ids():
-            return Err(f"unbekannte Zeitzone: {raw!r}")
+            return Err(UserTimeZoneUnknown(raw))
         return Ok(cls(trimmed))
 
     @classmethod

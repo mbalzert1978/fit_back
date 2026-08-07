@@ -9,6 +9,7 @@ Diese Schicht haengt ausschliesslich an der stdlib und am `Result` des Shared
 Kernel - maschinell abgesichert durch den `domain-purity`-Contract in setup.cfg.
 """
 
+from src.contexts.identity.domain.display_name_errors import DisplayNameError, DisplayNameTooLong
 from src.contexts.identity.domain.email_errors import (
     EmailAddressLiteralInvalid,
     EmailDomainHasEmptyLabel,
@@ -29,9 +30,14 @@ from src.contexts.identity.domain.email_errors import (
 from src.contexts.identity.domain.entities.user import User, register
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.events import user_registered
+from src.contexts.identity.domain.locale_errors import LocaleError, LocaleNotSupported
+from src.contexts.identity.domain.password_errors import PasswordError, PasswordTooShort
+from src.contexts.identity.domain.password_hash_errors import PasswordHashError, PasswordHashIsEmpty
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.ports.user_registry import UserRegistry
+from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
+from src.contexts.identity.domain.user_time_zone_errors import UserTimeZoneError, UserTimeZoneUnknown
 from src.contexts.identity.domain.value_objects.account_status import (
     AccountStatus,
     Active,
@@ -57,6 +63,7 @@ from src.contexts.identity.domain.value_objects.user_time_zone import (
     DEFAULT_TIME_ZONE_ID,
     UserTimeZone,
 )
+from src.contexts.shared_kernel.not_empty_string import NotEmptyStringError, TextIsEmpty
 
 __all__ = [
     "DEFAULT_LOCALE",
@@ -64,6 +71,8 @@ __all__ = [
     "AccountStatus",
     "Active",
     "DisplayName",
+    "DisplayNameError",
+    "DisplayNameTooLong",
     "DomainError",
     "Email",
     "EmailAddressLiteralInvalid",
@@ -85,16 +94,28 @@ __all__ = [
     "German",
     "IdnEncoder",
     "Locale",
+    "LocaleError",
+    "LocaleNotSupported",
+    "NotEmptyStringError",
     "Password",
+    "PasswordError",
     "PasswordHash",
+    "PasswordHashError",
+    "PasswordHashIsEmpty",
     "PasswordHasher",
+    "PasswordTooShort",
     "PendingDeletion",
     "Suspended",
+    "TextIsEmpty",
     "UnencodableDomainLabel",
     "User",
     "UserId",
+    "UserIdError",
+    "UserIdMalformed",
     "UserRegistry",
     "UserTimeZone",
+    "UserTimeZoneError",
+    "UserTimeZoneUnknown",
     "account_status_tag",
     "hydrate_locale",
     "locale_tag",

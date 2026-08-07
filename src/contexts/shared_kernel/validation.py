@@ -18,20 +18,27 @@ from typing import final
 
 from src.contexts.shared_kernel.result import Ok, Result
 
-__all__ = ["FieldError", "ResultRule", "Rule", "all_of", "chain", "group_by_field"]
+__all__ = ["FieldError", "FieldErrorDetail", "ResultRule", "Rule", "all_of", "chain", "group_by_field"]
+
+
+type FieldErrorDetail = tuple[str, Mapping[str, object]]
+"""Ein Fehlercode mit seinen Parametern - wird am HTTP-Rand uebersetzt."""
 
 
 @final
 @dataclass(frozen=True, slots=True)
 class FieldError:
-    """Ein Feldfehler mit typisierter Nutzlast statt vorformatiertem Text.
+    """Ein Feldfehler mit typisiertem Code und Parametern statt vorformatiertem Text.
 
     `field` traegt den Namen so, wie ihn der API-Vertrag nach aussen zeigt -
     er landet unveraendert im `errors`-Objekt der RFC-7807-Antwort.
+    `error_code` ist sprachunabhaengig und wird erst am HTTP-Rand uebersetzt.
+    `parameters` traegt die Werte, die die Vorlage braucht (z.B. Maximalwert).
     """
 
     field: str
-    message: str
+    error_code: str
+    parameters: Mapping[str, object]
 
 
 type Rule[T] = Callable[[T], list[FieldError]]
@@ -70,9 +77,14 @@ def chain[T, E](*rules: ResultRule[T, E]) -> ResultRule[T, E]:
     return combined
 
 
-def group_by_field(errors: Iterable[FieldError]) -> Mapping[str, tuple[str, ...]]:
-    """Fasse Feldfehler zur `errors`-Struktur des RFC-7807-Formats zusammen."""
-    grouped: dict[str, tuple[str, ...]] = {}
+def group_by_field(errors: Iterable[FieldError]) -> Mapping[str, tuple[FieldErrorDetail, ...]]:
+    """Fasse Feldfehler zur `errors`-Struktur des RFC-7807-Formats zusammen.
+
+    Jeder Feldfehler wird als Tuple aus (error_code, parameters) erfasst,
+    zur Uebersetzung bereit fuer den HTTP-Rand.
+    """
+    grouped: dict[str, tuple[FieldErrorDetail, ...]] = {}
     for error in errors:
-        grouped[error.field] = (*grouped.get(error.field, ()), error.message)
+        detail: FieldErrorDetail = (error.error_code, error.parameters)
+        grouped[error.field] = (*grouped.get(error.field, ()), detail)
     return grouped

@@ -19,7 +19,13 @@ sofort, wenn zu einem neuen Fall die Meldung fehlt.
 from dataclasses import dataclass
 from typing import final
 
+from src.contexts.identity.domain.display_name_errors import DisplayNameError
 from src.contexts.identity.domain.email_errors import EmailError
+from src.contexts.identity.domain.locale_errors import LocaleError
+from src.contexts.identity.domain.password_errors import PasswordError
+from src.contexts.identity.domain.password_hash_errors import PasswordHashError
+from src.contexts.identity.domain.user_id_errors import UserIdError
+from src.contexts.identity.domain.user_time_zone_errors import UserTimeZoneError
 from src.contexts.identity.domain.value_objects.email import Email
 
 __all__ = ["DomainError", "EmailAlreadyRegistered"]
@@ -40,4 +46,13 @@ class EmailAlreadyRegistered:
     email: Email
 
 
-type DomainError = EmailAlreadyRegistered | EmailError
+type DomainError = (
+    EmailAlreadyRegistered
+    | EmailError
+    | PasswordError
+    | DisplayNameError
+    | LocaleError
+    | PasswordHashError
+    | UserIdError
+    | UserTimeZoneError
+)
