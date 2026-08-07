@@ -1,0 +1,1 @@
+"""Initialize identity infrastructure layer."""

@@ -1,4 +1,4 @@
-"""Der Health-Endpunkt - beantwortet genau eine Frage: kommt die App an ihre Datenbank?
+"""Der Health-Endpunkt - beantwortet genau eine Frage: kommt die App an ihre Datenbank?.
 
 Bewusst ueber dieselbe Engine wie die Slices. Ein Health-Check, der sich eine
 eigene Verbindung baut, prueft eine Verbindung, die mit der Verbindung der

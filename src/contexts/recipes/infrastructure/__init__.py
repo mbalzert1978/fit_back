@@ -1,0 +1,1 @@
+"""Initialize recipes infrastructure layer."""

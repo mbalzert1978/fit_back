@@ -37,4 +37,5 @@ class Password:
             case Ok(value=password):
                 return password
             case Err():
-                raise AssertionError("unreachable: Passwort wurde vorgelagert validiert")
+                msg = "unreachable: Passwort wurde vorgelagert validiert"
+                raise AssertionError(msg)

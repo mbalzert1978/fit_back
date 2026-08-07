@@ -1,0 +1,1 @@
+"""Initialize shared infrastructure layer."""

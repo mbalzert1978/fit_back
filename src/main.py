@@ -144,11 +144,11 @@ app.include_router(register_user_router)
 
 def main() -> None:
     """Starte die Anwendung."""
-    import uvicorn
+    import uvicorn  # noqa: PLC0415 -- Development-only import, not needed when module is imported programmatically
 
     uvicorn.run(
         "src.main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104 -- Development/testing only, not for production
         port=8000,
         reload=False,
     )

@@ -32,4 +32,5 @@ class PasswordHash:
             case Ok(value=password_hash):
                 return password_hash
             case Err():
-                raise AssertionError("unreachable: Hash stammt aus vertrauenswuerdiger Quelle")
+                msg = "unreachable: Hash stammt aus vertrauenswuerdiger Quelle"
+                raise AssertionError(msg)

@@ -1,0 +1,1 @@
+"""Initialize recipes application layer."""

@@ -20,7 +20,7 @@ class Ok[T]:
         """Verkette eine Funktion, die selbst Result[U, E] zurückgibt."""
         return f(self.value)
 
-    def map_err[E, F](self, f: Callable[[E], F]) -> Ok[T]:
+    def map_err[E, F](self, _: Callable[[E], F]) -> Ok[T]:
         """Ignoriere die Fehler-Transformation (es liegt kein Fehler vor)."""
         return self
 
@@ -46,11 +46,11 @@ class Err[E]:
 
     error: E
 
-    def map[T, U](self, f: Callable[[T], U]) -> Err[E]:
+    def map[T, U](self, _: Callable[[T], U]) -> Err[E]:
         """Ignoriere den Fehler (Transformation auf Erfolgs-Wert nicht möglich)."""
         return self
 
-    def bind[T, U](self, f: Callable[[T], Result[U, E]]) -> Err[E]:
+    def bind[T, U](self, _: Callable[[T], Result[U, E]]) -> Err[E]:
         """Ignoriere den Fehler (Verkettung nicht möglich)."""
         return self
 
@@ -58,7 +58,7 @@ class Err[E]:
         """Transformiere den Fehler - z. B. Domänenfehler in eine Anzeigemeldung."""
         return Err(f(self.error))
 
-    async def inspect_async[T](self, f: Callable[[T], Awaitable[object]]) -> Err[E]:
+    async def inspect_async[T](self, _: Callable[[T], Awaitable[object]]) -> Err[E]:
         """Loese keine Nebenwirkung aus (es liegt kein Erfolgs-Wert vor)."""
         return self
 

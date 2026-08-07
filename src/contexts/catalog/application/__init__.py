@@ -1,0 +1,1 @@
+"""Initialize catalog application layer."""

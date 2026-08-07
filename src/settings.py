@@ -72,4 +72,5 @@ def validate_settings() -> Settings:
             db_password=os.getenv("DB_PASSWORD"),
         )
     except (ValidationError, ValueError) as e:
-        raise RuntimeError("Configuration validation failed: invalid environment variables") from e
+        msg = "Configuration validation failed: invalid environment variables"
+        raise RuntimeError(msg) from e

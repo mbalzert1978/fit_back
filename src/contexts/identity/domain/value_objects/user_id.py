@@ -41,7 +41,8 @@ class UserId:
             case Ok(value=user_id):
                 return user_id
             case Err():
-                raise AssertionError(f"unreachable: {raw!r} stammt aus vertrauenswuerdiger Quelle")
+                msg = f"unreachable: {raw!r} stammt aus vertrauenswuerdiger Quelle"
+                raise AssertionError(msg)
 
     def __str__(self) -> str:
         """Serialisiere die Identitaet fuer Naht und Transport."""

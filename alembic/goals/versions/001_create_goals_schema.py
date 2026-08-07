@@ -16,8 +16,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """Upgrade database schema."""
     op.execute("CREATE SCHEMA IF NOT EXISTS goals")
 
 
 def downgrade() -> None:
+    """Downgrade database schema."""
     op.execute("DROP SCHEMA IF EXISTS goals")

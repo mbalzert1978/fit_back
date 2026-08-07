@@ -1,0 +1,1 @@
+"""Initialize goals application layer."""

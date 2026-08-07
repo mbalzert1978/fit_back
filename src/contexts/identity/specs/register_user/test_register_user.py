@@ -35,6 +35,7 @@ def _request(**overrides: str) -> RegisterUserRequest:
 
 @pytest.mark.asyncio
 async def test_legt_ein_konto_an_und_gibt_die_stammdaten_zurueck() -> None:
+    """Test account creation returns correct user data."""
     api = RegisterUserTestApi()
 
     result = await api.run(_request())

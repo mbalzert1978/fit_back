@@ -33,7 +33,8 @@ class Timestamp:
         Aufrufer haette nie einen ohne Zeitzone haben duerfen.
         """
         if moment.tzinfo is None:
-            raise ValueError("Timestamp.from_datetime erfordert einen tz-bewussten datetime")
+            msg = "Timestamp.from_datetime erfordert einen tz-bewussten datetime"
+            raise ValueError(msg)
         return cls(int(moment.timestamp()))
 
     def to_datetime(self) -> datetime:

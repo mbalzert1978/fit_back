@@ -74,4 +74,5 @@ class DisplayName:
             case Ok(value=display_name):
                 return display_name
             case Err():
-                raise AssertionError(f"unreachable: {raw!r} wurde vorgelagert validiert")
+                msg = f"unreachable: {raw!r} wurde vorgelagert validiert"
+                raise AssertionError(msg)

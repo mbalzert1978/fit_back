@@ -219,7 +219,6 @@ class OutboxRelay:
         """Lies die Nutzlast aus dem `payload::text` der Claim-Query."""
         decoded = json.loads(str(raw))
         if not isinstance(decoded, dict):
-            raise TypeError(
-                f"Outbox-Payload ist kein JSON-Objekt, sondern {type(decoded).__name__}"
-            )
+            msg = f"Outbox-Payload ist kein JSON-Objekt, sondern {type(decoded).__name__}"
+            raise TypeError(msg)
         return decoded

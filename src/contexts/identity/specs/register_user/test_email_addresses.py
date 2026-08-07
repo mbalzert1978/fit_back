@@ -95,6 +95,7 @@ async def test_nimmt_genau_die_spezifizierten_adressen_an(
     address: str,
     expected_accepted: bool,
 ) -> None:
+    """Test email address validation against specification."""
     result = await RegisterUserTestApi().run(_request(address))
 
     assert isinstance(result, RegistrationAccepted) is expected_accepted
@@ -105,6 +106,7 @@ async def test_nimmt_genau_die_spezifizierten_adressen_an(
 
 @pytest.mark.asyncio
 async def test_zwei_schreibweisen_derselben_adresse_sind_dasselbe_konto() -> None:
+    """Test that different capitalizations of same email map to one account."""
     api = RegisterUserTestApi().with_registered_user("Markus@Example.DE")
 
     result = await api.run(_request("  markus@example.de  "))
