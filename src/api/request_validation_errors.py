@@ -23,7 +23,7 @@ __all__ = [
     "FieldRequired",
     "FieldTypeError",
     "JsonInvalid",
-    "RequestValidationError",
+    "RequestValidationFault",
 ]
 
 
@@ -67,5 +67,11 @@ class JsonInvalid:
     code: ClassVar[str] = "json-invalid"
 
 
-type RequestValidationError = FieldRequired | FieldTypeError | ExtraForbidden | JsonInvalid
-"""Union der strukturellen Request-Validierungsfehler."""
+type RequestValidationFault = FieldRequired | FieldTypeError | ExtraForbidden | JsonInvalid
+"""Union der strukturellen Request-Validierungsfehler.
+
+`Fault` und nicht `Error`: `fastapi.exceptions.RequestValidationError` heisst schon so und
+wird im selben Paket verwendet (`exception_handlers.py`). Zwei verschiedene Dinge unter
+einem Namen laden zu einem Import-Versehen ein, das keine Fehlermeldung erzeugt - der
+eine Name loest den anderen einfach ab.
+"""

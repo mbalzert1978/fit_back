@@ -28,7 +28,7 @@ from src.api.health_router import health_router
 from src.api.i18n import create_resources
 from src.api.i18n_startup_check import verify_error_codes_complete
 from src.api.identity import register_user_router
-from src.api.request_validation_errors import RequestValidationError
+from src.api.request_validation_errors import RequestValidationFault
 from src.contexts.identity.application.register_user import RegisterUserFailure
 from src.contexts.identity.domain import (
     DisplayNameError,
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 ERROR_UNIONS = [
     # Strukturelle Request-Validierungsfehler (Pydantic schema mismatches)
-    RequestValidationError,
+    RequestValidationFault,
     # Die Feldfehler-Unions des Identity-Slice: ihre Codes landen in `errors.*`.
     EmailError,
     PasswordError,
@@ -81,7 +81,7 @@ PRESENTATION_CODES = frozenset(
 )
 """Codes, die am Rand entstehen und nicht (noch) als ERROR_UNION definiert sind.
 
-Request-Validierungsfehler sind jetzt in ERROR_UNIONS (RequestValidationError).
+Request-Validierungsfehler sind jetzt in ERROR_UNIONS (RequestValidationFault).
 Middleware-Codes warten auf separate Tickets (Idempotency als Union, usw.).
 """
 

@@ -230,3 +230,94 @@ class TestAcceptLanguageInfluencesResponse:
         assert response.headers["Content-Language"] == "en-US"
         problem = response.json()
         assert "already registered" in problem["title"]
+
+
+class TestStrukturelleRequestFehler:
+    """Auch Pydantics eigene Befunde tragen unsere Codes - und beide Sprachen.
+
+    Frueher reichte der Handler die Rohmeldung der Bibliothek durch: `title`/`detail`
+    zweisprachig, die Feldfehler dieses Pfades aber immer englisch. Damit haette
+    `errors.*` je nach Fehlerursache zwei verschiedene Vertraege getragen.
+    """
+
+    async def test_fehlendes_pflichtfeld_zweisprachig(self, client: AsyncClient) -> None:
+        body = {key: value for key, value in _VALID_BODY.items() if key != "email"}
+
+        auf_deutsch = await client.post(
+            "/api/v1/identity/register", json=body, headers={"Accept-Language": "de-DE"}
+        )
+        auf_englisch = await client.post(
+            "/api/v1/identity/register", json=body, headers={"Accept-Language": "en-US"}
+        )
+
+        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.json()["errors"]["email"] == ["Das Feld 'email' ist erforderlich"]
+        assert auf_englisch.json()["errors"]["email"] == ["The field 'email' is required"]
+
+    async def test_unbekanntes_feld_zweisprachig(self, client: AsyncClient) -> None:
+        body = _VALID_BODY | {"schmuggelware": "x"}
+
+        auf_deutsch = await client.post(
+            "/api/v1/identity/register", json=body, headers={"Accept-Language": "de-DE"}
+        )
+        auf_englisch = await client.post(
+            "/api/v1/identity/register", json=body, headers={"Accept-Language": "en-US"}
+        )
+
+        assert auf_deutsch.status_code == 400
+        assert "schmuggelware" in auf_deutsch.json()["errors"]["schmuggelware"][0]
+        assert (
+            auf_deutsch.json()["errors"]["schmuggelware"]
+            != (auf_englisch.json()["errors"]["schmuggelware"])
+        )
+
+    async def test_falscher_feldtyp_zweisprachig(self, client: AsyncClient) -> None:
+        body = _VALID_BODY | {"displayName": {"kein": "text"}}
+
+        auf_deutsch = await client.post(
+            "/api/v1/identity/register", json=body, headers={"Accept-Language": "de-DE"}
+        )
+        auf_englisch = await client.post(
+            "/api/v1/identity/register", json=body, headers={"Accept-Language": "en-US"}
+        )
+
+        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.json()["errors"]["displayName"] == [
+            "Das Feld 'displayName' muss ein Text sein"
+        ]
+        assert auf_englisch.json()["errors"]["displayName"] == [
+            "The field 'displayName' must be a string"
+        ]
+
+    async def test_kaputtes_json_zweisprachig(self, client: AsyncClient) -> None:
+        kaputt = "{nicht wirklich json"
+
+        auf_deutsch = await client.post(
+            "/api/v1/identity/register",
+            content=kaputt,
+            headers={"Accept-Language": "de-DE", "Content-Type": "application/json"},
+        )
+        auf_englisch = await client.post(
+            "/api/v1/identity/register",
+            content=kaputt,
+            headers={"Accept-Language": "en-US", "Content-Type": "application/json"},
+        )
+
+        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.json()["errors"]["body"] == ["Die Anfrage enthält ungültiges JSON"]
+        assert auf_englisch.json()["errors"]["body"] == ["The request contains invalid JSON"]
+
+    async def test_der_code_bleibt_sprachunabhaengig(self, client: AsyncClient) -> None:
+        """Der `type` ist der Vertrag, der Text die Kosmetik darueber."""
+        body = {key: value for key, value in _VALID_BODY.items() if key != "email"}
+
+        auf_deutsch = await client.post(
+            "/api/v1/identity/register", json=body, headers={"Accept-Language": "de-DE"}
+        )
+        auf_englisch = await client.post(
+            "/api/v1/identity/register", json=body, headers={"Accept-Language": "en-US"}
+        )
+
+        assert auf_deutsch.json()["type"] == auf_englisch.json()["type"]
+        assert auf_deutsch.json()["status"] == auf_englisch.json()["status"]
+        assert auf_deutsch.json()["title"] != auf_englisch.json()["title"]
