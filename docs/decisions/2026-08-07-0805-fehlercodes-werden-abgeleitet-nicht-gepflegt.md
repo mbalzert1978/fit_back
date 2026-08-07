@@ -28,9 +28,31 @@ Wahrheit, und die liegt dort, wo die Fehler entstehen.
 
 Drei Bausteine:
 
-1. **Der Code gehoert auf den Fehlerfall.** Jeder Fall der Union traegt seinen Code selbst.
-   Ausdruecklich **nicht** aus dem Klassennamen abgeleitet: der Code ist veroeffentlichter
-   API-Vertrag, eine Umbenennung der Klasse darf ihn nicht still aendern.
+1. **Der Code gehoert auf den Fehlerfall, und die Anforderung steht als Vertrag im Shared Kernel.**
+   Jeder Fall der Union traegt seinen Code selbst. Ausdruecklich **nicht** aus dem Klassennamen
+   abgeleitet: der Code ist veroeffentlichter API-Vertrag, eine Umbenennung der Klasse darf ihn
+   nicht still aendern.
+
+   Damit kein Slice die Form neu erfinden oder vergessen kann, liegt sie einmal als `Protocol` im
+   Shared Kernel — passend zu `CLAUDE.md` („Querschnitts-Regeln … einmalig in `shared_kernel`
+   implementiert statt je Context"). Zwei Praezisierungen dazu:
+
+   - **Der Name ist nicht `DomainError`.** Den Namen traegt in jedem Context bereits dessen eigene
+     flache Fehler-Union (`identity/domain/errors.py`), und die bleibt context-eigen
+     (`.rules/python/python-feature-slices.md`). Der Shared Kernel beschreibt nicht *den* Fehlertyp,
+     sondern nur die eine Eigenschaft, die jeder Fehlerfall haben muss — der Name sagt das (etwa
+     `CodedError`).
+   - **Ein `Protocol` allein erzwingt hier nichts.** Dieser Stack laeuft bewusst **ohne**
+     mypy/pyright (`.rules/python/README.md`); ein strukturelles Protocol wird zur Laufzeit von
+     niemandem geprueft, und ein vergessenes `code` faellt damit nirgends auf. Deshalb ist das
+     Protocol `@runtime_checkable`, und die Aufzaehlung aus Baustein 2 prueft **jeden** Fall der
+     Union dagegen: ein Fall ohne `code` laesst die Anwendung beim Start scheitern, genau wie eine
+     fehlende Vorlage. Erst diese Kombination macht „kann nicht vergessen werden" wahr.
+
+   Eine Basisklasse statt eines Protocols waere die Alternative — sie erzwaenge das Feld bei der
+   Definition. Sie fuehrt aber eine Vererbungshierarchie in genau die flachen Tagged Unions ein, die
+   dieses Repo bewusst hierarchielos haelt, und Fehlerfaelle haben ausser dem Code nichts
+   gemeinsam, das sich erben liesse.
 
 2. **Der Zusammenbau zaehlt auf.** Er ist die einzige Stelle, die alle Slices kennt — er wired sie.
    Er reicht die Unions in den Ressourcen-Aufbau hinein (passend zu
