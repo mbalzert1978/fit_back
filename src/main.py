@@ -26,7 +26,9 @@ from src.api.composition import build_engine, build_event_registry, run_outbox_w
 from src.api.exception_handlers import register_exception_handlers
 from src.api.health_router import health_router
 from src.api.i18n import create_resources
+from src.api.i18n_startup_check import verify_error_codes_complete
 from src.api.identity import register_user_router
+from src.contexts.identity.application.register_user import RegisterUserResponse
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
 from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
@@ -44,6 +46,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Lade und validiere i18n Resource-Files beim Start
     app.state.resources = create_resources()
     logger.info("i18n Resource-Dateien geladen")
+
+    # Prüfe, dass alle Fehler-Codes konsistent sind
+    verify_error_codes_complete(
+        app.state.resources,
+        [RegisterUserResponse],  # Aufzählung aller Response-Unions
+    )
+    logger.info("Fehler-Code-Drift-Prüfung bestanden")
 
     app.state.engine = build_engine(settings.database_url)
     app.state.event_registry = build_event_registry()

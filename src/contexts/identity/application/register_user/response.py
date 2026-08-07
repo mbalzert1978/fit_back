@@ -10,7 +10,7 @@ waehlt `Accept-Language` und rendert daraus.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import final
+from typing import ClassVar, final
 
 from src.contexts.shared_kernel.validation import FieldErrorDetail
 
@@ -41,6 +41,7 @@ class RegistrationAccepted:
 class EmailAlreadyTaken:
     """Die E-Mail gehoert bereits einem Konto (HTTP 409, email-already-registered)."""
 
+    code: ClassVar[str] = "email-already-registered"
     email: str
 
 
@@ -51,8 +52,10 @@ class RegistrationInvalid:
 
     `errors` traegt eine Abbildung von Feldnamen zu Tupeln von (error_code, parameters).
     Der HTTP-Rand waehlt nach `Accept-Language` die Sprache und rendert die Codes.
+    Der top-level code ist 'validation-failed', die Feldfehlercodes sind in den `errors` Eintraegen.
     """
 
+    code: ClassVar[str] = "validation-failed"
     errors: Mapping[str, tuple[FieldErrorDetail, ...]]
 
 
