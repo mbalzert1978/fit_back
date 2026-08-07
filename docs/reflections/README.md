@@ -36,6 +36,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_maschinelle-absicherung-statt-review-regel.md](exp_maschinelle-absicherung-statt-review-regel.md) — mechanisch entscheidbare Architektur-Regeln gehoeren in einen Linter-Contract, nicht in ein LLM-Review
 - [exp_parallele-agenten-brauchen-eigene-worktrees.md](exp_parallele-agenten-brauchen-eigene-worktrees.md) — parallele Agenten im selben Working Tree halten fremde Aenderungen fuer eigene Fehler und raeumen destruktiv auf
 - [exp_pipeline-artefakte-gitignore.md](exp_pipeline-artefakte-gitignore.md) — Pipeline-Arbeitsdateien (Task.md) von Anfang an gitignored halten
+- [exp_lint-fix-kann-bedeutung-kippen.md](exp_lint-fix-kann-bedeutung-kippen.md) — eine mechanisch korrekte Lint-Korrektur kann den gerenderten Text still veraendern (`D301`, `D400`)
 - [exp_powershell-set-content-bom.md](exp_powershell-set-content-bom.md) — PowerShell `Set-Content -Encoding utf8` schreibt eine BOM, bricht TOML-Parser
 - [exp_pruefkommando-muss-messen-was-es-behauptet.md](exp_pruefkommando-muss-messen-was-es-behauptet.md) — eine leere Ausgabe belegt nichts, solange nicht gezeigt ist, dass das Kommando greifen kann (Git-Pathspec-Glob)
 - [exp_push-main-before-worktree-fanout.md](exp_push-main-before-worktree-fanout.md) — `main` vor dem Erstellen neuer Worktrees pushen, sonst Scope-Creep in jedem PR-Diff
@@ -43,6 +44,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_referenzimplementierung-schlaegt-prosa.md](exp_referenzimplementierung-schlaegt-prosa.md) — ohne gebautes Referenz-Feature erfindet jeder Agent die Zielform neu
 - [exp_regel-lesen-bevor-referenzieren.md](exp_regel-lesen-bevor-referenzieren.md) — eine Regel-Datei, auf die ich verweise, muss ich selbst gelesen haben
 - [exp_registrierung-ueber-den-vertragstyp.md](exp_registrierung-ueber-den-vertragstyp.md) — an einer Registry wird ueber den Vertragstyp registriert, nie ueber einen String
+- [exp_reviewer-gegen-veralteten-main-diffen.md](exp_reviewer-gegen-veralteten-main-diffen.md) — waehrend eines Gates auf `main` committen erzeugt Phantom-Findings; gegen die Merge-Base diffen oder vorher mergen
 - [exp_review-agent-null-findings-ist-kein-freibrief.md](exp_review-agent-null-findings-ist-kein-freibrief.md) — APPROVE mit 0 Findings ist ein Rohbefund; gruene Matrix und selbst geschlossene Zweifelsfaelle sind Warnsignale
 - [exp_security-gate-triage-teamlead.md](exp_security-gate-triage-teamlead.md) — generische Security-Findings ohne Spezifikations-Basis selbst triagieren
 - [exp_spec-prueft-ergebnis-nicht-implementierung.md](exp_spec-prueft-ergebnis-nicht-implementierung.md) — viele Eingabefaelle rechtfertigen keine tiefere Testebene; fremde Bibliotheken werden nie mitgetestet

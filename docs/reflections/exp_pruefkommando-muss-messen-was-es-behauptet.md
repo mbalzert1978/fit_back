@@ -3,7 +3,7 @@ schema_version: 1
 name: pruefkommando-muss-messen-was-es-behauptet
 description: Ein Pruefkommando mit leerem Ergebnis beweist nichts, solange nicht gezeigt ist, dass es ueberhaupt greifen kann - Git-Pathspecs mit Glob liefern still falsch-negative Ergebnisse
 type: feedback
-frequency: 1
+frequency: 2
 last_triggered: 2026-08-07
 decay_eligible: false
 ---
@@ -22,6 +22,11 @@ Test angefasst" — belegt mit genau diesem Pathspec. Tatsaechlich hatte der Age
 in zwei Spec-Dateien ergaenzt. Ich hatte den Bericht des Agenten misstrauisch geprueft und dabei
 mein eigenes Pruefwerkzeug ungeprueft gelassen; herausgekommen ist eine Falschaussage mit dem
 Gestus der Verifikation, was schlechter ist als gar keine Pruefung — sie beendet das Nachfragen.
+
+Zwei weitere Fehlmessungen derselben Art folgten in derselben Sitzung: ein
+`ruff check --select RUF100`, das zwangslaeufig jedes andere `noqa` als unbenutzt meldet (21
+Scheintreffer), und ein `grep` auf einen Backslash, das am Shell-Escaping scheiterte. Beide
+Ausgaben waren plausibel und falsch.
 
 **How to apply:** Bei jedem Beleg, der auf einer leeren Ausgabe beruht: einmal absichtlich einen
 Treffer erzeugen oder die Gegenprobe mit einem zweiten, anders gebauten Kommando fahren
