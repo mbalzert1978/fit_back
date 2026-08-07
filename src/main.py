@@ -28,6 +28,7 @@ from src.api.health_router import health_router
 from src.api.i18n import create_resources
 from src.api.i18n_startup_check import verify_error_codes_complete
 from src.api.identity import register_user_router
+from src.api.request_validation_errors import RequestValidationError
 from src.contexts.identity.application.register_user import RegisterUserFailure
 from src.contexts.identity.domain import (
     DisplayNameError,
@@ -44,6 +45,8 @@ from src.settings import validate_settings
 logger = logging.getLogger(__name__)
 
 ERROR_UNIONS = [
+    # Strukturelle Request-Validierungsfehler (Pydantic schema mismatches)
+    RequestValidationError,
     # Die Feldfehler-Unions des Identity-Slice: ihre Codes landen in `errors.*`.
     EmailError,
     PasswordError,
@@ -67,6 +70,7 @@ PRESENTATION_CODES = frozenset(
     {
         "email-already-registered-detail",
         "validation-failed-detail",
+        # Middleware: noch nicht als Union definiert (Tickets 0006, 0011)
         "idempotency-key-reused",
         "idempotency-key-reused-detail",
         "idempotency-request-in-progress",
@@ -75,12 +79,10 @@ PRESENTATION_CODES = frozenset(
         "internal-server-error-detail",
     }
 )
-"""Codes, die am Rand entstehen und zu keinem Domaenen-Fehlerfall gehoeren.
+"""Codes, die am Rand entstehen und nicht (noch) als ERROR_UNION definiert sind.
 
-Die `-detail`-Haelften der ProblemDetails und die Meldungen der Middleware. Sie werden auf
-Vorhandensein geprueft, aber nicht auf Platzhalter - ihre Nutzlast ist nicht typisiert.
-**Uebergangsloesung:** sobald der Rand seine strukturellen Fehler als eigene Tagged Union
-fuehrt, wandern sie nach `ERROR_UNIONS` und diese Menge entfaellt.
+Request-Validierungsfehler sind jetzt in ERROR_UNIONS (RequestValidationError).
+Middleware-Codes warten auf separate Tickets (Idempotency als Union, usw.).
 """
 
 

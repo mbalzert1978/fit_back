@@ -27,5 +27,9 @@
   "idempotency-request-in-progress": "Request is already being processed",
   "idempotency-request-in-progress-detail": "A request with this idempotency key is already in progress",
   "internal-server-error": "Internal Server Error",
-  "internal-server-error-detail": "The request could not be processed."
+  "internal-server-error-detail": "The request could not be processed.",
+  "field-required": "The field '{field}' is required",
+  "field-type-error": "The field '{field}' must be a string",
+  "extra-forbidden": "The field '{field}' is not recognized",
+  "json-invalid": "The request contains invalid JSON"
 }

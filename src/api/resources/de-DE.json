@@ -27,5 +27,9 @@
   "idempotency-request-in-progress": "Anfrage wird bereits verarbeitet",
   "idempotency-request-in-progress-detail": "Zu diesem Idempotency-Key läuft bereits eine Anfrage",
   "internal-server-error": "Interner Serverfehler",
-  "internal-server-error-detail": "Die Anfrage konnte nicht verarbeitet werden."
+  "internal-server-error-detail": "Die Anfrage konnte nicht verarbeitet werden.",
+  "field-required": "Das Feld '{field}' ist erforderlich",
+  "field-type-error": "Das Feld '{field}' muss ein Text sein",
+  "extra-forbidden": "Das Feld '{field}' ist nicht bekannt",
+  "json-invalid": "Die Anfrage enthält ungültiges JSON"
 }
