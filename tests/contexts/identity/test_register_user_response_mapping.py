@@ -22,7 +22,6 @@ import pytest
 from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
 from src.contexts.identity.application.register_user.fakes import PassthroughIdnLabels
 from src.contexts.identity.application.register_user.mappers.register_user_response_mapper import (
-    PipelineBroken,
     to_response,
 )
 from src.contexts.identity.domain import (
@@ -67,8 +66,9 @@ def test_ein_ausgeschlossener_fall_scheitert_laut(error: DomainError) -> None:
     """Er darf nicht als Feldfehler zurueckuebersetzt werden - das verschleierte den Bug."""
     assert type(error) in UNREACHABLE
 
-    with pytest.raises(PipelineBroken) as scheitern:
+    with pytest.raises(AssertionError) as scheitern:
         to_response(Err(error))
 
-    assert scheitern.value.error is error
-    assert type(error).__name__ in str(scheitern.value)
+    assert type(error).__name__ in str(scheitern.value), (
+        "Die Meldung muss den durchgerutschten Fall nennen, sonst sucht der Leser."
+    )

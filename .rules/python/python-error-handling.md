@@ -256,27 +256,18 @@ mit dem unerwarteten Wert, und kaeme je ein Typpruefer dazu, meldete er einen ni
 schon beim Pruefen statt erst im Betrieb. Ein selbstgebauter `raise RuntimeError("unreachable")`
 kann das zweite nicht.
 
-**Unmoeglich ist nicht gleich ausgeschlossen.** `assert_never` sagt: dieser Wert kann es dem Typ
-nach nicht geben. Das ist etwas anderes als: diesen Wert schliesst der Ablauf davor aus. Faelle der
-zweiten Sorte sind typmaessig voellig gueltig — sie kommen nur nicht an, weil eine Stufe davor sie
-abgefangen hat. Dort ist `assert_never` eine falsche Behauptung und obendrein eine schlechtere
-Meldung: "unerwarteter Wert" statt "diese Annahme ist gebrochen". Dorthin gehoert eine **benannte
-Ausnahme, die die gebrochene Annahme nennt**:
+**Immer `assert_never`, auch wo der Rest nicht streng `Never` ist.** Es gibt Faelle, die typmaessig
+gueltig sind und trotzdem nie ankommen, weil eine Stufe davor sie ausschliesst — `to_response` im
+`register_user`-Slice sieht keinen `PasswordTooShort`, weil die Pipeline vorher validiert. Fuer
+solche Stellen liegt eine eigene, sprechend benannte Ausnahme nahe ("diese Annahme ist gebrochen"
+statt "unerwarteter Wert").
 
-```python
-case Err(error=EmailAlreadyRegistered(email=email)):
-    return EmailAlreadyTaken(email.value)
-case Err(error=error):
-    # PasswordTooShort & Co. sind gueltige DomainError - die Pipeline validiert
-    # aber vorher und baut das Command mit `hydrate`. Kommt trotzdem einer an,
-    # ist die Reihenfolge kaputt, nicht die Eingabe.
-    raise PipelineBroken(error)
-```
-
-Die Regel bleibt dieselbe — der letzte Zweig wirft. Nur die Wahl der Ausnahme folgt der Frage, ob
-der Fall **typmaessig unmoeglich** (`assert_never`) oder **durch Konstruktion ausgeschlossen**
-(benannte Ausnahme) ist. Referenz im Repo: `PipelineBroken` in
-`contexts/identity/application/register_user/mappers/register_user_response_mapper.py`.
+Das ist bewusst **nicht** die Regel hier. `assert_never` ist zur Laufzeit nichts anderes als
+`raise AssertionError(f"... but got: {value!r}")` — eine eigene Klasse daneben ist dieselbe
+Mechanik unter anderem Namen und kauft nur eine Sonderregel ein, die jeder Leser und jedes Review
+erst auseinanderhalten muss. Der Wert steht in beiden Meldungen; damit ist auch bei einem
+"ausgeschlossenen" Fall sofort sichtbar, welcher durchgerutscht ist. Ein Zweig, ein Muster, keine
+Abwaegung an der Schreibstelle.
 
 **Das Subjekt muss ein Name sein.** `assert_never` braucht den gematchten Wert; ein
 `match await pipeline.run(request):` gibt ihn nicht her. Also erst binden, dann matchen:

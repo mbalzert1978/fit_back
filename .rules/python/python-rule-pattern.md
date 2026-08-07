@@ -5,9 +5,11 @@
 > bleiben generisch (`Order`, `SwapRequest`).
 >
 > **Gebaut zu sehen ist beides im Referenz-Slice** `src/contexts/identity`: der gemeinsame
-> Collect-all-Typalias in `src/shared_kernel/validation.py` (`Rule`, `all_of`, `FieldError`),
-> seine Anwendung in `application/register_user/validators/register_user_rules.py`, und der
-> Fail-fast-Zweig als `Result[T, DomainError]` in `domain/registration.py`.
+> Collect-all-Typalias in `src/contexts/shared_kernel/validation.py` (`Rule`, `all_of`,
+> `FieldError`), seine Anwendung in
+> `application/register_user/validators/register_user_rules.py`, und der Fail-fast-Zweig als
+> `chain(...)` in `domain/value_objects/email.py` — dort setzt `_RULES: ResultRule[str, EmailError]`
+> die einzeln benannten Adressregeln zusammen.
 
 Zwei Bausteine decken jede "ist dieser Input/Zustand gueltig?"-Frage ab — beide sind das
 [Rule Pattern](https://dev.to/stevsharp/the-rule-pattern-in-c-2ed0) (eine Regel ist ein Objekt
@@ -19,34 +21,53 @@ Fehlerform und darin, wie sie komponiert werden.
 | | Collect-all Rule | Fail-fast Result Rule |
 |---|---|---|
 | Fehlerform | viele unabhaengige Feldfehler, gemeinsam berichtet | genau ein typisierter Domaenenfehler |
-| Signatur | `Callable[[T], list[str]]` | `Callable[[T], Result[T, E]]` |
+| Signatur | `Callable[[T], list[FieldError]]` | `Callable[[T], Result[T, E]]` |
 | Komposition | `all_of(*rules)` — wertet **alle** Regeln aus, sammelt alle Meldungen | `chain(*rules)` — wertet die naechste Regel nur aus, wenn die vorherige per `.bind` erfolgreich war; erster Fehler gewinnt |
 | Typischer Ort | Eingabe-Formatvalidierung an der public Grenze | Domaeneninvarianten (Existenz, Eigentuemerschaft, Kollision) |
 | Auswertung je Regel | einmal pro Aufruf — zweimal insgesamt, wenn beide Fragen gestellt werden | genau einmal — der `Result`-Rueckgabewert traegt den Fehler direkt |
 
 Do — Collect-all-Validierung:
 ```python
-type Rule[T] = Callable[[T], list[str]]
+type Rule[T] = Callable[[T], list[FieldError]]
 
 
 def all_of[T](*rules: Rule[T]) -> Rule[T]:
-    def combined(value: T) -> list[str]:
-        return [message for rule in rules for message in rule(value)]
+    def combined(value: T) -> list[FieldError]:
+        return [error for rule in rules for error in rule(value)]
 
     return combined
 
 
-def computer_name_required(request: SwapRequest) -> list[str]:
-    return [] if request.computer_name else ["computer_name is required"]
+def computer_name_required(request: SwapRequest) -> list[FieldError]:
+    if request.computer_name:
+        return []
+    return [FieldError("computerName", ComputerNameRequired.code, {})]
 
 
-def scope_id_required(request: SwapRequest) -> list[str]:
-    return [] if request.scope_id else ["scope_id is required"]
+def scope_id_required(request: SwapRequest) -> list[FieldError]:
+    if request.scope_id:
+        return []
+    return [FieldError("scopeId", ScopeIdRequired.code, {})]
 
 
 swap_rules: Rule[SwapRequest] = all_of(computer_name_required, scope_id_required)
 # swap_rules(request) meldet beide leeren Pflichtfelder auf einmal — nicht nur das erste.
 ```
+
+**Eine Regel meldet einen Code, nie einen fertigen Satz.** `list[str]` waere hier falsch: der Text
+haengt an `Accept-Language` und entsteht erst am HTTP-Rand, waehrend `FieldError` traegt, was
+sprachunabhaengig ist — Feldname, Code, Parameter
+([python-error-handling.md](./python-error-handling.md), "Die Fehlernutzlast ist ein typisierter
+Fall, nie ein fertiger Satz").
+
+**Und eine Regel beantwortet ihre Frage selbst.** Delegiert sie an eine `parse`-Factory, gehoert
+die Fallunterscheidung ueber deren Fehler-Union **in die Regel** — nicht in einen generischen
+Helfer, dem man den passenden Konverter hereinreicht. Ein solcher Helfer muss seine Signatur ueber
+alle Fehlertypen spannen, die er bedient, und wird dabei erst weit (`Result[object, ...]`) und dann
+unwahr. Der Preis der ausgeschriebenen Arme ist Laenge; der Preis des Helfers ist eine Annotation,
+die nicht mehr stimmt. Gebaut zu sehen in
+`application/register_user/validators/register_user_rules.py`, wo `email_must_be_wellformed`
+vierzehn Arme hat — einen je Adressregel, jeder mit eigenem Code.
 
 Do — Fail-fast Domaenen-Check mit einem typisierten Fehler:
 ```python
@@ -97,7 +118,7 @@ traegt den einen aufgetretenen Fehler bereits in sich.
 ```python
 class CheckRule(Protocol[T]):        # strukturell identisch zum gemeinsamen Rule/ResultRule-Typ
     def is_satisfied(self, value: T) -> bool: ...
-    def messages(self, value: T) -> list[str]: ...
+    def messages(self, value: T) -> list[FieldError]: ...
 ```
 
 Braucht ein Feature "ein Objekt, das entscheidet und begruendet", ist das eine `Rule`/
@@ -123,7 +144,7 @@ class SwapQuestion(Protocol):
 
 
 # Ein Regelwerk, gueltig fuer jeden Request-Typ, der SwapQuestion erfuellt — ohne Varianz-Syntax:
-def validate(request: SwapQuestion) -> list[str]:
+def validate(request: SwapQuestion) -> list[FieldError]:
     return swap_rules(request)
 ```
 
@@ -144,6 +165,8 @@ ist bereits eine Ebene hoeher gelaufen, das Command braucht deshalb keinen eigen
 ## Review-Checkliste
 
 - [ ] Fehlerform entscheidet die Variante: viele unabhaengige Feldfehler ⇒ Collect-all-`Rule`; genau ein typisierter Domaenenfehler ⇒ Fail-fast-`ResultRule`. Nie die Komposition der einen Form dem Anwendungsfall der anderen aufzwingen.
+- [ ] Eine Regel meldet `FieldError` (Feld, Code, Parameter), nie `list[str]` mit fertigem Text — der Text entsteht erst am HTTP-Rand nach `Accept-Language`.
+- [ ] Die Fallunterscheidung ueber die Fehler-Union der `parse`-Factory steht **in der Regel**, nicht in einem generischen Helfer mit Konverter-Callback. Sobald eine Signatur `object`, `Any` oder ein zu weites `Exception` traegt, um mehrere Fehlertypen zu bedienen, ist die Zwischenschicht der Fehler — nicht die Laenge der ausgeschriebenen Arme.
 - [ ] Keine Regel wird nach einem Fehlschlag ein zweites Mal ausgewertet, nur um herauszufinden, welche Teilregel fehlgeschlagen ist — diese Information kommt aus der einen Auswertung.
 - [ ] Keine feature-lokale `Protocol`-Klasse bildet `Rule`/`ResultRule` strukturell nach; Features importieren/komponieren den gemeinsamen Typalias.
 - [ ] Eine ueber mehrere Request-Typen geteilte Regel ist dadurch gerechtfertigt, dass sie wirklich dieselbe Frage ueber dieselben Felder stellt, ausgedrueckt ueber ein gemeinsames `Protocol` — nicht durch das Zusammenzwingen unverwandter Typen.

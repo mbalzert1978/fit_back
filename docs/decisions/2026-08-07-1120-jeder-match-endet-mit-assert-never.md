@@ -37,15 +37,27 @@ Es ist der stdlib-Weg und traegt doppelt: zur Laufzeit ein `AssertionError` mit 
 Wert, und kaeme je ein Typpruefer dazu, meldete er den nicht behandelten Fall schon beim Pruefen.
 Python hat keine `UnreachableException`; `assert_never` ist das Gegenstueck.
 
-**Nachgeschaerft:** die erste Fassung dieser Entscheidung schrieb `assert_never` als einzige
-zulaessige Ausnahme fest ("nicht mit einem selbstgebauten `RuntimeError`"). Das war zu grob und hat
-prompt zu einem Fehlbefund im Review gefuehrt. `assert_never` behauptet, ein Wert sei **dem Typ
-nach** unmoeglich. Ein Fall, der typmaessig gueltig ist und nur **durch Konstruktion**
-ausgeschlossen wird — `PasswordTooShort` erreicht `to_response` nicht, weil die Pipeline vorher
-validiert —, ist etwas anderes. Dort waere `assert_never` eine falsche Behauptung und zugleich die
-schlechtere Meldung: "unerwarteter Wert" statt "diese Annahme ist gebrochen". Dorthin gehoert eine
-benannte Ausnahme (`PipelineBroken`). Die Regel bleibt: der letzte Zweig wirft. Die Wahl der
-Ausnahme folgt der Unterscheidung *unmoeglich* vs. *ausgeschlossen*.
+**Geprueft und verworfen: eine zweite Ausnahmeart.** Zwischenzeitlich stand im
+`register_user`-Response-Mapper eine eigene Klasse `PipelineBroken` statt `assert_never`, mit dieser
+Begruendung: `assert_never` behauptet, ein Wert sei **dem Typ nach** unmoeglich; die uebrigen
+`DomainError`-Faelle dort sind aber gueltige Werte und nur **durch Konstruktion** ausgeschlossen
+(die Pipeline validiert vorher). Eine benannte Ausnahme melde ausserdem "diese Annahme ist
+gebrochen" statt bloss "unerwarteter Wert".
+
+Verworfen, weil der Unterschied nicht traegt:
+
+- **Zur Laufzeit ist es dasselbe.** `typing.assert_never` ist vier Zeilen stdlib und endet in
+  `raise AssertionError(f"Expected code to be unreachable, but got: {value!r}")`. Eine eigene Klasse
+  ist dieselbe Mechanik unter anderem Namen. Auch der Wert steht in beiden Meldungen — welcher Fall
+  durchgerutscht ist, sieht man so wie so.
+- **Der Typ-Einwand ist heute wirkungslos.** Er greift erst, wenn ein Typpruefer die
+  `Never`-Zusage auswertet. Dieses Repo hat keinen — weder konfiguriert noch installiert, nachgesehen
+  am 2026-08-07. Kommt je einer dazu, ist das die Stelle, die man dann anfasst.
+- **Der Preis ist eine Sonderregel.** Zwei Ausnahmearten heissen: an jeder Schreibstelle abwaegen,
+  in jedem Review auseinanderhalten, in der Regel erklaeren. Ein Review-Agent hat die Unterscheidung
+  prompt falsch herum angewandt und `PipelineBroken` als Regelverstoss gemeldet.
+
+Es bleibt bei **einem** Muster ohne Abwaegung: der letzte Zweig ist `case _: assert_never(<subjekt>)`.
 
 ## Ohne Ausnahme — auch bei fremden Fallmengen
 
