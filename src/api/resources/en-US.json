@@ -22,5 +22,9 @@
   "email-already-registered": "This email address is already registered",
   "email-already-registered-detail": "The email address {email} is already associated with another account",
   "validation-failed": "The input is invalid",
-  "validation-failed-detail": "Please check the fields marked with errors"
+  "validation-failed-detail": "Please check the fields marked with errors",
+  "idempotency-key-reused": "Idempotency key already in use",
+  "idempotency-key-reused-detail": "This idempotency key belongs to a different request",
+  "idempotency-request-in-progress": "Request is already being processed",
+  "idempotency-request-in-progress-detail": "A request with this idempotency key is already in progress"
 }

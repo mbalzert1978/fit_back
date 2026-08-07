@@ -27,16 +27,16 @@ LANGUAGE_FALLBACKS: Mapping[str, str] = {
 
 @final
 class _ResourcesCache:
-    """Lade Resource-Dateien einmalig beim Start und halte sie im Speicher."""
+    """Lade Resource-Dateien einmalig und halte sie im Speicher."""
 
     def __init__(self) -> None:
-        """Initialisiere die Ressourcen beim Starten."""
+        """Initialisiere die Ressourcen beim Laden."""
         self._resources: dict[str, dict[str, str]] = {}
         self._load_all()
 
     def _load_all(self) -> None:
         """Lade alle unterstützten Sprachen und prüfe auf Vollständigkeit."""
-        all_codes = set()
+        all_codes: set[str] = set()
 
         # Erste Pass: alle Codes sammeln
         for language in SUPPORTED_LANGUAGES:
@@ -52,7 +52,9 @@ class _ResourcesCache:
         for language in SUPPORTED_LANGUAGES:
             missing = all_codes - self._resources[language].keys()
             if missing:
-                raise ValueError(f"Language '{language}' is missing codes: {sorted(missing)}")
+                raise ValueError(
+                    f"Language '{language}' is missing codes: {sorted(missing)}"
+                )
 
     def get(self, language: str, code: str) -> str | None:
         """Hole die Vorlage für einen Code in einer Sprache."""
@@ -60,27 +62,29 @@ class _ResourcesCache:
             return None
         return self._resources[language].get(code)
 
-    def translate(self, code: str, parameters: Mapping[str, object], language: str) -> str:
+    def translate(
+        self, code: str, parameters: Mapping[str, object], language: str
+    ) -> str:
         """Übersetze einen Code + Parameter zu Text."""
         template = self.get(language, code)
         if template is None:
             # Fallback auf Default-Sprache
             template = self.get(DEFAULT_LANGUAGE, code)
-            if template is None:
-                # Sollte nie vorkommen, da beim Start geprüft
-                raise ValueError(f"Code '{code}' not found in any language")
+        if template is None:
+            # Sollte nie vorkommen, da beim Start geprüft
+            raise AssertionError(f"Code '{code}' not found in any language")
 
         # Benannte Platzhalter aus Parametern ausfüllen
         try:
             return template.format(**parameters)
         except KeyError as e:
-            raise ValueError(
+            raise AssertionError(
                 f"Template for '{code}' references unknown parameter {e.args[0]!r}"
             ) from e
 
 
-# Globale Instanz - wird beim Import instantiiert
-_RESOURCES = _ResourcesCache()
+# Globale Instanz - wird von load_resources() gesetzt
+_RESOURCES: _ResourcesCache | None = None
 
 
 def load_resources() -> None:
@@ -101,8 +105,13 @@ def translate(
 ) -> str:
     """Übersetze einen Code + Parameter zu Text in einer Sprache.
 
+    Wirft AssertionError, wenn load_resources() nicht vorher aufgerufen wurde.
     Wirft ValueError, wenn der Code nicht existiert oder Parameter fehlen.
     """
+    if _RESOURCES is None:
+        raise AssertionError(
+            "Resources not loaded. Call load_resources() during startup."
+        )
     if parameters is None:
         parameters = {}
     return _RESOURCES.translate(code, parameters, language)
@@ -166,12 +175,13 @@ def get_language_from_header(accept_language: str | None) -> str:
             # q=0 bedeutet "akzeptiere ich nicht"
             continue
 
-        # Normalisiere auf Großbuchstaben
-        lang_tag_normalized = lang_tag.replace("_", "-").upper()
+        # Normalisiere auf BCP 47 (de-DE, nicht DE-DE)
+        lang_tag_normalized = lang_tag.replace("_", "-").lower()
 
-        # 1. Exakte Übereinstimmung?
-        if lang_tag_normalized in SUPPORTED_LANGUAGES:
-            return lang_tag_normalized
+        # 1. Exakte Übereinstimmung (case-insensitive)?
+        for supported_lang in SUPPORTED_LANGUAGES:
+            if supported_lang.lower() == lang_tag_normalized:
+                return supported_lang
 
         # 2. Regionstreffer? (de → de-DE, en → en-US)
         lang_only = lang_tag_normalized.split("-")[0]
