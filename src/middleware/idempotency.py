@@ -69,6 +69,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_CONTENT
 from starlette.types import ASGIApp
 
+from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.problem_details import ProblemDetails
 from src.contexts.shared_kernel.time_provider import TimeProvider
 
@@ -192,9 +193,21 @@ async def release_claim(engine: AsyncEngine, key: UUID) -> None:
 
 
 def _problem(
-    request: Request, http_status: int, error_type: str, title: str, detail: str
+    request: Request,
+    http_status: int,
+    error_type: str,
+    title: str,
+    detail: str,
+    language_tag: str,
 ) -> Response:
-    """Baue eine RFC-7807-Antwort - dasselbe Format wie ueberall sonst."""
+    """Baue eine RFC-7807-Antwort - dasselbe Format wie ueberall sonst.
+
+    `language_tag` hat bewusst **keinen** Vorgabewert: `title` und `detail` sind
+    hier bereits uebersetzt, und ein Vorgabewert liesse sich vergessen, ohne dass
+    etwas auffaellt - der Aufrufer bekaeme dann einen englischen Text mit
+    `Content-Language: de-DE`. Wer die Antwort baut, hat die ausgehandelte
+    Sprache ohnehin in der Hand.
+    """
     problem = ProblemDetails(
         type=error_type,
         title=title,
@@ -202,11 +215,13 @@ def _problem(
         detail=detail,
         instance=request.url.path,
     )
-    return JSONResponse(
+    response = JSONResponse(
         status_code=http_status,
         content=problem.model_dump(exclude_none=True),
         media_type="application/problem+json",
     )
+    response.headers["Content-Language"] = language_tag
+    return response
 
 
 @final
@@ -299,6 +314,8 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         request_hash: str,
     ) -> Response:
         """Der Schluessel war schon vergeben - entscheide, was der Aufrufer bekommt."""
+        language = get_language_from_header(request.headers.get("accept-language"))
+        resources: ResourcesCache = request.app.state.resources
         existing = await find_key(engine, key)
         if existing is None:
             # Zwischen Reservierung und Abfrage geloescht (TTL-Bereinigung).
@@ -312,22 +329,30 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             # beiden bewusst nicht - sonst verriete sie, dass der Schluessel
             # jemand anderem gehoert.
             logger.warning("Idempotency key %s fuer eine abweichende Anfrage verwendet", key)
+            title = translate(resources, "idempotency-key-reused", language=language)
+            detail = translate(resources, "idempotency-key-reused-detail", language=language)
             return _problem(
                 request,
                 HTTP_422_UNPROCESSABLE_CONTENT,
                 KEY_REUSED_TYPE,
-                "Idempotency-Key bereits vergeben",
-                "Dieser Idempotency-Key gehoert zu einer anderen Anfrage.",
+                title,
+                detail,
+                language,
             )
 
         if existing["response_body"] is None:
             logger.info("Idempotency key %s: die erste Anfrage laeuft noch", key)
+            title = translate(resources, "idempotency-request-in-progress", language=language)
+            detail = translate(
+                resources, "idempotency-request-in-progress-detail", language=language
+            )
             return _problem(
                 request,
                 HTTP_409_CONFLICT,
                 REQUEST_IN_PROGRESS_TYPE,
-                "Anfrage wird bereits verarbeitet",
-                "Zu diesem Idempotency-Key laeuft bereits eine Anfrage.",
+                title,
+                detail,
+                language,
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)

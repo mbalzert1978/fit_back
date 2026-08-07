@@ -3,6 +3,11 @@
 from dataclasses import dataclass
 from typing import final
 
+from src.contexts.identity.domain.display_name_errors import (
+    DisplayNameError,
+    DisplayNameIsEmpty,
+    DisplayNameTooLong,
+)
 from src.contexts.shared_kernel import Err, NotEmptyString, Ok, Result
 
 __all__ = ["MAXIMUM_LENGTH", "DisplayName"]
@@ -11,7 +16,7 @@ MAXIMUM_LENGTH = 60
 """BACKEND.md Abschnitt 1: 1-60 Zeichen. Die untere Grenze traegt `NotEmptyString`."""
 
 
-def fits_maximum_length(name: NotEmptyString) -> Result[NotEmptyString, str]:
+def fits_maximum_length(name: NotEmptyString) -> Result[NotEmptyString, DisplayNameError]:
     """Fail-fast-Regel: der Anzeigename ist nicht laenger als erlaubt.
 
     Nimmt bereits einen `NotEmptyString` entgegen und nicht einen rohen `str` -
@@ -19,7 +24,7 @@ def fits_maximum_length(name: NotEmptyString) -> Result[NotEmptyString, str]:
     und wird deshalb nicht ein zweites Mal geprueft.
     """
     if len(name.value) > MAXIMUM_LENGTH:
-        return Err(f"Anzeigename darf hoechstens {MAXIMUM_LENGTH} Zeichen lang sein")
+        return Err(DisplayNameTooLong(len(name.value), MAXIMUM_LENGTH))
     return Ok(name)
 
 
@@ -42,14 +47,25 @@ class DisplayName:
         return self.value.value
 
     @classmethod
-    def parse(cls, raw: str) -> Result[DisplayName, str]:
+    def parse(cls, raw: str) -> Result[DisplayName, DisplayNameError]:
         """Pruefe eine moeglicherweise ungueltige Eingabe.
 
         Ein Fluss statt einer Kette: `NotEmptyString.parse` trimmt und sichert
         die untere Grenze, `fits_maximum_length` prueft die obere, `map` wickelt
         das Ergebnis ein. Jede Frage wird genau einmal gestellt.
+
+        Das `map_err` ist die Uebersetzung an der Grenze: `NotEmptyString` meldet
+        den technischen Fall `TextIsEmpty` ohne Feldbezug, nach aussen gehoert der
+        fachliche `DisplayNameIsEmpty` mit eigenem Code. Verkettet statt gematcht,
+        weil das Ergebnis ein `Result` bleibt und sich nur sein Fehlertyp aendert
+        (.rules/python/python-error-handling.md, "Verketten oder matchen").
         """
-        return NotEmptyString.parse(raw).bind(fits_maximum_length).map(cls)
+        return (
+            NotEmptyString.parse(raw)
+            .map_err(lambda _: DisplayNameIsEmpty())
+            .bind(fits_maximum_length)
+            .map(cls)
+        )
 
     @classmethod
     def hydrate(cls, raw: str) -> DisplayName:

@@ -12,7 +12,7 @@ im Namespace ueber `domain/__init__.py` flach.
 """
 
 from dataclasses import dataclass
-from typing import final
+from typing import ClassVar, final
 
 __all__ = [
     "EmailAddressLiteralInvalid",
@@ -38,6 +38,8 @@ __all__ = [
 class EmailHasWhitespace:
     """Die Adresse enthaelt Leerraum - bei einem Zeilenumbruch ein Injection-Versuch."""
 
+    code: ClassVar[str] = "email-has-whitespace"
+
     candidate: str
 
 
@@ -45,6 +47,8 @@ class EmailHasWhitespace:
 @dataclass(frozen=True, slots=True)
 class EmailNeedsExactlyOneAtSign:
     """Die Adresse hat kein oder mehr als ein `@`."""
+
+    code: ClassVar[str] = "email-needs-exactly-one-at-sign"
 
     candidate: str
     at_sign_count: int
@@ -55,6 +59,8 @@ class EmailNeedsExactlyOneAtSign:
 class EmailLocalPartMissing:
     """Vor dem `@` steht nichts."""
 
+    code: ClassVar[str] = "email-local-part-missing"
+
     candidate: str
 
 
@@ -63,6 +69,8 @@ class EmailLocalPartMissing:
 class EmailDomainMissing:
     """Hinter dem `@` steht nichts."""
 
+    code: ClassVar[str] = "email-domain-missing"
+
     candidate: str
 
 
@@ -70,6 +78,8 @@ class EmailDomainMissing:
 @dataclass(frozen=True, slots=True)
 class EmailLocalPartTooLong:
     """Der Teil vor dem `@` ueberschreitet die zulaessige Laenge."""
+
+    code: ClassVar[str] = "email-local-part-too-long"
 
     local_part: str
     maximum: int
@@ -80,6 +90,8 @@ class EmailLocalPartTooLong:
 class EmailLocalPartHasInvalidCharacters:
     """Der Teil vor dem `@` enthaelt nicht erlaubte Zeichen."""
 
+    code: ClassVar[str] = "email-local-part-has-invalid-characters"
+
     local_part: str
     invalid_characters: tuple[str, ...]
 
@@ -89,6 +101,8 @@ class EmailLocalPartHasInvalidCharacters:
 class EmailLocalPartHasMisplacedDot:
     """Der Teil vor dem `@` beginnt/endet mit einem Punkt oder hat zwei in Folge."""
 
+    code: ClassVar[str] = "email-local-part-has-misplaced-dot"
+
     local_part: str
 
 
@@ -96,6 +110,8 @@ class EmailLocalPartHasMisplacedDot:
 @dataclass(frozen=True, slots=True)
 class EmailDomainTooLong:
     """Die Domain ueberschreitet die zulaessige Gesamtlaenge."""
+
+    code: ClassVar[str] = "email-domain-too-long"
 
     domain: str
     maximum: int
@@ -106,6 +122,8 @@ class EmailDomainTooLong:
 class EmailDomainHasEmptyLabel:
     """Die Domain enthaelt ein leeres Label - fuehrender, doppelter oder Schlusspunkt."""
 
+    code: ClassVar[str] = "email-domain-has-empty-label"
+
     domain: str
 
 
@@ -113,6 +131,8 @@ class EmailDomainHasEmptyLabel:
 @dataclass(frozen=True, slots=True)
 class EmailDomainLabelTooLong:
     """Ein Domain-Label ueberschreitet in seiner ASCII-Form die zulaessige Laenge."""
+
+    code: ClassVar[str] = "email-domain-label-too-long"
 
     label: str
     ascii_length: int
@@ -124,6 +144,8 @@ class EmailDomainLabelTooLong:
 class EmailDomainLabelHasEdgeHyphen:
     """Ein Domain-Label beginnt oder endet mit einem Bindestrich."""
 
+    code: ClassVar[str] = "email-domain-label-has-edge-hyphen"
+
     label: str
 
 
@@ -132,6 +154,8 @@ class EmailDomainLabelHasEdgeHyphen:
 class EmailDomainLabelHasInvalidCharacters:
     """Ein Domain-Label enthaelt nicht erlaubte Zeichen - typisch ein Unterstrich."""
 
+    code: ClassVar[str] = "email-domain-label-has-invalid-characters"
+
     label: str
 
 
@@ -139,6 +163,8 @@ class EmailDomainLabelHasInvalidCharacters:
 @dataclass(frozen=True, slots=True)
 class EmailAddressLiteralInvalid:
     """Das Adress-Literal in eckigen Klammern ist keine gueltige IP-Adresse."""
+
+    code: ClassVar[str] = "email-address-literal-invalid"
 
     literal: str
 
@@ -153,6 +179,8 @@ class UnencodableDomainLabel:
     Unicode-Regel gebrochen wurde, und diese Auskunft wegzuwerfen waere schlechter,
     als sie durchzureichen.
     """
+
+    code: ClassVar[str] = "email-unencodable-domain-label"
 
     label: str
     reason: str

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import final
 from uuid import UUID, uuid7
 
+from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
 from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = ["UserId"]
@@ -26,12 +27,12 @@ class UserId:
         return cls(uuid7())
 
     @classmethod
-    def parse(cls, raw: str) -> Result[UserId, str]:
+    def parse(cls, raw: str) -> Result[UserId, UserIdError]:
         """Lies eine Identitaet aus einem moeglicherweise ungueltigen Rohwert."""
         try:
             return Ok(cls(UUID(raw)))
         except ValueError:
-            return Err(f"keine gueltige UUID: {raw!r}")
+            return Err(UserIdMalformed(raw))
 
     @classmethod
     def hydrate(cls, raw: str) -> UserId:

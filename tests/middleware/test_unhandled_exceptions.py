@@ -10,6 +10,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from src.api.i18n import create_resources
 from src.middleware.unhandled_exceptions import (
     UNHANDLED_ERROR_TYPE,
     UnhandledExceptionMiddleware,
@@ -23,6 +24,7 @@ _GEHEIMNIS = "geheimer-verbindungsstring"
 def _app_die_fliegt() -> FastAPI:
     """Eine App, deren Endpunkt eine Ausnahme mit verraeterischem Text wirft."""
     app = FastAPI()
+    app.state.resources = create_resources()
 
     @app.get("/kaputt")
     async def kaputt() -> dict[str, str]:

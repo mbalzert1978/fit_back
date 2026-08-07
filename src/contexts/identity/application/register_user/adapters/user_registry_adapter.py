@@ -1,6 +1,6 @@
 """Implementiert den Domain-Port `UserRegistry` ueber die public Naht."""
 
-from typing import final
+from typing import assert_never, final
 
 from src.contexts.identity.application.register_user.abstractions import (
     EmailTaken,
@@ -30,11 +30,14 @@ class UserRegistryAdapter:
 
     async def add(self, user: User) -> Result[User, DomainError]:
         """Nimm den User auf und werte das Urteil des Bestands aus."""
-        match await self._store.insert(_record_of(user)):
+        outcome = await self._store.insert(_record_of(user))
+        match outcome:
             case UserStored():
                 return Ok(user)
             case EmailTaken():
                 return Err(EmailAlreadyRegistered(user.email))
+            case _:
+                assert_never(outcome)
 
 
 def _record_of(user: User) -> NewUserRecord:

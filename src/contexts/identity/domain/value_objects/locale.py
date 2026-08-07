@@ -2,8 +2,9 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import final
+from typing import assert_never, final
 
+from src.contexts.identity.domain.locale_errors import LocaleError, LocaleNotSupported
 from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = [
@@ -36,10 +37,10 @@ DEFAULT_LOCALE: Locale = German()
 _BY_TAG: Mapping[str, Locale] = {"de": German(), "en": English()}
 
 
-def parse_locale(raw: str) -> Result[Locale, str]:
+def parse_locale(raw: str) -> Result[Locale, LocaleError]:
     """Lies eine moeglicherweise nicht unterstuetzte Sprach-Kennung."""
     if (locale := _BY_TAG.get(raw.strip().casefold())) is None:
-        return Err(f"nicht unterstuetzte Sprache: {raw!r}")
+        return Err(LocaleNotSupported(raw))
     return Ok(locale)
 
 
@@ -59,3 +60,5 @@ def locale_tag(locale: Locale) -> str:
             return "de"
         case English():
             return "en"
+        case _:
+            assert_never(locale)

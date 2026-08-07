@@ -25,7 +25,19 @@ from fastapi import FastAPI
 from src.api.composition import build_engine, build_event_registry, run_outbox_worker
 from src.api.exception_handlers import register_exception_handlers
 from src.api.health_router import health_router
+from src.api.i18n import create_resources
+from src.api.i18n_startup_check import verify_error_codes_complete
 from src.api.identity import register_user_router
+from src.api.pydantic_contract_check import verify_pydantic_contract
+from src.api.request_validation_errors import RequestValidationFault
+from src.contexts.identity.application.register_user import RegisterUserFailure
+from src.contexts.identity.domain import (
+    DisplayNameError,
+    EmailError,
+    LocaleError,
+    PasswordError,
+    UserTimeZoneError,
+)
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
 from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
@@ -33,12 +45,70 @@ from src.settings import validate_settings
 
 logger = logging.getLogger(__name__)
 
+ERROR_UNIONS = [
+    # Strukturelle Request-Validierungsfehler (Pydantic schema mismatches)
+    RequestValidationFault,
+    # Die Feldfehler-Unions des Identity-Slice: ihre Codes landen in `errors.*`.
+    EmailError,
+    PasswordError,
+    DisplayNameError,
+    LocaleError,
+    UserTimeZoneError,
+    # Die Fehlerhaelfte der Antwort - `EmailAlreadyRegistered` fehlt hier bewusst: das ist
+    # die interne Ursache, veroeffentlicht wird `EmailAlreadyTaken`, das den Code traegt.
+    RegisterUserFailure,
+]
+"""Die Fehler-Unions aller zusammengebauten Slices - die Wahrheit der Drift-Pruefung.
+
+Der Zusammenbau ist die einzige Stelle, die alle Slices kennt; ein neuer Slice kostet hier
+eine Zeile, an derselben Stelle, an der ohnehin sein Router registriert wird. Bewusst nicht
+enthalten: `UserIdError` und `PasswordHashError` - ihre Faelle erreichen den Rand nie (der
+Response-Mapper behandelt sie als Bug), sie sind nichts Veroeffentlichtes und tragen
+deshalb auch keinen Code.
+"""
+
+PRESENTATION_CODES = frozenset(
+    {
+        "email-already-registered-detail",
+        "validation-failed-detail",
+        # Middleware: noch nicht als Union definiert (Tickets 0006, 0011)
+        "idempotency-key-reused",
+        "idempotency-key-reused-detail",
+        "idempotency-request-in-progress",
+        "idempotency-request-in-progress-detail",
+        "internal-server-error",
+        "internal-server-error-detail",
+    }
+)
+"""Codes, die am Rand entstehen und nicht (noch) als ERROR_UNION definiert sind.
+
+Request-Validierungsfehler sind jetzt in ERROR_UNIONS (RequestValidationFault).
+Middleware-Codes warten auf separate Tickets (Idempotency als Union, usw.).
+"""
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Lege die Ressourcen des Prozesses an und raeume sie wieder weg."""
     settings = validate_settings()
     app.state.settings = settings
+
+    # Lade und validiere i18n Resource-Files beim Start
+    app.state.resources = create_resources()
+    logger.info("i18n Resource-Dateien geladen")
+
+    # Drift-Pruefung: tragen alle Fehlerfaelle einen Code, und gibt es zu jedem Code in
+    # jeder Sprache eine Vorlage - und umgekehrt? Scheitert hier lieber der Start als
+    # spaeter eine Anfrage.
+    verify_error_codes_complete(app.state.resources, ERROR_UNIONS, PRESENTATION_CODES)
+    logger.info("Fehler-Code-Drift-Prüfung bestanden")
+
+    # Kennt das installierte Pydantic noch die Fehlertypen, die der Exception-Handler
+    # behandelt? Ein Update, das einen davon umbenennt, soll das Deployment stoppen und
+    # nicht die erste Anfrage, die darauf trifft.
+    verify_pydantic_contract()
+    logger.info("Pydantic-Fehlertypen-Vertrag bestätigt")
+
     app.state.engine = build_engine(settings.database_url)
     app.state.event_registry = build_event_registry()
     logger.info("Datenbank-Engine erstellt")

@@ -212,15 +212,111 @@ aendert sich nur der Fehlertyp, wird **verkettet**: `Email.parse(raw, idn).map_e
 Wird der `Result` **verlassen** (Fold in eine Response-Union) oder aus einer fremden Union heraus
 **betreten** (Naht-Ergebnis → `Result[T, DomainError]` im Port-Adapter), wird **gematcht** — dort
 gibt es kein `Err`, auf dem eine Kette sitzen koennte, und `map` kaeme nie aus dem Ok-Zweig heraus.
-Der `match` ohne Auffangzweig ist an dieser Grenze kein Notbehelf, sondern der Wachposten: kommt ein
-Fall dazu, bricht er laut auf, waehrend eine Kette aus zwei Funktionen ihn still durchreichen wuerde
-([python-control-flow.md](./python-control-flow.md)).
+Der `match` ist an dieser Grenze kein Notbehelf, sondern der Wachposten: kommt ein Fall dazu, bricht
+er laut auf, waehrend eine Kette aus zwei Funktionen ihn still durchreichen wuerde
+([python-control-flow.md](./python-control-flow.md)). Damit er das wirklich tut, braucht er den
+werfenden Abschlusszweig aus dem naechsten Abschnitt — **ohne** ihn bricht er gerade nicht auf.
 
 **Ueber die Naht des Use Case gehen weiterhin nur Primitive**
 ([python-feature-slices.md](./python-feature-slices.md)). Die Domaenen-Union endet also an der
 Application-Grenze; dort wird sie in Code plus Parameter uebersetzt, nicht in einen Satz.
 Referenz im Repo: `contexts/identity/domain/email_errors.py` und der `EmailError`-`match`, der sie
 auswertet.
+
+## Jeder `match` ist vollstaendig — der Abschlusszweig wirft `assert_never`
+
+**Ein `match` endet nie offen.** Der letzte Zweig faengt entweder einen echten Restfall ab oder
+wirft; ein `match`, der beides nicht tut, ist ein Fehler, kein Stil.
+
+Der Grund ist eine Eigenschaft der Sprache, die man leicht falsch erinnert: **Python erzwingt
+Vollzaehligkeit zur Laufzeit nicht.** Passt kein Zweig, faellt der `match` still durch — in einer
+Funktion mit Rueckgabewert heisst das `None`, und der Fehler taucht irgendwo weiter oben als
+`AttributeError` auf einem `NoneType` auf, weit weg von seiner Ursache. In C# meldet das der
+Compiler; dieses Repo faehrt bewusst ohne Typpruefer, also muss der Code es selbst tun. Ein
+aufgezaehlter `match` "ohne Auffangzweig" ist deshalb **kein** Wachposten — er ist die Luecke.
+
+Der Abschluss ist [`typing.assert_never`](https://docs.python.org/3/library/typing.html#typing.assert_never),
+das Gegenstueck zu C#s `_ => throw new UnreachableException()`:
+
+```python
+from typing import assert_never
+
+def locale_tag(locale: Locale) -> str:
+    match locale:
+        case German():
+            return "de"
+        case English():
+            return "en"
+        case _:
+            assert_never(locale)
+```
+
+`assert_never` ist der stdlib-Weg und traegt doppelt: zur Laufzeit wirft es einen `AssertionError`
+mit dem unerwarteten Wert, und kaeme je ein Typpruefer dazu, meldete er einen nicht behandelten Fall
+schon beim Pruefen statt erst im Betrieb. Ein selbstgebauter `raise RuntimeError("unreachable")`
+kann das zweite nicht.
+
+**Immer `assert_never`, auch wo der Rest nicht streng `Never` ist.** Es gibt Faelle, die typmaessig
+gueltig sind und trotzdem nie ankommen, weil eine Stufe davor sie ausschliesst — `to_response` im
+`register_user`-Slice sieht keinen `PasswordTooShort`, weil die Pipeline vorher validiert. Fuer
+solche Stellen liegt eine eigene, sprechend benannte Ausnahme nahe ("diese Annahme ist gebrochen"
+statt "unerwarteter Wert").
+
+Das ist bewusst **nicht** die Regel hier. `assert_never` ist zur Laufzeit nichts anderes als
+`raise AssertionError(f"... but got: {value!r}")` — eine eigene Klasse daneben ist dieselbe
+Mechanik unter anderem Namen und kauft nur eine Sonderregel ein, die jeder Leser und jedes Review
+erst auseinanderhalten muss. Der Wert steht in beiden Meldungen; damit ist auch bei einem
+"ausgeschlossenen" Fall sofort sichtbar, welcher durchgerutscht ist. Ein Zweig, ein Muster, keine
+Abwaegung an der Schreibstelle.
+
+**Das Subjekt muss ein Name sein.** `assert_never` braucht den gematchten Wert; ein
+`match await pipeline.run(request):` gibt ihn nicht her. Also erst binden, dann matchen:
+
+```python
+outcome = await pipeline.run(request)
+match outcome:
+    ...
+    case _:
+        assert_never(outcome)
+```
+
+**Auch bei fremden Fallmengen — keine Ausnahme.** Naheliegender Einwand: matcht der Code auf eine
+**offene Wertemenge aus fremder Hand** (ein Fehlertyp-String von Pydantic, ein Statuscode), sei ein
+neuer Fall doch ein Bibliotheks-Update und kein Programmierfehler; ein beantworteter Auffangzweig
+sei dort freundlicher als ein Absturz.
+
+Der Einwand traegt nicht. **Eine Aenderung, die niemand adressiert hat, ist ebenso ein Bruch** — ob
+sie aus unserem Code kommt oder aus einer Abhaengigkeit, aendert daran nichts. Und der freundliche
+Auffangzweig ist nicht freundlich, er luegt: im Repo bildete er `model_attributes_type` (der Body
+ist ein Array statt eines Objekts) auf `field-type-error` ab, und der Aufrufer las **"Das Feld ''
+muss ein Text sein"** — mit leerem Feldnamen, weil es gar kein Feld gibt. Der Zweig hat den Fehler
+nicht abgefedert, sondern verdeckt.
+
+**Der Einwand, der richtig bleibt:** `assert_never` wirkt erst zur Anfragezeit — der Bruch traefe
+einen Nutzer, nicht das Deployment. Das ist zu spaet, also gehoert zu einer fremden Fallmenge eine
+Pruefung davor:
+
+```python
+# Startup: existieren die Faelle, die wir behandeln, in der installierten Version noch?
+def verify_pydantic_contract() -> None:
+    if verschwunden := sorted(HANDLED_PYDANTIC_ERROR_TYPES - set(get_args(ErrorType))):
+        raise ValueError(...)
+```
+
+Dazu ein Vertragstest, der die Fallmenge **misst** statt sie zu behaupten — und zwar auf dem Weg,
+den die Produktion nimmt. Das ist nicht dasselbe wie die Bibliothek direkt zu fahren: dieselbe
+Eingabe meldet ueber FastAPIs Body-Validierung `model_attributes_type`, gegen das Modell allein
+`model_type`. Wer die Naht umgeht, misst einen Vertrag, den der Code nie sieht.
+
+Damit greift es dreifach: der Test meldet in der CI, was sich am **Verhalten** aendert, der Start
+meldet, was gar nicht mehr **existiert**, und `assert_never` ist die letzte Instanz dahinter statt
+der ersten. Referenz im Repo: `src/api/pydantic_contract_check.py` und
+`tests/api/test_pydantic_error_contract.py`.
+
+**Maschinell geprueft, nicht erinnert.** `tests/test_match_exhaustiveness.py` liest `src/` per AST
+und laesst jeden `match` durchfallen, dessen letzter Zweig weder wirft noch `assert_never` aufruft —
+ohne Ausnahmeliste, denn es gibt keine Ausnahme
+([`exp_maschinelle-absicherung-statt-review-regel.md`](../../docs/reflections/exp_maschinelle-absicherung-statt-review-regel.md)).
 
 ## Zwei Factories je Value Object: fallibles `parse` vs. infallibles `hydrate`
 

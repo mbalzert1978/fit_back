@@ -5,17 +5,30 @@ an, die gemeinsam berichtet werden sollen (`errors.password`, `errors.email`,
 ... in einer Antwort) - also Collect-all, nicht Fail-fast
 (.rules/python/python-rule-pattern.md).
 
-Jede Regel delegiert an die `parse`-Factory des zugehoerigen Value Object und
-implementiert die Pruefung damit nicht ein zweites Mal. Die Feldnamen sind die
+**Eine Regel ist eine Funktion mit der Signatur `Rule[RegisterUserRequest]`, die
+genau eine Frage beantwortet** - und sie beantwortet sie selbst. Kein
+generischer Helfer mit Konverter-Callback dazwischen: der musste seine Signatur
+ueber fuenf verschiedene Fehlertypen spannen und wurde dabei erst zu
+`Result[object, Exception]` aufgemacht und dann unwahr, denn diese Fehlerfaelle
+sind frozen Dataclasses und keine `Exception`. Steht die Fallunterscheidung in
+der Regel, bleibt der konkrete Typ erhalten und die Annotation stimmt.
+
+Jede Regel delegiert die Pruefung selbst an die `parse`-Factory ihres Value
+Object und implementiert sie damit nicht ein zweites Mal. Die Feldnamen sind die
 des API-Vertrags (camelCase), weil sie unveraendert im `errors`-Objekt landen.
 
-Hier - und erst hier - werden Domaenenfehler zu Text fuer Menschen. Die Domaene
-sagt, *was* der Fall ist; die Formulierung ist Praesentation.
+Domaenenfehler werden hier in sprachunabhaengige Codes + Parameter uebersetzt,
+nicht in Text fuer Menschen. Der Text entsteht erst am HTTP-Rand nach
+`Accept-Language`.
 """
+
+from typing import assert_never
 
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.domain import (
     DisplayName,
+    DisplayNameIsEmpty,
+    DisplayNameTooLong,
     Email,
     EmailAddressLiteralInvalid,
     EmailDomainHasEmptyLabel,
@@ -24,7 +37,6 @@ from src.contexts.identity.domain import (
     EmailDomainLabelTooLong,
     EmailDomainMissing,
     EmailDomainTooLong,
-    EmailError,
     EmailHasWhitespace,
     EmailLocalPartHasInvalidCharacters,
     EmailLocalPartHasMisplacedDot,
@@ -32,61 +44,26 @@ from src.contexts.identity.domain import (
     EmailLocalPartTooLong,
     EmailNeedsExactlyOneAtSign,
     IdnEncoder,
+    LocaleNotSupported,
     Password,
+    PasswordTooShort,
     UnencodableDomainLabel,
     UserTimeZone,
+    UserTimeZoneUnknown,
     parse_locale,
 )
-from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import Err, Ok
 from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
 
-__all__ = ["build_register_user_rules", "email_message"]
+__all__ = ["build_register_user_rules"]
 
+_EMAIL = "email"
+"""Feldname des API-Vertrags - als Konstante, weil ihn vierzehn Arme wiederholen.
 
-def _as_field_errors(field: str, outcome: Result[object, str]) -> list[FieldError]:
-    """Uebersetze das Ergebnis einer `parse`-Factory in Feldfehler."""
-    match outcome:
-        case Ok():
-            return []
-        case Err(error=message):
-            return [FieldError(field, message)]
-
-
-def email_message(error: EmailError) -> str:
-    """Formuliere den Domaenenfehler einer E-Mail-Adresse fuer Menschen.
-
-    Vollstaendiges Matching ohne Auffangzweig: waechst `EmailError` um einen
-    Fall, faellt genau hier auf, dass die Meldung dafuer noch fehlt.
-    """
-    match error:
-        case EmailHasWhitespace():
-            return "E-Mail-Adresse darf keinen Leerraum enthalten"
-        case EmailNeedsExactlyOneAtSign():
-            return "E-Mail-Adresse braucht genau ein '@'"
-        case EmailLocalPartMissing():
-            return "E-Mail-Adresse braucht einen Teil vor dem '@'"
-        case EmailDomainMissing():
-            return "E-Mail-Adresse braucht einen Teil hinter dem '@'"
-        case EmailLocalPartTooLong(maximum=maximum):
-            return f"Teil vor dem '@' darf hoechstens {maximum} Zeichen lang sein"
-        case EmailLocalPartHasInvalidCharacters(invalid_characters=invalid):
-            return f"unzulaessige Zeichen vor dem '@': {''.join(invalid)!r}"
-        case EmailLocalPartHasMisplacedDot():
-            return "Punkte vor dem '@' duerfen weder aussen stehen noch doppelt vorkommen"
-        case EmailDomainTooLong(maximum=maximum):
-            return f"Domain darf hoechstens {maximum} Zeichen lang sein"
-        case EmailDomainHasEmptyLabel():
-            return "Domain darf kein leeres Label enthalten"
-        case EmailDomainLabelTooLong(maximum=maximum):
-            return f"Domain-Label darf hoechstens {maximum} Zeichen lang sein"
-        case EmailDomainLabelHasEdgeHyphen():
-            return "Domain-Label darf nicht mit einem Bindestrich beginnen oder enden"
-        case EmailDomainLabelHasInvalidCharacters(label=label):
-            return f"unzulaessige Zeichen im Domain-Label: {label!r}"
-        case EmailAddressLiteralInvalid(literal=literal):
-            return f"kein gueltiges IP-Adress-Literal: {literal!r}"
-        case UnencodableDomainLabel(label=label, reason=reason):
-            return f"kein gueltiges internationalisiertes Domain-Label: {label!r} ({reason})"
+Die uebrigen Regeln haben je einen Arm und nennen ihren Feldnamen dort direkt:
+eine Konstante fuer eine einzige Verwendungsstelle verschiebt die Antwort nur
+eine Zeile weiter nach oben.
+"""
 
 
 def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
@@ -97,29 +74,124 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
     """
 
     def email_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:
-        return _as_field_errors("email", Email.parse(request.email, idn).map_err(email_message))
+        """Die E-Mail-Adresse muss wohlgeformt sein.
+
+        Vierzehn Arme, einer je Regel aus `Email.parse` - das ist der Preis
+        dafuer, dass die Domaene die Adresse nicht per Regex, sondern in einzeln
+        benannten Faellen prueft. Jeder Fall hat einen eigenen Code und eine
+        eigene Textvorlage; sie zusammenzufassen hiesse, dem Aufrufer statt der
+        Ursache nur noch "ungueltig" zu sagen.
+        """
+        outcome = Email.parse(request.email, idn)
+        match outcome:
+            case Ok():
+                return []
+            case Err(error=EmailHasWhitespace()):
+                return [FieldError(_EMAIL, EmailHasWhitespace.code, {})]
+            case Err(error=EmailNeedsExactlyOneAtSign(at_sign_count=count)):
+                return [
+                    FieldError(
+                        _EMAIL,
+                        EmailNeedsExactlyOneAtSign.code,
+                        {"at_sign_count": count},
+                    )
+                ]
+            case Err(error=EmailLocalPartMissing()):
+                return [FieldError(_EMAIL, EmailLocalPartMissing.code, {})]
+            case Err(error=EmailDomainMissing()):
+                return [FieldError(_EMAIL, EmailDomainMissing.code, {})]
+            case Err(error=EmailLocalPartTooLong(maximum=maximum)):
+                return [FieldError(_EMAIL, EmailLocalPartTooLong.code, {"maximum": maximum})]
+            case Err(error=EmailLocalPartHasInvalidCharacters(invalid_characters=invalid)):
+                return [
+                    FieldError(
+                        _EMAIL,
+                        EmailLocalPartHasInvalidCharacters.code,
+                        {"invalid_characters": "".join(invalid)},
+                    )
+                ]
+            case Err(error=EmailLocalPartHasMisplacedDot()):
+                return [FieldError(_EMAIL, EmailLocalPartHasMisplacedDot.code, {})]
+            case Err(error=EmailDomainTooLong(maximum=maximum)):
+                return [FieldError(_EMAIL, EmailDomainTooLong.code, {"maximum": maximum})]
+            case Err(error=EmailDomainHasEmptyLabel()):
+                return [FieldError(_EMAIL, EmailDomainHasEmptyLabel.code, {})]
+            case Err(error=EmailDomainLabelTooLong(maximum=maximum)):
+                return [FieldError(_EMAIL, EmailDomainLabelTooLong.code, {"maximum": maximum})]
+            case Err(error=EmailDomainLabelHasEdgeHyphen()):
+                return [FieldError(_EMAIL, EmailDomainLabelHasEdgeHyphen.code, {})]
+            case Err(error=EmailDomainLabelHasInvalidCharacters()):
+                return [FieldError(_EMAIL, EmailDomainLabelHasInvalidCharacters.code, {})]
+            case Err(error=EmailAddressLiteralInvalid()):
+                return [FieldError(_EMAIL, EmailAddressLiteralInvalid.code, {})]
+            case Err(error=UnencodableDomainLabel(reason=reason)):
+                return [FieldError(_EMAIL, UnencodableDomainLabel.code, {"reason": reason})]
+            case _:
+                assert_never(outcome)
 
     return email_must_be_wellformed
 
 
 def password_must_be_long_enough(request: RegisterUserRequest) -> list[FieldError]:
-    """Das Passwort muss die Mindestlaenge erfuellen (BACKEND.md: 400 errors.password)."""
-    return _as_field_errors("password", Password.parse(request.password))
+    """Das Passwort muss die Mindestlaenge erfuellen."""
+    outcome = Password.parse(request.password)
+    match outcome:
+        case Ok():
+            return []
+        case Err(error=PasswordTooShort(actual_length=actual, minimum=minimum)):
+            return [
+                FieldError(
+                    "password",
+                    PasswordTooShort.code,
+                    {"actual_length": actual, "minimum": minimum},
+                )
+            ]
+        case _:
+            assert_never(outcome)
 
 
 def display_name_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:
     """Der Anzeigename muss nicht leer und nicht zu lang sein."""
-    return _as_field_errors("displayName", DisplayName.parse(request.display_name))
+    outcome = DisplayName.parse(request.display_name)
+    match outcome:
+        case Ok():
+            return []
+        case Err(error=DisplayNameIsEmpty()):
+            return [FieldError("displayName", DisplayNameIsEmpty.code, {})]
+        case Err(error=DisplayNameTooLong(actual_length=actual, maximum=maximum)):
+            return [
+                FieldError(
+                    "displayName",
+                    DisplayNameTooLong.code,
+                    {"actual_length": actual, "maximum": maximum},
+                )
+            ]
+        case _:
+            assert_never(outcome)
 
 
 def locale_must_be_supported(request: RegisterUserRequest) -> list[FieldError]:
     """Die Sprache muss eine der unterstuetzten sein."""
-    return _as_field_errors("locale", parse_locale(request.locale))
+    outcome = parse_locale(request.locale)
+    match outcome:
+        case Ok():
+            return []
+        case Err(error=LocaleNotSupported(candidate=candidate)):
+            return [FieldError("locale", LocaleNotSupported.code, {"candidate": candidate})]
+        case _:
+            assert_never(outcome)
 
 
 def time_zone_must_be_known(request: RegisterUserRequest) -> list[FieldError]:
     """Die Zeitzone muss eine bekannte IANA-Id sein."""
-    return _as_field_errors("timeZoneId", UserTimeZone.parse(request.time_zone_id))
+    outcome = UserTimeZone.parse(request.time_zone_id)
+    match outcome:
+        case Ok():
+            return []
+        case Err(error=UserTimeZoneUnknown(candidate=candidate)):
+            return [FieldError("timeZoneId", UserTimeZoneUnknown.code, {"candidate": candidate})]
+        case _:
+            assert_never(outcome)
 
 
 def build_register_user_rules(idn: IdnEncoder) -> Rule[RegisterUserRequest]:

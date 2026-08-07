@@ -20,6 +20,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from src.api.i18n import create_resources
 from src.contexts.shared_kernel.time_provider import FakeTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware, calculate_request_hash
 
@@ -49,6 +50,7 @@ def _build_app(engine: AsyncEngine, user_id: UUID | None) -> FastAPI:
     liegen, sonst sieht die Idempotenz-Pruefung noch keine `user_id`.
     """
     app = FastAPI()
+    app.state.resources = create_resources()
 
     @app.post("/api/v1/test-idempotency")
     async def create() -> JSONResponse:
@@ -347,3 +349,61 @@ async def test_put_wird_ebenfalls_zwischengespeichert(
             text("SELECT count(*) FROM shared_kernel.idempotency_keys")
         )
     assert stored == 1
+
+
+async def test_der_wiederverwendete_schluessel_nennt_die_sprache_der_antwort(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """422 traegt `Content-Language` - sonst geht die ausgehandelte Sprache verloren.
+
+    Der Rumpf ist bereits uebersetzt; ohne den Header koennen Aufrufer und Caches
+    nicht erkennen, in welcher Sprache er vorliegt, und ein Cache lieferte die
+    englische Antwort spaeter an einen deutschen Aufrufer aus.
+    """
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    key = str(uuid4())
+
+    async with await _client(app) as client:
+        await client.post(
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": key}, json={"menge": 1}
+        )
+        auf_englisch = await client.post(
+            "/api/v1/test-idempotency",
+            headers={"Idempotency-Key": key, "Accept-Language": "en-US"},
+            json={"menge": 999},
+        )
+
+    assert auf_englisch.status_code == 422
+    assert auf_englisch.headers["content-language"] == "en-US"
+    assert auf_englisch.json()["title"] == "Idempotency key already in use"
+
+
+async def test_die_laufende_anfrage_nennt_die_sprache_der_antwort(
+    clean_idempotency_keys: AsyncEngine,
+) -> None:
+    """Dasselbe fuer die 409 - beide Ausgaenge gehen durch dieselbe `_problem`."""
+    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    key = str(uuid4())
+
+    async with clean_idempotency_keys.begin() as connection:
+        await connection.execute(
+            text(
+                "INSERT INTO shared_kernel.idempotency_keys "
+                "(key, user_id, request_hash, response_body, created_utc) "
+                "VALUES (:key, :user_id, :hash, NULL, now())"
+            ),
+            {
+                "key": key,
+                "user_id": str(uuid4()),
+                "hash": calculate_request_hash("POST", "/api/v1/test-idempotency", ""),
+            },
+        )
+
+    async with await _client(app) as client:
+        response = await client.post(
+            "/api/v1/test-idempotency",
+            headers={"Idempotency-Key": key, "Accept-Language": "en-US"},
+        )
+
+    assert response.status_code == 422
+    assert response.headers["content-language"] == "en-US"

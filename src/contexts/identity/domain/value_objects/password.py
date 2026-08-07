@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import final
 
+from src.contexts.identity.domain.password_errors import PasswordError, PasswordTooShort
 from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = ["MINIMUM_LENGTH", "Password"]
@@ -23,10 +24,10 @@ class Password:
     value: str = field(repr=False)
 
     @classmethod
-    def parse(cls, raw: str) -> Result[Password, str]:
+    def parse(cls, raw: str) -> Result[Password, PasswordError]:
         """Pruefe die Mindestlaenge einer moeglicherweise ungueltigen Eingabe."""
         if len(raw) < MINIMUM_LENGTH:
-            return Err(f"Passwort muss mindestens {MINIMUM_LENGTH} Zeichen lang sein")
+            return Err(PasswordTooShort(len(raw), MINIMUM_LENGTH))
         return Ok(cls(raw))
 
     @classmethod

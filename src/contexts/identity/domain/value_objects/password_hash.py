@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import final
 
+from src.contexts.identity.domain.password_hash_errors import PasswordHashError, PasswordHashIsEmpty
 from src.contexts.shared_kernel import Err, Ok, Result
 
 __all__ = ["PasswordHash"]
@@ -20,11 +21,9 @@ class PasswordHash:
     value: str
 
     @classmethod
-    def parse(cls, raw: str) -> Result[PasswordHash, str]:
+    def parse(cls, raw: str) -> Result[PasswordHash, PasswordHashError]:
         """Pruefe, dass der Hasher ueberhaupt einen Wert geliefert hat."""
-        if not raw.strip():
-            return Err("Passwort-Hash darf nicht leer sein")
-        return Ok(cls(raw))
+        return Ok(cls(raw)) if raw.strip() else Err(PasswordHashIsEmpty())
 
     @classmethod
     def hydrate(cls, raw: str) -> PasswordHash:

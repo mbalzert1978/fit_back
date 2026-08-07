@@ -1,17 +1,22 @@
 """HTTP-Rand des Use Case RegisterUser: `POST /api/v1/identity/register`.
 
-Uebersetzt in beide Richtungen zwischen HTTP und den public DTOs des Slice -
-camelCase nach snake_case hinein, Response-Union nach Statuscode und Body
-hinaus. Es faellt hier **keine** Fachentscheidung mehr: welcher Ausgang eintritt,
-steht schon fest, wenn die Pipeline zurueckkommt.
+Übersetzt in beide Richtungen zwischen HTTP und den public DTOs des Slice:
+- camelCase nach snake_case hinein
+- Response-Union nach Statuscode und Body hinaus
+- Error-Codes nach Accept-Language zu Texten
+
+Es fällt hier **keine** Fachentscheidung mehr: welcher Ausgang eintritt, steht
+schon fest, wenn die Pipeline zurückkommt. Die Sprachauswahl ist rein
+präsentativ und beeinflußt das fachliche Ergebnis nicht.
 """
 
-from typing import final
+from typing import assert_never, final
 
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.identity.dependencies import RegisterUser
 from src.api.problem_details import ProblemDetails
 from src.contexts.identity.application.register_user import (
@@ -74,12 +79,20 @@ async def register_user(
 ) -> JSONResponse:
     """Lege ein Konto an.
 
-    Vollstaendiges Matching ohne Auffangzweig: waechst die Response-Union um
-    einen Ausgang, faellt genau hier auf, dass die HTTP-Antwort dafuer fehlt.
+    Vollstaendiges Matching mit `assert_never` als Abschluss: waechst die
+    Response-Union um einen Ausgang, faellt genau hier auf, dass die HTTP-Antwort
+    dafuer fehlt. Ohne diesen Zweig faellt der `match` still durch und die Funktion
+    liefert `None` - Python erzwingt Vollzaehligkeit zur Laufzeit nicht
+    (.rules/python/python-error-handling.md, "Jeder `match` ist vollstaendig").
     """
-    match await pipeline.run(body.to_request()):
+    # Wähle Sprache nach Accept-Language
+    language = get_language_from_header(request.headers.get("accept-language"))
+    resources: ResourcesCache = request.app.state.resources
+
+    outcome = await pipeline.run(body.to_request())
+    match outcome:
         case RegistrationAccepted() as accepted:
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=status.HTTP_201_CREATED,
                 content={
                     "userId": accepted.user_id,
@@ -94,23 +107,49 @@ async def register_user(
                     .isoformat(),
                 },
             )
+            response.headers["Content-Language"] = language
+            return response
+
         case EmailAlreadyTaken(email=email):
+            title = translate(resources, "email-already-registered", language=language)
+            detail = translate(
+                resources, "email-already-registered-detail", {"email": email}, language
+            )
             return _problem(
                 request,
                 status.HTTP_409_CONFLICT,
                 "email-already-registered",
-                "E-Mail-Adresse bereits vergeben",
-                f"Zu {email} existiert bereits ein Konto.",
+                title,
+                detail,
+                language_tag=language,
             )
+
         case RegistrationInvalid(errors=errors):
+            # Übersetze error codes zu Texten
+            # errors: Mapping[str, tuple[FieldErrorDetail, ...]]
+            # FieldErrorDetail = tuple[str, Mapping[str, object]]
+            translated_errors: dict[str, list[str]] = {}
+            for field, field_errors in errors.items():
+                messages: list[str] = []
+                for code, parameters in field_errors:
+                    text = translate(resources, code, parameters, language)
+                    messages.append(text)
+                translated_errors[field] = messages
+
+            title = translate(resources, "validation-failed", language=language)
+            detail = translate(resources, "validation-failed-detail", language=language)
             return _problem(
                 request,
                 status.HTTP_400_BAD_REQUEST,
                 "validation-failed",
-                "Validierung fehlgeschlagen",
-                "Die Eingabe erfüllt nicht die erforderlichen Bedingungen.",
-                {field: list(messages) for field, messages in errors.items()},
+                title,
+                detail,
+                translated_errors,
+                language_tag=language,
             )
+
+        case _:
+            assert_never(outcome)
 
 
 def _problem(
@@ -120,6 +159,7 @@ def _problem(
     title: str,
     detail: str,
     errors: dict[str, list[str]] | None = None,
+    language_tag: str = "de-DE",
 ) -> JSONResponse:
     """Baue eine RFC-7807-Antwort im Format des Shared Kernel."""
     problem = ProblemDetails(
@@ -130,8 +170,10 @@ def _problem(
         instance=str(request.url.path),
         errors=errors,
     )
-    return JSONResponse(
+    response = JSONResponse(
         status_code=http_status,
         content=problem.model_dump(exclude_none=True),
         media_type=_PROBLEM_JSON,
     )
+    response.headers["Content-Language"] = language_tag
+    return response

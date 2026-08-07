@@ -11,10 +11,19 @@ from typing import final
 
 from src.contexts.shared_kernel.result import Err, Ok, Result
 
-__all__ = ["NotEmptyString", "not_blank"]
+__all__ = ["NotEmptyString", "NotEmptyStringError", "not_blank"]
 
 
-def not_blank(raw: str) -> Result[str, str]:
+@final
+@dataclass(frozen=True, slots=True)
+class TextIsEmpty:
+    """Der Text besteht nur aus Leerraum - und ist damit ungueltig."""
+
+
+type NotEmptyStringError = TextIsEmpty
+
+
+def not_blank(raw: str) -> Result[str, NotEmptyStringError]:
     """Fail-fast-Regel: der Text besteht nicht nur aus Leerraum - und kommt getrimmt zurueck.
 
     Als eigenstaendige Regel exportiert, damit sie in einer `chain(...)` vor
@@ -26,9 +35,7 @@ def not_blank(raw: str) -> Result[str, str]:
     und wer es vergisst, laesst Leerraum in ein Value Object.
     """
     trimmed = raw.strip()
-    if not trimmed:
-        return Err("Text darf nicht leer sein")
-    return Ok(trimmed)
+    return Ok(trimmed) if trimmed else Err(TextIsEmpty())
 
 
 @final
@@ -39,7 +46,7 @@ class NotEmptyString:
     value: str
 
     @classmethod
-    def parse(cls, raw: str) -> Result[NotEmptyString, str]:
+    def parse(cls, raw: str) -> Result[NotEmptyString, NotEmptyStringError]:
         """Trimme und pruefe eine moeglicherweise leere Eingabe."""
         return not_blank(raw).map(cls)
 

@@ -7,7 +7,7 @@ bleibt die Domaene austauschbar gegenueber der Bibliothek und die Bibliothek
 unwissend ueber die Domaene.
 """
 
-from typing import final
+from typing import assert_never, final
 
 from src.contexts.identity.application.register_user.abstractions import (
     AsciiLabel,
@@ -30,8 +30,11 @@ class IdnEncoderAdapter:
 
     def to_ascii(self, label: str) -> Result[str, DomainError]:
         """Wandle ein Label um und melde die Ablehnung als Domaenenfehler."""
-        match self._labels.to_ascii(label):
+        outcome = self._labels.to_ascii(label)
+        match outcome:
             case AsciiLabel(value=ascii_label):
                 return Ok(ascii_label)
             case LabelRejected(reason=reason):
                 return Err(UnencodableDomainLabel(label, reason))
+            case _:
+                assert_never(outcome)

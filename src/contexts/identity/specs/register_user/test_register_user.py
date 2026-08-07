@@ -106,6 +106,13 @@ async def test_lehnt_ein_passwort_unter_zehn_zeichen_ab() -> None:
 
     assert isinstance(result, RegistrationInvalid)
     assert "password" in result.errors
+    # Beleg: Der Code und Parameter sind Teil der Response-Union (nicht nur Texte)
+    password_errors = result.errors["password"]
+    assert len(password_errors) == 1
+    code, params = password_errors[0]
+    assert code == "password-too-short"
+    assert params["minimum"] == 10
+    assert params["actual_length"] == 4
 
 
 @pytest.mark.asyncio
@@ -169,3 +176,65 @@ async def test_meldet_nichts_bei_ungueltiger_eingabe() -> None:
 
     assert isinstance(result, RegistrationInvalid)
     assert api.published_events == ()
+
+
+@pytest.mark.asyncio
+async def test_email_error_codes_und_parameter_sind_in_der_response() -> None:
+    """Beleg: Fehler-Codes fliessen durch die Naht in die Response-Union.
+
+    Arrange (Test-API) → Act (Request-DTO) → Assert (Response-Union).
+    Der HTTP-Rand wird diese Codes später mit Accept-Language uebersetzen,
+    aber schon hier sind sie typisiert und parametrisiert.
+    """
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(email="keine-at"))
+
+    assert isinstance(result, RegistrationInvalid)
+    assert "email" in result.errors
+    email_errors = result.errors["email"]
+    assert len(email_errors) >= 1
+    # Jeden Email-Error-Code verifizieren
+    codes_found = {code for code, _ in email_errors}
+    assert codes_found >= {"email-needs-exactly-one-at-sign"}
+
+
+@pytest.mark.asyncio
+async def test_display_name_error_code_in_response() -> None:
+    """Beleg: DisplayNameError-Codes sind typisiert in der Response."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(display_name="   "))
+
+    assert isinstance(result, RegistrationInvalid)
+    assert "displayName" in result.errors
+    dn_errors = result.errors["displayName"]
+    code, _ = dn_errors[0]
+    assert code == "display-name-is-empty"
+
+
+@pytest.mark.asyncio
+async def test_locale_error_code_in_response() -> None:
+    """Beleg: LocaleError-Codes sind typisiert in der Response."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(locale="fr"))
+
+    assert isinstance(result, RegistrationInvalid)
+    assert "locale" in result.errors
+    locale_errors = result.errors["locale"]
+    code, params = locale_errors[0]
+    assert code == "locale-not-supported"
+    assert params["candidate"] == "fr"
+
+
+@pytest.mark.asyncio
+async def test_email_already_taken_code_in_response() -> None:
+    """Beleg: EmailAlreadyTaken traegt seinen Code (nicht nur die Email)."""
+    api = RegisterUserTestApi().with_registered_user("markus@example.de")
+
+    result = await api.run(_request(email="markus@example.de"))
+
+    assert isinstance(result, EmailAlreadyTaken)
+    assert result.code == "email-already-registered"
+    assert result.email == "markus@example.de"

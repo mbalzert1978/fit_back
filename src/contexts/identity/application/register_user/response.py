@@ -3,14 +3,20 @@
 Geschlossene Tagged Union statt "Ergebnis plus Fehlerliste": jeder Ausgang traegt
 genau die Felder, die er hat. Der HTTP-Router (Stufe 3) matcht darauf und waehlt
 Statuscode und ProblemDetails-Typ - er trifft dabei keine Fachentscheidung mehr.
+
+Die `errors`-Struktur traegt Code + Parameter statt fertige Texte: der HTTP-Rand
+waehlt `Accept-Language` und rendert daraus.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import final
+from typing import ClassVar, final
+
+from src.contexts.shared_kernel.validation import FieldErrorDetail
 
 __all__ = [
     "EmailAlreadyTaken",
+    "RegisterUserFailure",
     "RegisterUserResponse",
     "RegistrationAccepted",
     "RegistrationInvalid",
@@ -36,15 +42,31 @@ class RegistrationAccepted:
 class EmailAlreadyTaken:
     """Die E-Mail gehoert bereits einem Konto (HTTP 409, email-already-registered)."""
 
+    code: ClassVar[str] = "email-already-registered"
     email: str
 
 
 @final
 @dataclass(frozen=True, slots=True)
 class RegistrationInvalid:
-    """Die Eingabe ist formal ungueltig (HTTP 400, gefuelltes `errors`-Objekt)."""
+    """Die Eingabe ist formal ungueltig (HTTP 400, gefuelltes `errors`-Objekt).
 
-    errors: Mapping[str, tuple[str, ...]]
+    `errors` traegt eine Abbildung von Feldnamen zu Tupeln von (error_code, parameters).
+    Der HTTP-Rand waehlt nach `Accept-Language` die Sprache und rendert die Codes.
+    Der top-level code ist 'validation-failed', die Feldfehlercodes sind in den `errors` Eintraegen.
+    """
+
+    code: ClassVar[str] = "validation-failed"
+    errors: Mapping[str, tuple[FieldErrorDetail, ...]]
 
 
-type RegisterUserResponse = RegistrationAccepted | EmailAlreadyTaken | RegistrationInvalid
+type RegisterUserFailure = EmailAlreadyTaken | RegistrationInvalid
+"""Die Fehlerhaelfte der Antwort - jeder Fall traegt seinen Code.
+
+Eigener Name, damit der Zusammenbau sie der Drift-Pruefung uebergeben kann, ohne den
+Erfolgsfall mitzuschleppen: `RegistrationAccepted` hat zu Recht keinen Fehlercode, und
+eine Aufzaehlung, die ihn ueberspringen muesste, koennte einen vergessenen Code nicht
+mehr von einem Erfolg unterscheiden.
+"""
+
+type RegisterUserResponse = RegistrationAccepted | RegisterUserFailure
