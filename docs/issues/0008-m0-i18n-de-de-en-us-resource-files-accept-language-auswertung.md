@@ -121,6 +121,17 @@ Flach, ohne Stufengliederung: Praesentations-/Infrastruktur-Arbeit ohne eigene F
       dieselbe Anfrage zweisprachig stellt und identische `type`/`code`-Werte, aber verschiedene
       `title`/`detail` erwartet
 - [ ] Die Antwort traegt `Content-Language` mit dem tatsaechlich gewaehlten Tag (`de-DE`/`en-US`)
+- [ ] **Auch die strukturellen Request-Fehler tragen eigene Codes** (2026-08-07 nachgetragen). Der
+      Pydantic-Pfad in `api/exception_handlers.py` uebernahm die Rohmeldung der Bibliothek
+      unveraendert in `errors.*` — `title`/`detail` zweisprachig, die Feldfehler dieses Pfades
+      immer englisch. Diese Meldungen waren nie Teil der 34 gezaehlten Texte; die Grenze faellt
+      trotzdem, weil eine `errors`-Struktur mit teils eigenen Codes und teils fremden Rohmeldungen
+      zwei Vertraege in einem Feld waere. Der HTTP-Rand fuehrt seine strukturellen Request-Fehler
+      als **eigene geschlossene Tagged Union** mit `code`-Attribut, die mit in die Aufzaehlung des
+      Zusammenbaus geht — sonst staenden diese Codes ausserhalb der Drift-Pruefung und waeren die
+      zweite Wahrheit, die
+      [`…-0805-fehlercodes-werden-abgeleitet-nicht-gepflegt.md`](../decisions/2026-08-07-0805-fehlercodes-werden-abgeleitet-nicht-gepflegt.md)
+      abschafft. Der Feldname ist Parameter der Nutzlast, nicht Teil des Codes.
 - [ ] Neue Fehlertexte werden zentral in den Resource-Files gepflegt, nicht inline im Code
 
 ## Blocked by
