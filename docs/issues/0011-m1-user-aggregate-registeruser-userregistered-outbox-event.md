@@ -114,6 +114,94 @@ aus 0006 steigt ohne `request.state.user_id` bewusst aus
 (`src/middleware/idempotency.py:257-259`). Der Endpunkt haengt bereits hinter der Middleware; dass
 sie fuer ihn wirkungslos bleibt, ist ein **dokumentiertes Provisorium**, kein Defekt.
 
+### Stufe 4 — eine echte Pipeline statt eines Wrappers mit `if` — **offen (aufgenommen 2026-08-07)**
+
+Aufgekommen bei der Arbeit an 0008: `to_response` liess sich nicht sauber schreiben, und der
+Grund lag nicht im Mapper, sondern im Schnitt eine Ebene darueber.
+
+**Was heute dasteht.** `RegisterUserPipeline.run` heisst Pipeline, ist aber ein Wrapper um den
+Handler mit einer imperativen Verzweigung:
+
+```python
+if errors := self._validate(request):
+    return to_invalid_response(errors)  # Fold 1: Feldfehler  -> Response
+return to_response(await self._handler(to_command(...)))  # Fold 2: Domaenenfehler -> Response
+```
+
+Zwei Fehlerkanaele (`list[FieldError]` und `DomainError`), zwei Folds in **dieselbe**
+Response-Union, verbunden durch ein `if`. Daraus folgt alles Weitere:
+
+- Der Handler kann faktisch nie fehlschlagen — die Validierung hat vorher alles abgefangen, und
+  `to_command` baut mit `hydrate` (infallibel). Von den 22 Faellen, die
+  `Result[User, DomainError]` verspricht, erreicht `to_response` genau **einen**
+  (`EmailAlreadyRegistered`).
+- `to_response` muss die uebrigen 21 trotzdem behandeln. Jede Behandlung ist entweder eine
+  Abschrift der Code-und-Parameter-Tabelle aus `validators/register_user_rules.py` fuer Faelle,
+  die nie ankommen — oder 21-mal dasselbe „kann nicht sein".
+- `case _: assert_never(...)` verliert dabei seine Aussage: es kann „neu dazugekommen" nicht mehr
+  von „gibt es laengst, hat nur niemand behandelt" unterscheiden.
+
+**Was gebaut wird.** Eine Pipeline, die diesen Namen verdient: der Handler steckt in einer Kette
+von Behaviors, jedes mit derselben Signatur, jedes faehig, vorher und nachher zu laufen und mit
+`Err` abzukuerzen. Das ist die Stelle, an der spaeter alles Querschnittliche landet — heute macht
+jeder Slice sein eigenes Logging, kuenftig haengt es als **ein** Behavior in der Kette, ebenso
+Transaktionsklammer, Idempotenz und Messung.
+
+```python
+# shared_kernel/pipeline.py
+type Handler[TIn, TOut, E] = Callable[[TIn], Awaitable[Result[TOut, E]]]
+type Behavior[TIn, TOut, E] = Callable[[TIn, Handler[TIn, TOut, E]], Awaitable[Result[TOut, E]]]
+
+
+def build_pipeline[TIn, TOut, E](
+    handler: Handler[TIn, TOut, E], *behaviors: Behavior[TIn, TOut, E]
+) -> Handler[TIn, TOut, E]: ...
+```
+
+Der Slice wird damit zu einer Kette mit **einem** Fold am Ende:
+
+```python
+outcome = await (
+    self._validate(request)  # Result[Request, RegisterUserError]
+    .map(lambda checked: to_command(checked, self._idn))
+    .bind_async(self._handler)  # Result[User,    RegisterUserError]
+)
+return to_response(outcome)
+```
+
+**Beide Haelften gehoeren zusammen.** Die Pipeline allein raeumt die doppelte Verzweigung weg,
+verschiebt den 22-Arme-Match aber nur in das `map_err`, das den Domaenenfehler in den
+Pipeline-Kanal hebt. Erst mit einer eigenen, wachsenden Fehler-Union je Port wird die Aufzaehlung
+ehrlich — und genau dort gehoeren dann auch die **erwarteten** IO-Ausgaenge des Adapters hin
+(`db nicht erreichbar` als Wert im `Result`, nicht als Exception); Unerwartetes bubbelt weiterhin
+hoch.
+
+- [ ] `shared_kernel/result.py`: `bind_async` auf `Ok`/`Err`. Ohne sie laesst sich der `async`
+      Handler nicht verketten — das ist der eigentliche Grund, warum dort heute ein `if` steht.
+- [ ] `shared_kernel/pipeline.py`: `Handler`, `Behavior`, `build_pipeline` (PEP-695-generisch, nur
+      stdlib). Setzt auf `Rule`/`all_of`/`FieldError` aus `validation.py` auf und ersetzt davon
+      nichts.
+- [ ] Validierung wird das **erste Behavior**, nicht mehr ein `if` im Slice: es hebt
+      `list[FieldError]` in den Fehlerkanal der Pipeline und kuerzt ab.
+- [ ] Ein gemeinsamer Fehlertyp je Use Case, damit beide Kanaele zusammenfallen:
+      `type RegisterUserError = RequestInvalid | EmailAlreadyRegistered`, wobei `RequestInvalid`
+      die gesammelten `FieldError` traegt.
+- [ ] Eine eigene Fehler-Union je Domain-Port statt `DomainError` als Sammeltyp:
+      `type UserRegistryError = EmailAlreadyRegistered | …` — sie waechst mit den erwarteten
+      Ausgaengen des Adapters. `errors.py:5-6` („Alle Domain-Ports … sprechen `Result[T, DomainError]`
+      mit **diesem** `E`") wird damit hinfaellig und ist mitzuziehen.
+- [ ] `to_response` hat danach vier Arme — `Ok`, `RequestInvalid`, `EmailAlreadyRegistered`,
+      `assert_never` — alle erreichbar, keine Abschrift der Feldfehler-Tabelle, kein `raise`.
+- [ ] Ein Behavior-Test belegt die Reihenfolge und das Abkuerzen: ein Behavior, das `Err` liefert,
+      laesst den Handler nicht laufen.
+- [ ] `.rules/python/python-feature-slices.md` beschreibt die Pipeline als Behavior-Kette; das
+      heutige `if`/`else`-Beispiel wird ersetzt.
+
+**Warum in diesem Ticket und nicht in einem eigenen.** Dieser Slice ist die Referenz — `review-against-rules`
+zeigt per `reference_implementation` darauf, zwei Regel-Dateien nennen ihn in ihren Kopfnotizen, und
+jeder weitere Slice wird nach seiner Form gebaut. Ein falscher Schnitt hier wird zwangslaeufig
+kopiert. Die Stufe laeuft deshalb **vor** dem naechsten Feature-Slice.
+
 ## Bewusst nicht in diesem Ticket
 
 - **`RowVersion`/Optimistic Concurrency** (`docs/Draft/BACKEND.md:80`, Ticket 0007). `identity.users`
@@ -191,5 +279,13 @@ Fuer Nachfolge-Tickets, die auf denselben Bausteinen aufsetzen:
 
 ## Restarbeit bis zum Abschluss
 
-Einziger offener Punkt ist der **Contract-Test** in Stufe 2. Alles andere ist gebaut, gemergt und
-oben abgehakt — wer dieses Ticket aufnimmt, baut nichts davon neu.
+Zwei offene Punkte. Alles andere ist gebaut, gemergt und oben abgehakt — wer dieses Ticket
+aufnimmt, baut nichts davon neu.
+
+1. **Stufe 4 — die Pipeline-Abstraktion.** Der groessere Brocken und der einzige, der andere
+   Tickets aufhaelt: solange der Referenz-Slice einen Wrapper mit `if` statt einer Pipeline hat,
+   kopiert ihn jeder weitere Slice. Laeuft deshalb vor dem naechsten Feature-Ticket.
+2. **Contract-Test** in Stufe 2.
+
+Reihenfolge in der Planung: erst 0048 (ruff auf Production-Level — betrifft `src/` als Ganzes und
+wird billiger, je frueher es laeuft), dann Stufe 4 hier, dann wieder Features.
