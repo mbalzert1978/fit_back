@@ -42,6 +42,21 @@ JWT-Access-Token-Ausstellung (15 min) im Rahmen von Login(email, password), inkl
 - [ ] Ein geschuetzter Dummy-Endpunkt lehnt Anfragen ohne/mit ungueltigem Bearer-Token mit 401 ab
 - [ ] End-to-End-Test gegen die laufende App; curl-Beispiel in der Ticket-Doku
 
+### Stufe 3 — aus 0011 uebernommen
+
+Beides stand urspruenglich in 0011 Stufe 3 und haengt an der Token-Ausstellung bzw. der
+Auth-Middleware dieses Tickets; siehe
+[`2026-08-07-0633-register-liefert-noch-keine-tokens.md`](../decisions/2026-08-07-0633-register-liefert-noch-keine-tokens.md).
+
+- [ ] `POST /api/v1/identity/register` liefert seine 201-Antwort um
+      `accessToken`/`refreshToken`/`expiresInSeconds` erweitert — damit erfuellt der Endpunkt
+      `docs/Draft/BACKEND.md:123`. Der bestehende Endpunkttest
+      (`tests/api/test_register_user_endpoint.py`) zieht mit.
+- [ ] Idempotenz-Nachweis fuer `/register`: mit gesetztem `Idempotency-Key` liefert der zweite,
+      identische Aufruf 200 mit der gespeicherten Antwort. Bis heute steigt die Middleware ohne
+      `request.state.user_id` bewusst aus (`src/middleware/idempotency.py:257-259`) — erst die
+      Auth-Middleware aus Stufe 2 macht sie fuer diesen Endpunkt wirksam.
+
 ## Blocked by
 
 - Blocked by [0011](0011-m1-user-aggregate-registeruser-userregistered-outbox-event.md)
