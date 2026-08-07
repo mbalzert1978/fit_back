@@ -1,7 +1,7 @@
 ---
 id: "0048"
 title: "Infra (0008.5): ruff auf Production-Level fuer src/ (select = ALL), Tests ausgenommen"
-status: open
+status: closed
 milestone: M0
 type: AFK
 ---
@@ -112,3 +112,36 @@ ignoriert:
 
 - Blocked by [0008](0008-m0-i18n-de-de-en-us-resource-files-accept-language-auswertung.md) — nur
   zeitlich: 0008 fasst dieselben Dateien an, parallel gaebe es nur Konflikte
+
+## Abschluss (2026-08-07)
+
+Umgesetzt und gemergt als PR #14 („Infra (0048): ruff auf Production-Level fuer src/
+(select = ALL)", Squash-Merge, `a26126c` auf `main`). Der Inhalt wurde nach dem Merge per
+`git diff origin/main <branch-head>` als identisch verifiziert; Worktree und lokaler Branch
+sind abgebaut.
+
+Die Acceptance criteria sind erfuellt: der `[tool.ruff.lint]`-Block steht im Wortlaut des
+Tickets in `pyproject.toml`, `ruff check` meldet `All checks passed!`, `ruff format --check`
+bleibt gruen, und `pytest` liefert unveraendert **280 passed** — keine Testdatei unter
+`tests/` oder `src/contexts/*/specs/` wurde angefasst. Jede Unterdrueckung ist entweder ein
+begruendeter `ignore`-Eintrag oder ein verorteter `# noqa: CODE -- Begruendung`; kein nacktes
+`# noqa`, kein dateiweites `# ruff: noqa`.
+
+Die vier offenen Urteile wurden je einzeln entschieden:
+
+- **`INP001`** — `per-file-ignores` fuer `alembic/*/versions/**` und `alembic/env.py`, weil
+  Alembic seine Revisionen ueber einen eigenen Mechanismus laedt. Konfiguration statt
+  Datei-`noqa`, weil die Ausnahme dem ganzen Pfad gilt.
+- **`S608`** — verorteter `# noqa`. In `src/middleware/idempotency.py` wird ausschliesslich die
+  Modulkonstante `IDEMPOTENCY_KEYS_TABLE` (`:79`, Literal) interpoliert; jeder Nutzerwert laeuft
+  ueber Named Binds. Im Security-Gate einzeln nachgeprueft.
+- **`TRY003`/`EM101`/`EM102`** — keine Befunde mehr. Die im Ticket genannten 26 stammen aus einer
+  Messung vor dem Merge von 0008, das die Texte aus den `raise`-Statements in die Resource-Files
+  gezogen hat. Mit `ruff check --select TRY003,EM101,EM102 --ignore-noqa` gegengeprueft: 0.
+- **`PLR0913`/`PLR0917`/`C901`/`PLR0912`/`PLR0911`** — verortete `# noqa` mit fallweiser
+  Begruendung. Eine Umstrukturierung haette Verhalten geaendert, was dieses Ticket ausschliesst.
+
+Ergaenzend entschieden: Docstrings werden einheitlich **deutsch** verfasst, entsprechend der
+gelebten Praxis im Repo und der `D401`-Begruendung in der Konfiguration selbst. Die vier
+ungenutzten Parameter in `src/contexts/shared_kernel/result.py` heissen `_` und sind zusaetzlich
+positional-only (`/`), damit die beiden Arme der Tagged Union `Result[T, E]` austauschbar bleiben.
