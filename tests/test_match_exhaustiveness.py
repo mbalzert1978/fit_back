@@ -10,11 +10,14 @@ Geprueft wird der **letzte** Zweig: er wirft (`raise`) oder ruft `assert_never`.
 Beides beendet den `match` laut. Ein aufgezaehlter `match`, der einfach aufhoert,
 faellt hier durch.
 
-Die Ausnahmen stehen in `OFFENE_WERTEMENGEN` - Stellen, an denen der Restfall
-**real** ist, weil die Fallmenge einer fremden Bibliothek gehoert und nicht uns.
-Dort waere `assert_never` schaedlich: ein Bibliotheks-Update brachte den Aufrufer
-um seine Antwort. Ein neuer Eintrag kostet eine Begruendung und ist damit eine
-Entscheidung, kein Versehen.
+**Ohne Ausnahmen.** Das gilt auch dort, wo die Fallmenge einer fremden Bibliothek
+gehoert - Pydantics Fehlertypen im Exception-Handler sind der Fall im Repo. Der
+Einwand "ein Bibliotheks-Update ist kein Programmierfehler" traegt nicht: eine
+Aenderung, die wir nicht adressiert haben, ist ebenso ein Bruch, und sie still
+auf einen Auffangzweig abzubilden hiesse, dem Aufrufer eine falsche Begruendung
+zu nennen. Damit der Bruch nicht erst bei einem Nutzer auftritt, wird die Annahme
+frueher geprueft: `verify_pydantic_contract` beim Start und
+`tests/api/test_pydantic_error_contract.py` in der CI.
 
 Regel: `.rules/python/python-error-handling.md`, "Jeder `match` ist vollstaendig".
 """
@@ -22,18 +25,7 @@ Regel: `.rules/python/python-error-handling.md`, "Jeder `match` ist vollstaendig
 import ast
 import pathlib
 
-import pytest
-
 QUELLE = pathlib.Path(__file__).resolve().parents[1] / "src"
-
-OFFENE_WERTEMENGEN = {
-    "api/exception_handlers.py": (
-        "matcht auf Pydantics Fehlertyp-String, nicht auf eine Union dieses Repos. "
-        "Ein neuer Pydantic-Fehlertyp ist ein Bibliotheks-Update, kein Programmierfehler - "
-        "`assert_never` machte daraus einen 500er statt einer uebersetzten 400."
-    ),
-}
-"""Dateien, deren `match` bewusst auf eine offene Wertemenge trifft, mit Begruendung."""
 
 
 def _endet_laut(zweig: ast.match_case) -> bool:
@@ -56,34 +48,24 @@ def _offene_match_stellen() -> list[tuple[str, int]]:
     for datei in sorted(QUELLE.rglob("*.py")):
         baum = ast.parse(datei.read_text(encoding="utf-8"))
         relativ = datei.relative_to(QUELLE).as_posix()
-        for knoten in ast.walk(baum):
-            if isinstance(knoten, ast.Match) and not _endet_laut(knoten.cases[-1]):
-                offen.append((relativ, knoten.lineno))
+        offen.extend(
+            (relativ, knoten.lineno)
+            for knoten in ast.walk(baum)
+            if isinstance(knoten, ast.Match) and not _endet_laut(knoten.cases[-1])
+        )
     return offen
 
 
 def test_jeder_match_endet_laut() -> None:
     """Kein `match` darf still durchfallen und `None` liefern."""
-    unerlaubt = [
-        f"src/{datei}:{zeile}"
-        for datei, zeile in _offene_match_stellen()
-        if datei not in OFFENE_WERTEMENGEN
-    ]
+    unerlaubt = [f"src/{datei}:{zeile}" for datei, zeile in _offene_match_stellen()]
 
     assert not unerlaubt, (
         "Diese `match`-Stellen enden ohne werfenden Zweig und liefern bei einem "
         "unbekannten Fall still `None`:\n  - " + "\n  - ".join(unerlaubt) + "\n\n"
-        "Gehoert die Fallmenge diesem Repo, gehoert ans Ende `case _: assert_never(<subjekt>)`. "
-        "Gehoert sie einer fremden Bibliothek, gehoert die Datei mit Begruendung in "
-        "OFFENE_WERTEMENGEN in dieser Datei."
-    )
-
-
-@pytest.mark.parametrize("datei", sorted(OFFENE_WERTEMENGEN))
-def test_jede_ausnahme_wird_noch_gebraucht(datei: str) -> None:
-    """Eine Ausnahme, die niemand mehr braucht, gehoert geloescht statt vererbt."""
-    assert any(offen == datei for offen, _ in _offene_match_stellen()), (
-        f"{datei} steht in OFFENE_WERTEMENGEN, hat aber keinen offenen `match` mehr. "
-        "Der Eintrag ist veraltet und gehoert entfernt - sonst deckt er kuenftig "
-        "eine echte Luecke zu."
+        "Ans Ende gehoert `case _: assert_never(<subjekt>)`. Ist das Subjekt ein "
+        "Ausdruck statt eines Namens, erst binden, dann matchen. Gehoert die Fallmenge "
+        "einer fremden Bibliothek, aendert das nichts an dieser Regel - dann kommt eine "
+        "Startup-Pruefung dazu, die den Bruch vor die erste Anfrage zieht (Vorbild: "
+        "src/api/pydantic_contract_check.py)."
     )

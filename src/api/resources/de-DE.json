@@ -31,5 +31,7 @@
   "field-required": "Das Feld '{field}' ist erforderlich",
   "field-type-error": "Das Feld '{field}' muss ein Text sein",
   "extra-forbidden": "Das Feld '{field}' ist nicht bekannt",
-  "json-invalid": "Die Anfrage enthält ungültiges JSON"
+  "json-invalid": "Die Anfrage enthält ungültiges JSON",
+  "body-not-an-object": "Der Anfrage-Inhalt muss ein JSON-Objekt sein",
+  "field-value-rejected": "Das Feld '{field}' hat einen unzulässigen Wert"
 }

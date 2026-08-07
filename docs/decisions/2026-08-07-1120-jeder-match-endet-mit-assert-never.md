@@ -38,19 +38,53 @@ Laufzeit ein `AssertionError` mit dem unerwarteten Wert, und kaeme je ein Typpru
 er den nicht behandelten Fall schon beim Pruefen. Python hat keine `UnreachableException`;
 `assert_never` ist das Gegenstueck.
 
-## Die eine Unterscheidung: wem gehoert die Fallmenge?
+## Ohne Ausnahme — auch bei fremden Fallmengen
 
-`assert_never` behauptet "hier kommt nie etwas an". Das stimmt nur, wenn die Fallmenge **uns
-gehoert und geschlossen ist** — eine Tagged Union dieses Repos, `Result`, ein Value Object.
+Der erste Entwurf dieser Entscheidung hatte eine Ausnahme vorgesehen: matcht der Code auf eine
+**offene Wertemenge aus fremder Hand** — Pydantics Fehlertyp-Strings in
+`src/api/exception_handlers.py` —, sei der Restfall real und brauche eine echte Antwort statt
+`assert_never`. Begruendung: ein neuer Pydantic-Fehlertyp ist ein Bibliotheks-Update, kein
+Programmierfehler, und duerfe den Aufrufer nicht mit HTTP 500 treffen.
 
-Matcht der Code auf eine **offene Wertemenge aus fremder Hand**, ist der Restfall real und braucht
-eine echte Antwort. Der Fall im Repo: `src/api/exception_handlers.py` matcht auf Pydantics
-Fehlertyp-String. Ein neuer Pydantic-Fehlertyp ist ein Bibliotheks-Update, kein Programmierfehler —
-mit `assert_never` quittierte eine harmlose Dependency-Aktualisierung jede unbekannte Eingabe mit
-HTTP 500 statt mit einer uebersetzten 400.
+**Diese Ausnahme ist verworfen.** Eine Aenderung, die wir nicht adressiert haben, ist ebenso ein
+Bruch — ob sie aus unserem Code kommt oder aus einer Abhaengigkeit, aendert daran nichts. Sie still
+auf einen Auffangzweig abzubilden heisst, dem Aufrufer eine falsche Begruendung zu nennen.
 
-Beide Formen erfuellen dieselbe Regel; sie unterscheiden sich nur darin, ob der Default erreichbar
-ist. Die Pruefrage lautet nicht "kann das passieren?", sondern **"gehoert mir die Fallmenge?"**
+Der Beleg lag im Code: der Auffangzweig bildete `model_attributes_type` (der Body ist ein Array
+statt eines Objekts) auf `field-type-error` ab. Der Aufrufer las **"Das Feld '' muss ein Text
+sein"** — mit leerem Feldnamen, weil es gar kein Feld gibt. Der Zweig hat den Fehler nicht
+abgefedert, er hat ihn verdeckt. Er ist jetzt ein eigener Fall (`BodyNotAnObject`) mit eigenem Code
+und eigenem Text.
+
+## Der Einwand, der dabei richtig bleibt
+
+Ein `assert_never` an dieser Stelle wirkt erst **zur Anfragezeit** — der Bruch traefe einen Nutzer
+in Produktion mit HTTP 500, nicht das Deployment. Das ist zu spaet. Deshalb wird die Annahme
+zweimal frueher geprueft:
+
+- **Beim Start** (`src/api/pydantic_contract_check.py`): existiert jeder behandelte Fehlertyp im
+  installierten Pydantic ueberhaupt noch? Ein umbenannter oder entfernter Typ stoppt den Start.
+- **In der CI** (`tests/api/test_pydantic_error_contract.py`): erzeugt der Endpunkt noch genau die
+  Typen, die der Handler abbildet — in beide Richtungen, damit weder ein unbehandelter Typ noch ein
+  toter Zweig stehen bleibt.
+
+Der Start prueft die **Existenz**, die CI das **Verhalten**. `assert_never` ist die letzte Instanz
+dahinter, nicht die erste.
+
+## Was das Messen gelehrt hat
+
+Die Menge der erreichbaren Fehlertypen wurde dreimal korrigiert, jedes Mal weil gemessen statt
+angenommen wurde:
+
+1. Erste Messung gegen `RegisterUserBody` direkt: fuenf Typen.
+2. Der Testlauf fand `value_error` — den erzeugt jedes Modell mit einem `field_validator`, und der
+   Handler haengt app-weit, nicht an einem Modell.
+3. Der HTTP-Test fand `model_attributes_type`, wo die Modellmessung `model_type` geliefert hatte:
+   FastAPI legt eine eigene Validierungsschicht um den Body, und die meldet einen anderen Typ als
+   `RegisterUserBody.model_validate([])`. **Wer nur das Modell faehrt, misst einen Vertrag, den der
+   Handler nie sieht.** Der Vertragstest laeuft deshalb durch den echten Endpunkt.
+
+Jede dieser drei Korrekturen kam von einem roten Test, keine vom Nachdenken.
 
 ## Warum kein Verzicht bei `Ok`/`Err`
 
@@ -68,10 +102,8 @@ braucht den gematchten Wert, also wird jetzt erst gebunden, dann gematcht.
 
 Abgesichert wird die Regel nicht durch Erinnerung, sondern durch
 `tests/test_match_exhaustiveness.py`: der Test liest `src/` per AST und laesst jeden `match`
-durchfallen, dessen letzter Zweig weder wirft noch `assert_never` aufruft. Die offenen Wertemengen
-stehen dort namentlich mit Begruendung; ein zweiter Test meldet einen Eintrag, der nicht mehr
-gebraucht wird, damit eine veraltete Ausnahme nicht kuenftig eine echte Luecke zudeckt. Die
-Mutationsprobe ist gelaufen: `assert_never` in `locale_tag` entfernt → Test rot mit genauer
+durchfallen, dessen letzter Zweig weder wirft noch `assert_never` aufruft — **ohne Ausnahmeliste**.
+Die Mutationsprobe ist gelaufen: `assert_never` in `locale_tag` entfernt → Test rot mit genauer
 Fundstelle, wieder eingesetzt → gruen.
 
 Das folgt

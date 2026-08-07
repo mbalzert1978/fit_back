@@ -267,32 +267,42 @@ match outcome:
         assert_never(outcome)
 ```
 
-**Wann der Default kein `assert_never` ist — und die Regel trotzdem gilt.** `assert_never` sagt
-"hier kommt nie etwas an". Das stimmt nur, wenn die Fallmenge **uns gehoert und geschlossen ist**:
-eine Tagged Union dieses Repos, `Result`, ein Value Object. Matcht der Code dagegen auf eine
-**offene Wertemenge aus fremder Hand** — ein Fehlertyp-String von Pydantic, ein Statuscode, roher
-Nutzereingabe-Text —, ist der Restfall real und braucht eine echte Antwort:
+**Auch bei fremden Fallmengen — keine Ausnahme.** Naheliegender Einwand: matcht der Code auf eine
+**offene Wertemenge aus fremder Hand** (ein Fehlertyp-String von Pydantic, ein Statuscode), sei ein
+neuer Fall doch ein Bibliotheks-Update und kein Programmierfehler; ein beantworteter Auffangzweig
+sei dort freundlicher als ein Absturz.
+
+Der Einwand traegt nicht. **Eine Aenderung, die niemand adressiert hat, ist ebenso ein Bruch** — ob
+sie aus unserem Code kommt oder aus einer Abhaengigkeit, aendert daran nichts. Und der freundliche
+Auffangzweig ist nicht freundlich, er luegt: im Repo bildete er `model_attributes_type` (der Body
+ist ein Array statt eines Objekts) auf `field-type-error` ab, und der Aufrufer las **"Das Feld ''
+muss ein Text sein"** — mit leerem Feldnamen, weil es gar kein Feld gibt. Der Zweig hat den Fehler
+nicht abgefedert, sondern verdeckt.
+
+**Der Einwand, der richtig bleibt:** `assert_never` wirkt erst zur Anfragezeit — der Bruch traefe
+einen Nutzer, nicht das Deployment. Das ist zu spaet, also gehoert zu einer fremden Fallmenge eine
+Pruefung davor:
 
 ```python
-match error.get("type"):          # Pydantics Fehlertypen, nicht unsere Union
-    case "missing":
-        return FieldRequired(field)
-    case "extra_forbidden":
-        return ExtraForbidden(field)
-    case _:
-        return FieldTypeError(field)   # neuer Pydantic-Typ ist ein Update, kein Bug
+# Startup: existieren die Faelle, die wir behandeln, in der installierten Version noch?
+def verify_pydantic_contract() -> None:
+    if verschwunden := sorted(HANDLED_PYDANTIC_ERROR_TYPES - set(get_args(ErrorType))):
+        raise ValueError(...)
 ```
 
-Beide Formen erfuellen dieselbe Regel — der `match` ist vollstaendig. Sie unterscheiden sich nur
-darin, ob der Default erreichbar ist. Die Frage dazu lautet nicht "kann das passieren?", sondern
-**"gehoert mir die Fallmenge?"**. Gehoert sie uns, ist ein neuer Fall ein Bug und muss laut werden;
-gehoert sie einer Bibliothek, ist ein neuer Fall zu erwarten und darf den Aufrufer nicht mit 500
-treffen. Wer den Default beantwortet statt zu werfen, schreibt **dazu**, warum die Menge offen ist.
+Dazu ein Vertragstest, der die Fallmenge **misst** statt sie zu behaupten — und zwar auf dem Weg,
+den die Produktion nimmt. Das ist nicht dasselbe wie die Bibliothek direkt zu fahren: dieselbe
+Eingabe meldet ueber FastAPIs Body-Validierung `model_attributes_type`, gegen das Modell allein
+`model_type`. Wer die Naht umgeht, misst einen Vertrag, den der Code nie sieht.
+
+Damit greift es dreifach: der Test meldet in der CI, was sich am **Verhalten** aendert, der Start
+meldet, was gar nicht mehr **existiert**, und `assert_never` ist die letzte Instanz dahinter statt
+der ersten. Referenz im Repo: `src/api/pydantic_contract_check.py` und
+`tests/api/test_pydantic_error_contract.py`.
 
 **Maschinell geprueft, nicht erinnert.** `tests/test_match_exhaustiveness.py` liest `src/` per AST
-und laesst jeden `match` durchfallen, dessen letzter Zweig weder wirft noch `assert_never` aufruft.
-Die offenen Wertemengen stehen dort namentlich mit Begruendung — eine neue Ausnahme kostet einen
-Eintrag und damit eine bewusste Entscheidung
+und laesst jeden `match` durchfallen, dessen letzter Zweig weder wirft noch `assert_never` aufruft —
+ohne Ausnahmeliste, denn es gibt keine Ausnahme
 ([`exp_maschinelle-absicherung-statt-review-regel.md`](../../docs/reflections/exp_maschinelle-absicherung-statt-review-regel.md)).
 
 ## Zwei Factories je Value Object: fallibles `parse` vs. infallibles `hydrate`

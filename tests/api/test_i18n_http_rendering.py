@@ -321,3 +321,30 @@ class TestStrukturelleRequestFehler:
         assert auf_deutsch.json()["type"] == auf_englisch.json()["type"]
         assert auf_deutsch.json()["status"] == auf_englisch.json()["status"]
         assert auf_deutsch.json()["title"] != auf_englisch.json()["title"]
+
+    async def test_body_ist_kein_objekt_nennt_den_richtigen_grund(
+        self, client: AsyncClient
+    ) -> None:
+        """Ein JSON-Array ist gueltiges JSON, aber kein Objekt - und kein Feldfehler.
+
+        Solange der Handler einen beantworteten Auffangzweig hatte, landete dieser Fall
+        auf `field-type-error` und der Aufrufer las "Das Feld '' muss ein Text sein" -
+        mit leerem Feldnamen, weil es gar kein Feld gibt. Der Zweig verdeckte also einen
+        echten Fehler, statt ihn zu melden.
+        """
+        auf_deutsch = await client.post(
+            "/api/v1/identity/register",
+            content="[]",
+            headers={"Accept-Language": "de-DE", "Content-Type": "application/json"},
+        )
+        auf_englisch = await client.post(
+            "/api/v1/identity/register",
+            content="[]",
+            headers={"Accept-Language": "en-US", "Content-Type": "application/json"},
+        )
+
+        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.json()["errors"]["body"] == [
+            "Der Anfrage-Inhalt muss ein JSON-Objekt sein"
+        ]
+        assert auf_englisch.json()["errors"]["body"] == ["The request body must be a JSON object"]

@@ -79,8 +79,11 @@ async def register_user(
 ) -> JSONResponse:
     """Lege ein Konto an.
 
-    Vollstaendiges Matching ohne Auffangzweig: waechst die Response-Union um
-    einen Ausgang, faellt genau hier auf, dass die HTTP-Antwort dafuer fehlt.
+    Vollstaendiges Matching mit `assert_never` als Abschluss: waechst die
+    Response-Union um einen Ausgang, faellt genau hier auf, dass die HTTP-Antwort
+    dafuer fehlt. Ohne diesen Zweig faellt der `match` still durch und die Funktion
+    liefert `None` - Python erzwingt Vollzaehligkeit zur Laufzeit nicht
+    (.rules/python/python-error-handling.md, "Jeder `match` ist vollstaendig").
     """
     # Wähle Sprache nach Accept-Language
     language = get_language_from_header(request.headers.get("accept-language"))

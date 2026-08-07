@@ -28,6 +28,7 @@ from src.api.health_router import health_router
 from src.api.i18n import create_resources
 from src.api.i18n_startup_check import verify_error_codes_complete
 from src.api.identity import register_user_router
+from src.api.pydantic_contract_check import verify_pydantic_contract
 from src.api.request_validation_errors import RequestValidationFault
 from src.contexts.identity.application.register_user import RegisterUserFailure
 from src.contexts.identity.domain import (
@@ -101,6 +102,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # spaeter eine Anfrage.
     verify_error_codes_complete(app.state.resources, ERROR_UNIONS, PRESENTATION_CODES)
     logger.info("Fehler-Code-Drift-Prüfung bestanden")
+
+    # Kennt das installierte Pydantic noch die Fehlertypen, die der Exception-Handler
+    # behandelt? Ein Update, das einen davon umbenennt, soll das Deployment stoppen und
+    # nicht die erste Anfrage, die darauf trifft.
+    verify_pydantic_contract()
+    logger.info("Pydantic-Fehlertypen-Vertrag bestätigt")
 
     app.state.engine = build_engine(settings.database_url)
     app.state.event_registry = build_event_registry()

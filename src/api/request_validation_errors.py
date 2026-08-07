@@ -19,9 +19,11 @@ from dataclasses import dataclass
 from typing import ClassVar, final
 
 __all__ = [
+    "BodyNotAnObject",
     "ExtraForbidden",
     "FieldRequired",
     "FieldTypeError",
+    "FieldValueRejected",
     "JsonInvalid",
     "RequestValidationFault",
 ]
@@ -67,7 +69,50 @@ class JsonInvalid:
     code: ClassVar[str] = "json-invalid"
 
 
-type RequestValidationFault = FieldRequired | FieldTypeError | ExtraForbidden | JsonInvalid
+@final
+@dataclass(frozen=True, slots=True)
+class BodyNotAnObject:
+    """Der Body ist gültiges JSON, aber kein Objekt — etwa ein Array oder ein String.
+
+    Eigener Fall statt `FieldTypeError`: dieser Fehler betrifft kein Feld, und der
+    frühere Auffangzweig hat ihn mit leerem Feldnamen als „das Feld '' hat den
+    falschen Typ" beantwortet.
+
+    Pydantic meldet ihn über FastAPIs Body-Validierung als `model_attributes_type`
+    — nicht als `model_type`, was das Modell allein gefahren liefert. Gemessen in
+    `tests/api/test_pydantic_error_contract.py`, nicht angenommen.
+    """
+
+    code: ClassVar[str] = "body-not-an-object"
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class FieldValueRejected:
+    """Ein Pydantic-`field_validator` hat den Wert abgelehnt (`value_error`).
+
+    Die Modelle dieses Repos tragen bewusst keine eigenen Constraints — fachliche
+    Prüfung gehört in den Slice, nicht ins DTO. Der Exception-Handler hängt aber
+    app-weit und sieht jedes Modell, also ist der Fall erreichbar.
+
+    Pydantics eigener Meldungstext wird **nicht** durchgereicht: er ist englisch,
+    unabhängig vom `Accept-Language`-Header. Der Aufrufer bekommt stattdessen den
+    übersetzten Text zu diesem Code.
+    """
+
+    code: ClassVar[str] = "field-value-rejected"
+    field: str
+    """Der Name des abgelehnten Feldes."""
+
+
+type RequestValidationFault = (
+    FieldRequired
+    | FieldTypeError
+    | ExtraForbidden
+    | JsonInvalid
+    | BodyNotAnObject
+    | FieldValueRejected
+)
 """Union der strukturellen Request-Validierungsfehler.
 
 `Fault` und nicht `Error`: `fastapi.exceptions.RequestValidationError` heisst schon so und

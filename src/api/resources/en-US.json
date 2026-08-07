@@ -31,5 +31,7 @@
   "field-required": "The field '{field}' is required",
   "field-type-error": "The field '{field}' must be a string",
   "extra-forbidden": "The field '{field}' is not recognized",
-  "json-invalid": "The request contains invalid JSON"
+  "json-invalid": "The request contains invalid JSON",
+  "body-not-an-object": "The request body must be a JSON object",
+  "field-value-rejected": "The field '{field}' has an invalid value"
 }
