@@ -1,6 +1,6 @@
 """Response-Mapper: Ergebnis -> public Response-Union. Eine Richtung, kein Hinweg."""
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 
 from src.contexts.identity.application.register_user.response import (
     EmailAlreadyTaken,
@@ -9,34 +9,10 @@ from src.contexts.identity.application.register_user.response import (
     RegistrationInvalid,
 )
 from src.contexts.identity.domain import (
-    DisplayNameIsEmpty,
-    DisplayNameTooLong,
     DomainError,
     EmailAlreadyRegistered,
-    LocaleNotSupported,
-    PasswordHashIsEmpty,
-    PasswordTooShort,
     User,
-    UserIdMalformed,
-    UserTimeZoneUnknown,
     locale_tag,
-)
-from src.contexts.identity.domain.email_errors import (
-    EmailAddressLiteralInvalid,
-    EmailDomainHasEmptyLabel,
-    EmailDomainLabelHasEdgeHyphen,
-    EmailDomainLabelHasInvalidCharacters,
-    EmailDomainLabelTooLong,
-    EmailDomainMissing,
-    EmailDomainTooLong,
-    EmailError,
-    EmailHasWhitespace,
-    EmailLocalPartHasInvalidCharacters,
-    EmailLocalPartHasMisplacedDot,
-    EmailLocalPartMissing,
-    EmailLocalPartTooLong,
-    EmailNeedsExactlyOneAtSign,
-    UnencodableDomainLabel,
 )
 from src.contexts.shared_kernel import Err, Ok, Result
 from src.contexts.shared_kernel.validation import FieldError, group_by_field
@@ -44,40 +20,24 @@ from src.contexts.shared_kernel.validation import FieldError, group_by_field
 __all__ = ["to_invalid_response", "to_response"]
 
 
-def _email_error_to_code_params(error: EmailError) -> tuple[str, Mapping[str, object]]:
-    """Konvertiere einen EmailError in (code, parameters)."""
-    match error:
-        case EmailHasWhitespace():
-            return (EmailHasWhitespace.code, {})
-        case EmailNeedsExactlyOneAtSign(at_sign_count=count):
-            return (EmailNeedsExactlyOneAtSign.code, {"at_sign_count": count})
-        case EmailLocalPartMissing():
-            return (EmailLocalPartMissing.code, {})
-        case EmailDomainMissing():
-            return (EmailDomainMissing.code, {})
-        case EmailLocalPartTooLong(maximum=maximum):
-            return (EmailLocalPartTooLong.code, {"maximum": maximum})
-        case EmailLocalPartHasInvalidCharacters(invalid_characters=invalid):
-            return (
-                EmailLocalPartHasInvalidCharacters.code,
-                {"invalid_characters": "".join(invalid)},
-            )
-        case EmailLocalPartHasMisplacedDot():
-            return (EmailLocalPartHasMisplacedDot.code, {})
-        case EmailDomainTooLong(maximum=maximum):
-            return (EmailDomainTooLong.code, {"maximum": maximum})
-        case EmailDomainHasEmptyLabel():
-            return (EmailDomainHasEmptyLabel.code, {})
-        case EmailDomainLabelTooLong(maximum=maximum):
-            return (EmailDomainLabelTooLong.code, {"maximum": maximum})
-        case EmailDomainLabelHasEdgeHyphen():
-            return (EmailDomainLabelHasEdgeHyphen.code, {})
-        case EmailDomainLabelHasInvalidCharacters():
-            return (EmailDomainLabelHasInvalidCharacters.code, {})
-        case EmailAddressLiteralInvalid():
-            return (EmailAddressLiteralInvalid.code, {})
-        case UnencodableDomainLabel(reason=reason):
-            return (UnencodableDomainLabel.code, {"reason": reason})
+class PipelineBroken(RuntimeError):
+    """Der Handler meldete einen Fehler, den die Pipeline ausgeschlossen hatte.
+
+    Kein Fachfall, sondern ein Programmierfehler: `RegisterUserPipeline.run`
+    validiert erst vollstaendig und baut das Command danach mit `hydrate` - alle
+    Value-Object-Fehler sind zu diesem Zeitpunkt bereits ausgeschlossen. Trifft
+    hier trotzdem einer ein, ist die Reihenfolge in der Pipeline zerbrochen, und
+    eine 400er-Antwort wuerde das als Eingabefehler des Aufrufers ausgeben.
+    """
+
+    def __init__(self, error: DomainError) -> None:
+        """Nenne den Fall, der nicht haette ankommen koennen."""
+        super().__init__(
+            f"{type(error).__name__} hat den Response-Mapper erreicht, obwohl die "
+            f"Validierung der Pipeline ihn ausschliesst. Die Pipeline ist defekt, "
+            f"nicht die Eingabe."
+        )
+        self.error = error
 
 
 def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
@@ -88,14 +48,25 @@ def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
     ist ein Fold aus dem `Result` heraus, keine Transformation darin - `map`
     kaeme nie aus dem Ok-Zweig heraus.
 
-    Vollstaendiges Matching ohne Auffangzweig: waechst `DomainError` um einen
-    Fall, faellt genau hier auf, dass die Antwort dafuer noch fehlt.
+    Erreichbar sind genau zwei Ausgaenge. `RegisterUserPipeline.run` laesst nur
+    einen vollstaendig validierten Request bis zum Handler durch und baut das
+    Command mit `hydrate` statt `parse`; damit kann die Fehlerhaelfte des
+    `Result` nur noch `EmailAlreadyRegistered` vom Port tragen. Jeder andere Fall
+    ist ein Bug in der Pipeline und wird als solcher laut - er wird **nicht** in
+    einen Feldfehler zurueckuebersetzt.
 
-    HINWEIS: Domain-Fehler aus den Value-Object-Parsern (z.B. Email, Password,
-    DisplayName) sollten hier nicht ankommen - die Request-Validierung faengt sie
-    alle auf und gibt `to_invalid_response()` zurueck. Nur `EmailAlreadyRegistered`
-    vom Port ist erwartet. Die Faelle unten sind der Vollstaendigkeit halber da,
-    wuerde aber auf unerwartete Fehler hindeuten.
+    Das ist auch der Grund, warum die Code+Parameter-Tabelle der Feldfehler hier
+    nicht noch einmal steht: sie gehoert zur Validierung und lebt einmalig in
+    `validators/register_user_rules.py`. Eine zweite Abschrift an dieser Stelle
+    waere eine Wahrheit zu viel - genau die Drift, gegen die dieser Slice den
+    Startup-Check hat.
+
+    Welche `DomainError`-Faelle erreichbar sind, haelt
+    `tests/contexts/identity/test_register_user_response_mapping.py` fest;
+    waechst die Union, faellt es dort auf. Auf ein vollzaehliges `match` ohne
+    Auffangzweig ist hier kein Verlass: Python erzwingt Vollzaehligkeit zur
+    Laufzeit nicht, und dieses Repo faehrt bewusst ohne Typpruefer - ein neuer
+    Fall fiele stillschweigend durch und `to_response` gaebe `None` zurueck.
     """
     match outcome:
         case Ok(value=user):
@@ -109,83 +80,8 @@ def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
             )
         case Err(error=EmailAlreadyRegistered(email=email)):
             return EmailAlreadyTaken(email.value)
-        case Err(error=EmailHasWhitespace()):
-            code, params = (EmailHasWhitespace.code, {})
-            return _to_invalid_field_response("email", code, params)
-        case Err(error=EmailNeedsExactlyOneAtSign(at_sign_count=count)):
-            return _to_invalid_field_response(
-                "email", EmailNeedsExactlyOneAtSign.code, {"at_sign_count": count}
-            )
-        case Err(error=EmailLocalPartMissing()):
-            return _to_invalid_field_response("email", EmailLocalPartMissing.code, {})
-        case Err(error=EmailDomainMissing()):
-            return _to_invalid_field_response("email", EmailDomainMissing.code, {})
-        case Err(error=EmailLocalPartTooLong(maximum=maximum)):
-            return _to_invalid_field_response(
-                "email", EmailLocalPartTooLong.code, {"maximum": maximum}
-            )
-        case Err(error=EmailLocalPartHasInvalidCharacters(invalid_characters=invalid)):
-            return _to_invalid_field_response(
-                "email",
-                EmailLocalPartHasInvalidCharacters.code,
-                {"invalid_characters": "".join(invalid)},
-            )
-        case Err(error=EmailLocalPartHasMisplacedDot()):
-            return _to_invalid_field_response("email", EmailLocalPartHasMisplacedDot.code, {})
-        case Err(error=EmailDomainTooLong(maximum=maximum)):
-            return _to_invalid_field_response(
-                "email", EmailDomainTooLong.code, {"maximum": maximum}
-            )
-        case Err(error=EmailDomainHasEmptyLabel()):
-            return _to_invalid_field_response("email", EmailDomainHasEmptyLabel.code, {})
-        case Err(error=EmailDomainLabelTooLong(maximum=maximum)):
-            return _to_invalid_field_response(
-                "email", EmailDomainLabelTooLong.code, {"maximum": maximum}
-            )
-        case Err(error=EmailDomainLabelHasEdgeHyphen()):
-            return _to_invalid_field_response("email", EmailDomainLabelHasEdgeHyphen.code, {})
-        case Err(error=EmailDomainLabelHasInvalidCharacters()):
-            return _to_invalid_field_response(
-                "email", EmailDomainLabelHasInvalidCharacters.code, {}
-            )
-        case Err(error=EmailAddressLiteralInvalid()):
-            return _to_invalid_field_response("email", EmailAddressLiteralInvalid.code, {})
-        case Err(error=UnencodableDomainLabel(reason=reason)):
-            return _to_invalid_field_response(
-                "email", UnencodableDomainLabel.code, {"reason": reason}
-            )
-        case Err(error=PasswordTooShort(actual_length=actual, minimum=minimum)):
-            return _to_invalid_field_response(
-                "password", PasswordTooShort.code, {"actual_length": actual, "minimum": minimum}
-            )
-        case Err(error=DisplayNameIsEmpty()):
-            return _to_invalid_field_response("displayName", DisplayNameIsEmpty.code, {})
-        case Err(error=DisplayNameTooLong(actual_length=actual, maximum=maximum)):
-            return _to_invalid_field_response(
-                "displayName",
-                DisplayNameTooLong.code,
-                {"actual_length": actual, "maximum": maximum},
-            )
-        case Err(error=LocaleNotSupported(candidate=candidate)):
-            return _to_invalid_field_response(
-                "locale", LocaleNotSupported.code, {"candidate": candidate}
-            )
-        case Err(error=PasswordHashIsEmpty()):
-            raise RuntimeError("Password hash creation failed unexpectedly")
-        case Err(error=UserIdMalformed(candidate=candidate)):
-            raise RuntimeError(f"User ID generation failed: {candidate}")
-        case Err(error=UserTimeZoneUnknown(candidate=candidate)):
-            return _to_invalid_field_response(
-                "timeZoneId", UserTimeZoneUnknown.code, {"candidate": candidate}
-            )
-
-
-def _to_invalid_field_response(
-    field: str, code: str, params: Mapping[str, object]
-) -> RegisterUserResponse:
-    """Hilfsfunktion: erstelle aus einem Feldfehler die Response."""
-    field_errors = [FieldError(field, code, params)]
-    return to_invalid_response(field_errors)
+        case Err(error=error):
+            raise PipelineBroken(error)
 
 
 def to_invalid_response(errors: Iterable[FieldError]) -> RegisterUserResponse:
