@@ -2,7 +2,9 @@
 
 **Quelle:** [The Modern Way to Manage C# Business Rules: Rule Engine Pattern](https://senrecep.medium.com/the-modern-way-to-manage-c-business-rules-rule-engine-pattern-14bb1c72d700)
 (senrecep, Medium). Begleitcode: NuGet `CSharpEssentials`, GitHub `senrecep/CSharpEssentials`.
-**Gelesen:** 2026-08-07. **Status:** nichts uebernommen — drei Vorschlaege am Ende, alle offen.
+**Gelesen:** 2026-08-07. **Status:** entschieden — Async-Regeln kommen (Ticket 0011, Stufe 4),
+OR und Conditional nicht
+([`2026-08-07-1331`](../decisions/2026-08-07-1331-or-und-conditional-rule-erst-beim-ersten-fall.md)).
 
 Bezug: [`.rules/python/python-rule-pattern.md`](../../.rules/python/python-rule-pattern.md), das
 bereits den [Rule-Pattern-Artikel](https://dev.to/stevsharp/the-rule-pattern-in-c-2ed0) desselben
@@ -105,26 +107,21 @@ Drei Dinge, und nur drei:
    Referenzliste, Aufruf eines fremden Context ueber einen Port), laesst sich heute nicht als
    Regel formulieren.
 
-## Vorschlaege — offen, nicht entschieden
+## Was daraus wurde
 
-Keiner davon ist umgesetzt, und `.rules/python/python-rule-pattern.md` ist unveraendert.
+`.rules/python/python-rule-pattern.md` ist unveraendert geblieben.
 
-**1. Async-Regeln — dafuer, aber gebunden an Ticket 0011 Stufe 4.**
-Das ist die einzige der drei Luecken mit einem konkreten Anlass. Stufe 4 baut ohnehin
-`bind_async` und die Behavior-Kette; eine asynchrone Regelform gehoert in denselben Schnitt statt
-davor. Sie jetzt einzeln zu bauen, hiesse sie zweimal anzufassen.
+**1. Async-Regeln — aufgenommen.** Ticket 0011, Stufe 4: dort entstehen `bind_async` und die
+Behavior-Kette ohnehin, und eine asynchrone Regelform gehoert in denselben Schnitt. Einzeln davor
+gebaut hiesse, sie zweimal anzufassen.
 
-**2. `any_of` (OR) — dagegen, bis ein echter Fall auftaucht.**
-Es gibt heute keinen. Ein Kombinator auf Vorrat widerspricht
-[`exp_kein-vorauseilendes-shared.md`](../reflections/exp_kein-vorauseilendes-shared.md) — und OR
-hat eine Frage offen, die sich ohne konkreten Fall nicht beantworten laesst: **welchen** Fehler
-meldet man, wenn alle Zweige scheitern? Alle? Den ersten? Einen eigenen? Diese Entscheidung will
-am Anwendungsfall getroffen werden, nicht am leeren Tisch.
+**2. `any_of` (OR) — nicht gebaut, aufgeschoben bis zum ersten echten Fall.**
+**3. `IConditionalRule` — abgelehnt**, weil eine Regel hier eine Funktion ist und verzweigen darf.
 
-**3. `IConditionalRule` — dagegen.**
-Ein `if` in einer gewoehnlichen Regel-Funktion ist lesbarer als ein Kombinator, der dasselbe
-ausdrueckt. Der Artikel braucht ihn, weil in C# die Regel ein *Objekt* ist und Ablauflogik dort
-nur als Struktur ausdrueckbar ist. Hier ist die Regel eine Funktion — sie darf verzweigen.
+Beides samt Begruendung und der Vorarbeit fuer den Tag, an dem ein OR-Fall auftaucht (die drei
+moeglichen Antworten auf „welchen Fehler meldet OR, wenn alle Zweige scheitern?"), in
+[`2026-08-07-1331-or-und-conditional-rule-erst-beim-ersten-fall.md`](../decisions/2026-08-07-1331-or-und-conditional-rule-erst-beim-ersten-fall.md).
+Damit muss die Frage dann nicht neu aufgerollt werden.
 
 **Ausdruecklich nicht uebernehmen:**
 
