@@ -9,13 +9,13 @@ from src.contexts.identity.application.register_user.response import (
     RegistrationInvalid,
 )
 from src.contexts.identity.domain import (
+    DisplayNameIsEmpty,
     DisplayNameTooLong,
     DomainError,
     EmailAlreadyRegistered,
     LocaleNotSupported,
     PasswordHashIsEmpty,
     PasswordTooShort,
-    TextIsEmpty,
     User,
     UserIdMalformed,
     UserTimeZoneUnknown,
@@ -48,33 +48,36 @@ def _email_error_to_code_params(error: EmailError) -> tuple[str, Mapping[str, ob
     """Konvertiere einen EmailError in (code, parameters)."""
     match error:
         case EmailHasWhitespace():
-            return ("email-has-whitespace", {})
+            return (EmailHasWhitespace.code, {})
         case EmailNeedsExactlyOneAtSign(at_sign_count=count):
-            return ("email-needs-exactly-one-at-sign", {"count": count})
+            return (EmailNeedsExactlyOneAtSign.code, {"at_sign_count": count})
         case EmailLocalPartMissing():
-            return ("email-local-part-missing", {})
+            return (EmailLocalPartMissing.code, {})
         case EmailDomainMissing():
-            return ("email-domain-missing", {})
+            return (EmailDomainMissing.code, {})
         case EmailLocalPartTooLong(maximum=maximum):
-            return ("email-local-part-too-long", {"maximum": maximum})
+            return (EmailLocalPartTooLong.code, {"maximum": maximum})
         case EmailLocalPartHasInvalidCharacters(invalid_characters=invalid):
-            return ("email-local-part-has-invalid-characters", {"invalid": "".join(invalid)})
+            return (
+                EmailLocalPartHasInvalidCharacters.code,
+                {"invalid_characters": "".join(invalid)},
+            )
         case EmailLocalPartHasMisplacedDot():
-            return ("email-local-part-has-misplaced-dot", {})
+            return (EmailLocalPartHasMisplacedDot.code, {})
         case EmailDomainTooLong(maximum=maximum):
-            return ("email-domain-too-long", {"maximum": maximum})
+            return (EmailDomainTooLong.code, {"maximum": maximum})
         case EmailDomainHasEmptyLabel():
-            return ("email-domain-has-empty-label", {})
+            return (EmailDomainHasEmptyLabel.code, {})
         case EmailDomainLabelTooLong(maximum=maximum):
-            return ("email-domain-label-too-long", {"maximum": maximum})
+            return (EmailDomainLabelTooLong.code, {"maximum": maximum})
         case EmailDomainLabelHasEdgeHyphen():
-            return ("email-domain-label-has-edge-hyphen", {})
+            return (EmailDomainLabelHasEdgeHyphen.code, {})
         case EmailDomainLabelHasInvalidCharacters():
-            return ("email-domain-label-has-invalid-characters", {})
+            return (EmailDomainLabelHasInvalidCharacters.code, {})
         case EmailAddressLiteralInvalid():
-            return ("email-address-literal-invalid", {})
+            return (EmailAddressLiteralInvalid.code, {})
         case UnencodableDomainLabel(reason=reason):
-            return ("email-unencodable-domain-label", {"reason": reason})
+            return (UnencodableDomainLabel.code, {"reason": reason})
 
 
 def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
@@ -107,63 +110,65 @@ def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
         case Err(error=EmailAlreadyRegistered(email=email)):
             return EmailAlreadyTaken(email.value)
         case Err(error=EmailHasWhitespace()):
-            code, params = ("email-has-whitespace", {})
+            code, params = (EmailHasWhitespace.code, {})
             return _to_invalid_field_response("email", code, params)
         case Err(error=EmailNeedsExactlyOneAtSign(at_sign_count=count)):
             return _to_invalid_field_response(
-                "email", "email-needs-exactly-one-at-sign", {"count": count}
+                "email", EmailNeedsExactlyOneAtSign.code, {"at_sign_count": count}
             )
         case Err(error=EmailLocalPartMissing()):
-            return _to_invalid_field_response("email", "email-local-part-missing", {})
+            return _to_invalid_field_response("email", EmailLocalPartMissing.code, {})
         case Err(error=EmailDomainMissing()):
-            return _to_invalid_field_response("email", "email-domain-missing", {})
+            return _to_invalid_field_response("email", EmailDomainMissing.code, {})
         case Err(error=EmailLocalPartTooLong(maximum=maximum)):
             return _to_invalid_field_response(
-                "email", "email-local-part-too-long", {"maximum": maximum}
+                "email", EmailLocalPartTooLong.code, {"maximum": maximum}
             )
         case Err(error=EmailLocalPartHasInvalidCharacters(invalid_characters=invalid)):
             return _to_invalid_field_response(
-                "email", "email-local-part-has-invalid-characters", {"invalid": "".join(invalid)}
+                "email",
+                EmailLocalPartHasInvalidCharacters.code,
+                {"invalid_characters": "".join(invalid)},
             )
         case Err(error=EmailLocalPartHasMisplacedDot()):
-            return _to_invalid_field_response("email", "email-local-part-has-misplaced-dot", {})
+            return _to_invalid_field_response("email", EmailLocalPartHasMisplacedDot.code, {})
         case Err(error=EmailDomainTooLong(maximum=maximum)):
             return _to_invalid_field_response(
-                "email", "email-domain-too-long", {"maximum": maximum}
+                "email", EmailDomainTooLong.code, {"maximum": maximum}
             )
         case Err(error=EmailDomainHasEmptyLabel()):
-            return _to_invalid_field_response("email", "email-domain-has-empty-label", {})
+            return _to_invalid_field_response("email", EmailDomainHasEmptyLabel.code, {})
         case Err(error=EmailDomainLabelTooLong(maximum=maximum)):
             return _to_invalid_field_response(
-                "email", "email-domain-label-too-long", {"maximum": maximum}
+                "email", EmailDomainLabelTooLong.code, {"maximum": maximum}
             )
         case Err(error=EmailDomainLabelHasEdgeHyphen()):
-            return _to_invalid_field_response("email", "email-domain-label-has-edge-hyphen", {})
+            return _to_invalid_field_response("email", EmailDomainLabelHasEdgeHyphen.code, {})
         case Err(error=EmailDomainLabelHasInvalidCharacters()):
             return _to_invalid_field_response(
-                "email", "email-domain-label-has-invalid-characters", {}
+                "email", EmailDomainLabelHasInvalidCharacters.code, {}
             )
         case Err(error=EmailAddressLiteralInvalid()):
-            return _to_invalid_field_response("email", "email-address-literal-invalid", {})
+            return _to_invalid_field_response("email", EmailAddressLiteralInvalid.code, {})
         case Err(error=UnencodableDomainLabel(reason=reason)):
             return _to_invalid_field_response(
-                "email", "email-unencodable-domain-label", {"reason": reason}
+                "email", UnencodableDomainLabel.code, {"reason": reason}
             )
         case Err(error=PasswordTooShort(actual_length=actual, minimum=minimum)):
             return _to_invalid_field_response(
-                "password", "password-too-short", {"actual_length": actual, "minimum": minimum}
+                "password", PasswordTooShort.code, {"actual_length": actual, "minimum": minimum}
             )
-        case Err(error=TextIsEmpty()):
-            return _to_invalid_field_response("displayName", "display-name-is-empty", {})
+        case Err(error=DisplayNameIsEmpty()):
+            return _to_invalid_field_response("displayName", DisplayNameIsEmpty.code, {})
         case Err(error=DisplayNameTooLong(actual_length=actual, maximum=maximum)):
             return _to_invalid_field_response(
                 "displayName",
-                "display-name-too-long",
+                DisplayNameTooLong.code,
                 {"actual_length": actual, "maximum": maximum},
             )
         case Err(error=LocaleNotSupported(candidate=candidate)):
             return _to_invalid_field_response(
-                "locale", "locale-not-supported", {"candidate": candidate}
+                "locale", LocaleNotSupported.code, {"candidate": candidate}
             )
         case Err(error=PasswordHashIsEmpty()):
             raise RuntimeError("Password hash creation failed unexpectedly")
@@ -171,7 +176,7 @@ def to_response(outcome: Result[User, DomainError]) -> RegisterUserResponse:
             raise RuntimeError(f"User ID generation failed: {candidate}")
         case Err(error=UserTimeZoneUnknown(candidate=candidate)):
             return _to_invalid_field_response(
-                "timeZoneId", "user-time-zone-unknown", {"candidate": candidate}
+                "timeZoneId", UserTimeZoneUnknown.code, {"candidate": candidate}
             )
 
 

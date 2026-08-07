@@ -1,85 +1,98 @@
-"""Startup-Prüfung der i18n-Fehlercode-Vollständigkeit.
+"""Drift-Pruefung beim Start: stimmen Fehlerfaelle und Textvorlagen noch ueberein?
 
-Beim Start prüft diese Funktion, dass:
-1. Jeder Fehlerfall der Response-Unions einen `code` trägt
-2. Jeder Code in den Resource-Dateien existiert (beide Sprachen)
-3. Vorlage ohne Code ist auch Drift (symmetrisch)
-4. Template-Platzhalter passen zu den Fehlerfall-Parametern
+Die erwartete Code-Menge wird **aus den Fehler-Unions abgeleitet**, nicht danebengepflegt.
+Damit kann ein neuer Slice keine Fehlerfaelle mitbringen, deren Texte niemand hinterlegt
+hat: sobald seine Union im Zusammenbau auftaucht, sind ihre Codes Teil der Erwartung, und
+eine fehlende Vorlage laesst die Anwendung beim Start scheitern statt erst beim Nutzer.
+
+Geprueft wird in beide Richtungen und auf drei Ebenen:
+
+1. Jeder Fall jeder uebergebenen Union traegt einen `code` (`CodedError`) - das ist der
+   Laufzeit-Ersatz fuer den Typpruefer, den dieser Stack bewusst nicht hat.
+2. Zu jedem Code gibt es in **jeder** Sprache eine Vorlage, und zu jeder Vorlage einen
+   Code. Karteileichen sind die andere Haelfte des Drifts.
+3. Die Platzhalter einer Vorlage kommen in der Nutzlast ihres Falls vor. Sonst schluege
+   das Rendern erst zu, wenn jemand den Fehler ausloest.
 
 Entscheidung: docs/decisions/2026-08-07-0805-fehlercodes-werden-abgeleitet-nicht-gepflegt.md
 """
 
-from typing import Any, get_args
+from collections.abc import Iterable
+from string import Formatter
 
 from src.api.i18n import ResourcesCache
+from src.contexts.shared_kernel.coded_error import codes_of, parameters_of
 
 __all__ = ["verify_error_codes_complete"]
 
 
 def verify_error_codes_complete(
     resources: ResourcesCache,
-    error_unions: list[type[Any]],
-    allowed_orphaned_codes: set[str] | None = None,
+    error_unions: Iterable[object],
+    presentation_codes: frozenset[str] = frozenset(),
 ) -> None:
-    """Verifiziere, dass alle top-level Fehler-Cases einen Code haben.
-
-    Diese Funktion prüft nur die Top-Level Response-Cases (z.B. EmailAlreadyTaken,
-    RegistrationInvalid). Feldfehlercodes (die in errors.* stecken) müssen über die
-    Specs getestet werden, da sie erst in der Mapper-Funktion entstehen.
+    """Vergleiche die Fehlerfaelle der Unions mit den hinterlegten Vorlagen.
 
     Args:
-        resources: Die geladenen Resource-Files (de-DE, en-US)
-        error_unions: Liste der Response-Union-Types (z.B. RegisterUserResponse)
-        allowed_orphaned_codes: Codes, die in Ressourcen ohne Top-Level-Case sein dürfen
-            (Feld-Fehlercodes, die durch Specs getestet werden)
+        resources: die geladenen Sprachdateien.
+        error_unions: die Fehler-Unions aller zusammengebauten Slices. Der Zusammenbau
+            ist die einzige Stelle, die sie alle kennt - deshalb reicht er sie herein,
+            statt dass dieses Modul sie sich per Import-Seiteneffekt zusammensucht (ein
+            nicht importierter Slice fehlte dort still).
+        presentation_codes: Codes, die am HTTP-Rand entstehen und zu keinem
+            Domaenen-Fehlerfall gehoeren (`validation-failed`, die `-detail`-Haelften,
+            die Idempotency-Meldungen). Sie werden auf Vorhandensein geprueft, aber nicht
+            auf Platzhalter - ihre Nutzlast ist nicht typisiert. **Uebergangsloesung:**
+            sobald der Rand seine strukturellen Fehler als eigene Tagged Union fuehrt,
+            wandern sie nach `error_unions` und dieser Parameter entfaellt.
 
-    Wirft ValueError, wenn Top-Level Codes nicht konsistent sind.
+    Raises:
+        ValueError: sobald eine der drei Ebenen nicht aufgeht - mit allen Abweichungen
+            auf einmal, nicht nur der ersten. Wer eine Sprachdatei ergaenzt, will nicht
+            beim naechsten Start die naechste Meldung sehen.
     """
-    if allowed_orphaned_codes is None:
-        allowed_orphaned_codes = set()
+    by_code = codes_of(*error_unions)  # Ebene 1: wirft, wenn ein Fall keinen Code traegt
+    expected = set(by_code) | set(presentation_codes)
 
-    # 1. Sammle nur top-level Codes aus den Response-Unions
-    top_level_codes = _collect_top_level_error_codes(error_unions)
-
-    # 2. Verifiziere, dass jeder top-level Code in den Ressourcen existiert
-    resource_codes = _collect_codes_from_resources(resources)
-    missing_templates = top_level_codes - resource_codes
-
-    if missing_templates:
-        raise ValueError(
-            f"Top-Level Codes ohne Template in Resource-Files: {sorted(missing_templates)}\n"
-            "→ Jeder Response-Case braucht Einträge in de-DE.json und en-US.json"
-        )
+    problems = [
+        *_missing_and_orphaned(resources, expected),
+        *_placeholder_mismatches(resources, by_code),
+    ]
+    if problems:
+        listing = "\n  - ".join(problems)
+        msg = f"i18n-Drift zwischen Fehlerfaellen und Resource-Files:\n  - {listing}"
+        raise ValueError(msg)
 
 
-def _collect_top_level_error_codes(
-    error_unions: list[type[Any]],
-) -> set[str]:
-    """Sammle nur die Top-Level Codes aus den Error-Union-Types.
-
-    Top-Level sind: Success-Case (kein Code nötig) und Error-Cases, die
-    direkt mit ihrem Code zurückgegeben werden (nicht in errors.*).
-    """
-    codes = set()
-
-    for union_type in error_unions:
-        union_args = get_args(union_type)
-        if not union_args:
-            # Kein Union, einzelner Type
-            union_args = (union_type,)
-
-        for case in union_args:
-            # Prüfe nur auf ClassVar "code"
-            if hasattr(case, "code"):
-                code = case.code
-                if isinstance(code, str):
-                    codes.add(code)
-
-    return codes
+def _missing_and_orphaned(resources: ResourcesCache, expected: set[str]) -> list[str]:
+    """Ebene 2: fehlende Vorlagen je Sprache, und Vorlagen ohne Fall."""
+    problems = []
+    for language in sorted(resources.languages):
+        available = resources.codes(language)
+        if missing := sorted(expected - available):
+            problems.append(f"{language}: keine Vorlage fuer {missing}")
+        if orphaned := sorted(available - expected):
+            problems.append(f"{language}: Vorlage ohne Fehlerfall fuer {orphaned}")
+    return problems
 
 
-def _collect_codes_from_resources(resources: ResourcesCache) -> set[str]:
-    """Sammle alle Codes aus den Resource-Dateien."""
-    # Unter der Annahme, dass both languages identische Code-Sets haben (geprüft beim Load)
-    de_resources = resources._resources.get("de-DE", {})
-    return set(de_resources.keys())
+def _placeholder_mismatches(resources: ResourcesCache, by_code: dict[str, type]) -> list[str]:
+    """Ebene 3: Platzhalter, die die Nutzlast ihres Falls nicht hergibt."""
+    problems = []
+    for language in sorted(resources.languages):
+        for code, case in sorted(by_code.items()):
+            template = resources.get(language, code)
+            if template is None:
+                continue  # schon als fehlend gemeldet
+            payload = parameters_of(case)
+            if unknown := sorted(_placeholders(template) - payload):
+                problems.append(
+                    f"{language}/{code}: Vorlage verlangt {unknown}, "
+                    f"{case.__name__} traegt {sorted(payload)}"
+                )
+    return problems
+
+
+def _placeholders(template: str) -> set[str]:
+    """Lies die benannten Platzhalter einer Vorlage."""
+    return {name for _, name, _, _ in Formatter().parse(template) if name}

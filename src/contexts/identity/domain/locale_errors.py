@@ -5,7 +5,7 @@ Teil derselben einen, flachen `DomainError`-Union, die dort zusammengesetzt wird
 """
 
 from dataclasses import dataclass
-from typing import final
+from typing import ClassVar, final
 
 __all__ = [
     "LocaleError",
@@ -17,6 +17,8 @@ __all__ = [
 @dataclass(frozen=True, slots=True)
 class LocaleNotSupported:
     """Die Sprach-Kennung wird vom Backend nicht unterstuetzt."""
+
+    code: ClassVar[str] = "locale-not-supported"
 
     candidate: str
 

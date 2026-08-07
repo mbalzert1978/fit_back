@@ -28,13 +28,60 @@ from src.api.health_router import health_router
 from src.api.i18n import create_resources
 from src.api.i18n_startup_check import verify_error_codes_complete
 from src.api.identity import register_user_router
-from src.contexts.identity.application.register_user import RegisterUserResponse
+from src.contexts.identity.application.register_user import RegisterUserFailure
+from src.contexts.identity.domain import (
+    DisplayNameError,
+    EmailError,
+    LocaleError,
+    PasswordError,
+    UserTimeZoneError,
+)
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
 from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
 from src.settings import validate_settings
 
 logger = logging.getLogger(__name__)
+
+ERROR_UNIONS = [
+    # Die Feldfehler-Unions des Identity-Slice: ihre Codes landen in `errors.*`.
+    EmailError,
+    PasswordError,
+    DisplayNameError,
+    LocaleError,
+    UserTimeZoneError,
+    # Die Fehlerhaelfte der Antwort - `EmailAlreadyRegistered` fehlt hier bewusst: das ist
+    # die interne Ursache, veroeffentlicht wird `EmailAlreadyTaken`, das den Code traegt.
+    RegisterUserFailure,
+]
+"""Die Fehler-Unions aller zusammengebauten Slices - die Wahrheit der Drift-Pruefung.
+
+Der Zusammenbau ist die einzige Stelle, die alle Slices kennt; ein neuer Slice kostet hier
+eine Zeile, an derselben Stelle, an der ohnehin sein Router registriert wird. Bewusst nicht
+enthalten: `UserIdError` und `PasswordHashError` - ihre Faelle erreichen den Rand nie (der
+Response-Mapper behandelt sie als Bug), sie sind nichts Veroeffentlichtes und tragen
+deshalb auch keinen Code.
+"""
+
+PRESENTATION_CODES = frozenset(
+    {
+        "email-already-registered-detail",
+        "validation-failed-detail",
+        "idempotency-key-reused",
+        "idempotency-key-reused-detail",
+        "idempotency-request-in-progress",
+        "idempotency-request-in-progress-detail",
+        "internal-server-error",
+        "internal-server-error-detail",
+    }
+)
+"""Codes, die am Rand entstehen und zu keinem Domaenen-Fehlerfall gehoeren.
+
+Die `-detail`-Haelften der ProblemDetails und die Meldungen der Middleware. Sie werden auf
+Vorhandensein geprueft, aber nicht auf Platzhalter - ihre Nutzlast ist nicht typisiert.
+**Uebergangsloesung:** sobald der Rand seine strukturellen Fehler als eigene Tagged Union
+fuehrt, wandern sie nach `ERROR_UNIONS` und diese Menge entfaellt.
+"""
 
 
 @asynccontextmanager
@@ -47,11 +94,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.resources = create_resources()
     logger.info("i18n Resource-Dateien geladen")
 
-    # Prüfe, dass alle Fehler-Codes konsistent sind
-    verify_error_codes_complete(
-        app.state.resources,
-        [RegisterUserResponse],  # Aufzählung aller Response-Unions
-    )
+    # Drift-Pruefung: tragen alle Fehlerfaelle einen Code, und gibt es zu jedem Code in
+    # jeder Sprache eine Vorlage - und umgekehrt? Scheitert hier lieber der Start als
+    # spaeter eine Anfrage.
+    verify_error_codes_complete(app.state.resources, ERROR_UNIONS, PRESENTATION_CODES)
     logger.info("Fehler-Code-Drift-Prüfung bestanden")
 
     app.state.engine = build_engine(settings.database_url)

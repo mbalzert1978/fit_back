@@ -27,6 +27,7 @@ from src.contexts.identity.application.register_user.pipeline import (
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.application.register_user.response import (
     EmailAlreadyTaken,
+    RegisterUserFailure,
     RegisterUserResponse,
     RegistrationAccepted,
     RegistrationInvalid,
@@ -42,6 +43,7 @@ __all__ = [
     "LabelRejected",
     "NewUserRecord",
     "RegisterUserEventLog",
+    "RegisterUserFailure",
     "RegisterUserPasswordHasher",
     "RegisterUserPipeline",
     "RegisterUserRequest",

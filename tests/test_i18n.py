@@ -96,53 +96,14 @@ class TestTranslationRendering:
 
 
 class TestMigrationNachweis:
-    """Alle 8 Dateien haben ihre Texte in Resource-Files."""
+    """Die Sprachdateien decken dieselbe Code-Menge ab.
 
-    def test_all_error_codes_in_both_languages(self) -> None:
-        """Alle Codes sind in beiden Sprachen vollständig vorhanden."""
-        de_codes = set(_RESOURCES._resources["de-DE"].keys())
-        en_codes = set(_RESOURCES._resources["en-US"].keys())
-        assert de_codes == en_codes
+    Die frueher hier gepflegten Listen einzelner Codes sind entfallen: sie waren eine
+    zweite Wahrheit neben den Fehlerfaellen und mussten von Hand nachgezogen werden.
+    Was sie pruefen sollten, prueft jetzt `tests/test_i18n_drift.py` abgeleitet aus den
+    Unions - inklusive der Faelle, die frueher schlicht vergessen wurden.
+    """
 
-    def test_shared_kernel_text_is_empty(self) -> None:
-        """text-is-empty Code ist vorhanden (shared_kernel/not_empty_string.py)."""
-        text = translate(_RESOURCES, "text-is-empty", {}, "de-DE")
-        assert "leer" in text.lower()
-
-    def test_identity_domain_texts_present(self) -> None:
-        """Alle Identity-Domain-Value-Object-Texte sind präsent."""
-        test_codes = [
-            ("email-has-whitespace", {}),
-            ("password-too-short", {"minimum": 10, "actual_length": 5}),
-            ("display-name-is-empty", {}),
-            ("display-name-too-long", {"actual_length": 100, "maximum": 50}),
-            ("locale-not-supported", {"candidate": "fr"}),
-            ("user-time-zone-unknown", {"candidate": "Invalid/Zone"}),
-        ]
-        for code, params in test_codes:
-            text = translate(_RESOURCES, code, params, "de-DE")
-            assert text, f"Code '{code}' not found"
-
-    def test_application_validation_texts_present(self) -> None:
-        """Alle Application-Validierungstexte sind präsent."""
-        test_codes = [
-            ("email-already-registered", {}),
-            ("email-already-registered-detail", {"email": "test@example.com"}),
-            ("validation-failed", {}),
-            ("validation-failed-detail", {}),
-        ]
-        for code, params in test_codes:
-            text = translate(_RESOURCES, code, params, "de-DE")
-            assert text, f"Code '{code}' not found"
-
-    def test_idempotency_middleware_texts_present(self) -> None:
-        """Middleware-Texte sind in Resources (vier Codes)."""
-        codes = [
-            "idempotency-key-reused",
-            "idempotency-key-reused-detail",
-            "idempotency-request-in-progress",
-            "idempotency-request-in-progress-detail",
-        ]
-        for code in codes:
-            text = translate(_RESOURCES, code, {}, "de-DE")
-            assert text, f"Code '{code}' not found"
+    def test_beide_sprachen_decken_dieselben_codes_ab(self) -> None:
+        resources = _RESOURCES
+        assert resources.codes("de-DE") == resources.codes("en-US")

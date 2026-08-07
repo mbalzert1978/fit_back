@@ -54,6 +54,15 @@ class ResourcesCache:
             if missing := all_codes - self._resources[language].keys():
                 raise ValueError(f"Language '{language}' is missing codes: {sorted(missing)}")
 
+    @property
+    def languages(self) -> frozenset[str]:
+        """Nenne die geladenen Sprachen."""
+        return frozenset(self._resources)
+
+    def codes(self, language: str) -> frozenset[str]:
+        """Nenne die Codes, zu denen in dieser Sprache eine Vorlage vorliegt."""
+        return frozenset(self._resources.get(language, {}))
+
     def get(self, language: str, code: str) -> str | None:
         """Hole die Vorlage für einen Code in einer Sprache."""
         if language not in self._resources:

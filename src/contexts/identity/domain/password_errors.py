@@ -5,7 +5,7 @@ Teil derselben einen, flachen `DomainError`-Union, die dort zusammengesetzt wird
 """
 
 from dataclasses import dataclass
-from typing import final
+from typing import ClassVar, final
 
 __all__ = [
     "PasswordError",
@@ -17,6 +17,8 @@ __all__ = [
 @dataclass(frozen=True, slots=True)
 class PasswordTooShort:
     """Das Passwort unterschreitet die Mindestlaenge."""
+
+    code: ClassVar[str] = "password-too-short"
 
     actual_length: int
     minimum: int

@@ -16,6 +16,7 @@ from src.contexts.shared_kernel.validation import FieldErrorDetail
 
 __all__ = [
     "EmailAlreadyTaken",
+    "RegisterUserFailure",
     "RegisterUserResponse",
     "RegistrationAccepted",
     "RegistrationInvalid",
@@ -59,4 +60,13 @@ class RegistrationInvalid:
     errors: Mapping[str, tuple[FieldErrorDetail, ...]]
 
 
-type RegisterUserResponse = RegistrationAccepted | EmailAlreadyTaken | RegistrationInvalid
+type RegisterUserFailure = EmailAlreadyTaken | RegistrationInvalid
+"""Die Fehlerhaelfte der Antwort - jeder Fall traegt seinen Code.
+
+Eigener Name, damit der Zusammenbau sie der Drift-Pruefung uebergeben kann, ohne den
+Erfolgsfall mitzuschleppen: `RegistrationAccepted` hat zu Recht keinen Fehlercode, und
+eine Aufzaehlung, die ihn ueberspringen muesste, koennte einen vergessenen Code nicht
+mehr von einem Erfolg unterscheiden.
+"""
+
+type RegisterUserResponse = RegistrationAccepted | RegisterUserFailure

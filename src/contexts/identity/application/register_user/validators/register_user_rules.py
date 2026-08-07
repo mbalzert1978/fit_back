@@ -18,6 +18,7 @@ from collections.abc import Callable, Mapping
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.domain import (
     DisplayName,
+    DisplayNameIsEmpty,
     DisplayNameTooLong,
     Email,
     EmailAddressLiteralInvalid,
@@ -38,7 +39,6 @@ from src.contexts.identity.domain import (
     LocaleNotSupported,
     Password,
     PasswordTooShort,
-    TextIsEmpty,
     UnencodableDomainLabel,
     UserTimeZone,
     UserTimeZoneUnknown,
@@ -66,63 +66,66 @@ def _email_error_to_code_params(error: EmailError) -> tuple[str, Mapping[str, ob
     """Konvertiere einen EmailError in (code, parameters) fuer die Ressource-Datei."""
     match error:
         case EmailHasWhitespace():
-            return ("email-has-whitespace", {})
+            return (EmailHasWhitespace.code, {})
         case EmailNeedsExactlyOneAtSign(at_sign_count=count):
-            return ("email-needs-exactly-one-at-sign", {"count": count})
+            return (EmailNeedsExactlyOneAtSign.code, {"at_sign_count": count})
         case EmailLocalPartMissing():
-            return ("email-local-part-missing", {})
+            return (EmailLocalPartMissing.code, {})
         case EmailDomainMissing():
-            return ("email-domain-missing", {})
+            return (EmailDomainMissing.code, {})
         case EmailLocalPartTooLong(maximum=maximum):
-            return ("email-local-part-too-long", {"maximum": maximum})
+            return (EmailLocalPartTooLong.code, {"maximum": maximum})
         case EmailLocalPartHasInvalidCharacters(invalid_characters=invalid):
-            return ("email-local-part-has-invalid-characters", {"invalid": "".join(invalid)})
+            return (
+                EmailLocalPartHasInvalidCharacters.code,
+                {"invalid_characters": "".join(invalid)},
+            )
         case EmailLocalPartHasMisplacedDot():
-            return ("email-local-part-has-misplaced-dot", {})
+            return (EmailLocalPartHasMisplacedDot.code, {})
         case EmailDomainTooLong(maximum=maximum):
-            return ("email-domain-too-long", {"maximum": maximum})
+            return (EmailDomainTooLong.code, {"maximum": maximum})
         case EmailDomainHasEmptyLabel():
-            return ("email-domain-has-empty-label", {})
+            return (EmailDomainHasEmptyLabel.code, {})
         case EmailDomainLabelTooLong(maximum=maximum):
-            return ("email-domain-label-too-long", {"maximum": maximum})
+            return (EmailDomainLabelTooLong.code, {"maximum": maximum})
         case EmailDomainLabelHasEdgeHyphen():
-            return ("email-domain-label-has-edge-hyphen", {})
+            return (EmailDomainLabelHasEdgeHyphen.code, {})
         case EmailDomainLabelHasInvalidCharacters():
-            return ("email-domain-label-has-invalid-characters", {})
+            return (EmailDomainLabelHasInvalidCharacters.code, {})
         case EmailAddressLiteralInvalid():
-            return ("email-address-literal-invalid", {})
+            return (EmailAddressLiteralInvalid.code, {})
         case UnencodableDomainLabel(reason=reason):
-            return ("email-unencodable-domain-label", {"reason": reason})
+            return (UnencodableDomainLabel.code, {"reason": reason})
 
 
 def _password_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, object]]:
     """Konvertiere einen PasswordError in (code, parameters)."""
     match error:
         case PasswordTooShort(actual_length=actual, minimum=minimum):
-            return ("password-too-short", {"actual_length": actual, "minimum": minimum})
+            return (PasswordTooShort.code, {"actual_length": actual, "minimum": minimum})
 
 
 def _display_name_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, object]]:
     """Konvertiere einen DisplayNameError in (code, parameters)."""
     match error:
-        case TextIsEmpty():
-            return ("display-name-is-empty", {})
+        case DisplayNameIsEmpty():
+            return (DisplayNameIsEmpty.code, {})
         case DisplayNameTooLong(actual_length=actual, maximum=maximum):
-            return ("display-name-too-long", {"actual_length": actual, "maximum": maximum})
+            return (DisplayNameTooLong.code, {"actual_length": actual, "maximum": maximum})
 
 
 def _locale_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, object]]:
     """Konvertiere einen LocaleError in (code, parameters)."""
     match error:
         case LocaleNotSupported(candidate=candidate):
-            return ("locale-not-supported", {"candidate": candidate})
+            return (LocaleNotSupported.code, {"candidate": candidate})
 
 
 def _user_time_zone_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, object]]:
     """Konvertiere einen UserTimeZoneError in (code, parameters)."""
     match error:
         case UserTimeZoneUnknown(candidate=candidate):
-            return ("user-time-zone-unknown", {"candidate": candidate})
+            return (UserTimeZoneUnknown.code, {"candidate": candidate})
 
 
 def _as_field_errors_generic(

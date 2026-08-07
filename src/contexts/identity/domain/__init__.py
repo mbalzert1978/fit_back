@@ -9,7 +9,11 @@ Diese Schicht haengt ausschliesslich an der stdlib und am `Result` des Shared
 Kernel - maschinell abgesichert durch den `domain-purity`-Contract in setup.cfg.
 """
 
-from src.contexts.identity.domain.display_name_errors import DisplayNameError, DisplayNameTooLong
+from src.contexts.identity.domain.display_name_errors import (
+    DisplayNameError,
+    DisplayNameIsEmpty,
+    DisplayNameTooLong,
+)
 from src.contexts.identity.domain.email_errors import (
     EmailAddressLiteralInvalid,
     EmailDomainHasEmptyLabel,
@@ -75,6 +79,7 @@ __all__ = [
     "Active",
     "DisplayName",
     "DisplayNameError",
+    "DisplayNameIsEmpty",
     "DisplayNameTooLong",
     "DomainError",
     "Email",

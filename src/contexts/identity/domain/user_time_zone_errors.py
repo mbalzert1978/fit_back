@@ -5,7 +5,7 @@ Teil derselben einen, flachen `DomainError`-Union, die dort zusammengesetzt wird
 """
 
 from dataclasses import dataclass
-from typing import final
+from typing import ClassVar, final
 
 __all__ = [
     "UserTimeZoneError",
@@ -17,6 +17,8 @@ __all__ = [
 @dataclass(frozen=True, slots=True)
 class UserTimeZoneUnknown:
     """Die Zeitzone ist in der IANA-Datenbank nicht bekannt."""
+
+    code: ClassVar[str] = "user-time-zone-unknown"
 
     candidate: str
 

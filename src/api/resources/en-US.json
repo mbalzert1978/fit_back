@@ -1,11 +1,10 @@
 {
-  "text-is-empty": "The text must not be empty",
   "email-has-whitespace": "The email address contains whitespace",
-  "email-needs-exactly-one-at-sign": "The email address requires exactly one @ sign (found: {count})",
+  "email-needs-exactly-one-at-sign": "The email address requires exactly one @ sign (found: {at_sign_count})",
   "email-local-part-missing": "The email address has no local part before the @",
   "email-domain-missing": "The email address has no domain after the @",
   "email-local-part-too-long": "The local part of the email address exceeds the maximum length of {maximum} characters",
-  "email-local-part-has-invalid-characters": "The local part of the email address contains invalid characters: {invalid}",
+  "email-local-part-has-invalid-characters": "The local part of the email address contains invalid characters: {invalid_characters}",
   "email-local-part-has-misplaced-dot": "The local part of the email address has a dot in the wrong position",
   "email-domain-too-long": "The domain of the email address exceeds the maximum length of {maximum} characters",
   "email-domain-has-empty-label": "The domain of the email address has an empty label",
