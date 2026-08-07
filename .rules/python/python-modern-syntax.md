@@ -61,21 +61,60 @@ def first(items: Sequence[T]) -> T:  # ungebundenes Modul-T statt eigenem Typpar
 Result: TypeAlias = Ok[T] | Err[E]  # TypeAlias-Import ueberfluessig ab 3.12
 ```
 
-## Walrus-Operator gezielt, nicht inflationaer
+## Walrus-Operator: bei "zuweisen und sofort pruefen" ist er Pflicht, sonst zurueckhaltend
 
-`:=` nutzen, um eine Zuweisung und ihre unmittelbare Pruefung zusammenzuziehen — nicht, um
-mehrere unabhaengige Zuweisungen in einen Ausdruck zu quetschen.
+Steht eine Zuweisung nur da, um in der **naechsten** Zeile geprueft zu werden, gehoert sie in die
+Pruefung hinein. Der Name existiert dann genau dort, wo er gebraucht wird, und niemand kann ihn
+spaeter versehentlich weiterverwenden.
+
+Diese Regel hat zwei Haelften, und die zweite wurde lange als die einzige gelesen: `:=` **muss**
+stehen, wo zugewiesen und unmittelbar geprueft wird — und es darf **nicht** mehrere unabhaengige
+Zuweisungen in einen Ausdruck quetschen. ruff hat dafuer keine Regel; das faellt nur im Review auf.
 
 Do:
 ```python
 if (match := pattern.search(line)) is not None:
     process(match)
+
+if missing := expected - available:
+    raise ValueError(f"fehlt: {sorted(missing)}")
+```
+
+Don't:
+```python
+missing = expected - available  # existiert nur fuer die naechste Zeile
+if missing:
+    raise ValueError(f"fehlt: {sorted(missing)}")
 ```
 
 Don't:
 ```python
 if (a := compute_a()) and (b := compute_b()) and (c := a + b) > threshold:  # unlesbar
     ...
+```
+
+## Ersatzwert per `or`, nicht per nachgeschobenem `if`
+
+Soll ein leerer Wert durch einen Ersatz abgeloest werden, ist das ein Ausdruck, keine
+Fallunterscheidung. `x or fallback` sagt es in einer Zeile; die `if`-Variante verteilt dieselbe
+Aussage auf vier und laesst die Variable zwischendurch in einem Zustand, den niemand wollte.
+
+ruff faengt nur die Ternary-Form (`FURB110`), nicht die mit `if`-Statement — die faellt im Review
+auf.
+
+Do:
+```python
+args = get_args(union) or (union,)
+errors = collected or None
+```
+
+Don't:
+```python
+args = get_args(union)
+if not args:
+    args = (union,)
+
+errors = collected if collected else None  # dieselbe Aussage, umstaendlicher
 ```
 
 ## Sortierbare IDs: `uuid.uuid7()` statt `uuid.uuid4()`
