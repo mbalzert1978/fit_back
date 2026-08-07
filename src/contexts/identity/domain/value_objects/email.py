@@ -12,7 +12,7 @@ fuer Fall.
 
 from dataclasses import dataclass
 from ipaddress import ip_address
-from typing import final
+from typing import assert_never, final
 
 from src.contexts.identity.domain.email_errors import (
     EmailAddressLiteralInvalid,
@@ -154,14 +154,19 @@ def _labels_are_valid(candidate: str, domain: str, idn: IdnEncoder) -> Result[st
             return Err(EmailDomainHasEmptyLabel(domain))
         if label.startswith("-") or label.endswith("-"):
             return Err(EmailDomainLabelHasEdgeHyphen(label))
-        match _ascii_form_of(label, idn):
+        ascii_form = _ascii_form_of(label, idn)
+        match ascii_form:
             case Err() as unencodable:
                 return unencodable
             case Ok(value=ascii_label):
+                # Faellt bewusst durch: ein gueltiges Label bedeutet nur, dass die
+                # Schleife mit dem naechsten weitermacht.
                 if len(ascii_label) > MAX_LABEL_LENGTH:
                     return Err(EmailDomainLabelTooLong(label, len(ascii_label), MAX_LABEL_LENGTH))
                 if any(not _is_ascii_label_character(c) for c in ascii_label):
                     return Err(EmailDomainLabelHasInvalidCharacters(label))
+            case _:
+                assert_never(ascii_form)
     return Ok(candidate)
 
 

@@ -14,6 +14,7 @@ nicht in Text fuer Menschen. Der Text entsteht erst am HTTP-Rand nach `Accept-La
 """
 
 from collections.abc import Callable, Mapping
+from typing import assert_never
 
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.domain import (
@@ -60,6 +61,8 @@ def _as_field_errors_from_email(
         case Err(error=email_error):
             code, params = _email_error_to_code_params(email_error)
             return [FieldError(field, code, params)]
+        case _:
+            assert_never(outcome)
 
 
 def _email_error_to_code_params(error: EmailError) -> tuple[str, Mapping[str, object]]:
@@ -96,6 +99,8 @@ def _email_error_to_code_params(error: EmailError) -> tuple[str, Mapping[str, ob
             return (EmailAddressLiteralInvalid.code, {})
         case UnencodableDomainLabel(reason=reason):
             return (UnencodableDomainLabel.code, {"reason": reason})
+        case _:
+            assert_never(error)
 
 
 def _password_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, object]]:
@@ -103,6 +108,8 @@ def _password_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, 
     match error:
         case PasswordTooShort(actual_length=actual, minimum=minimum):
             return (PasswordTooShort.code, {"actual_length": actual, "minimum": minimum})
+        case _:
+            assert_never(error)
 
 
 def _display_name_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, object]]:
@@ -112,6 +119,8 @@ def _display_name_error_to_code_params(error: Exception) -> tuple[str, Mapping[s
             return (DisplayNameIsEmpty.code, {})
         case DisplayNameTooLong(actual_length=actual, maximum=maximum):
             return (DisplayNameTooLong.code, {"actual_length": actual, "maximum": maximum})
+        case _:
+            assert_never(error)
 
 
 def _locale_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, object]]:
@@ -119,6 +128,8 @@ def _locale_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, ob
     match error:
         case LocaleNotSupported(candidate=candidate):
             return (LocaleNotSupported.code, {"candidate": candidate})
+        case _:
+            assert_never(error)
 
 
 def _user_time_zone_error_to_code_params(error: Exception) -> tuple[str, Mapping[str, object]]:
@@ -126,6 +137,8 @@ def _user_time_zone_error_to_code_params(error: Exception) -> tuple[str, Mapping
     match error:
         case UserTimeZoneUnknown(candidate=candidate):
             return (UserTimeZoneUnknown.code, {"candidate": candidate})
+        case _:
+            assert_never(error)
 
 
 def _as_field_errors_generic(
@@ -143,6 +156,8 @@ def _as_field_errors_generic(
         case Err(error=error):
             code, params = converter(error)
             return [FieldError(field, code, params)]
+        case _:
+            assert_never(outcome)
 
 
 def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:

@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import final
+from typing import assert_never, final
 
 from src.contexts.identity.domain.locale_errors import LocaleError, LocaleNotSupported
 from src.contexts.shared_kernel import Err, Ok, Result
@@ -60,3 +60,5 @@ def locale_tag(locale: Locale) -> str:
             return "de"
         case English():
             return "en"
+        case _:
+            assert_never(locale)

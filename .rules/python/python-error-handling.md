@@ -212,15 +212,88 @@ aendert sich nur der Fehlertyp, wird **verkettet**: `Email.parse(raw, idn).map_e
 Wird der `Result` **verlassen** (Fold in eine Response-Union) oder aus einer fremden Union heraus
 **betreten** (Naht-Ergebnis → `Result[T, DomainError]` im Port-Adapter), wird **gematcht** — dort
 gibt es kein `Err`, auf dem eine Kette sitzen koennte, und `map` kaeme nie aus dem Ok-Zweig heraus.
-Der `match` ohne Auffangzweig ist an dieser Grenze kein Notbehelf, sondern der Wachposten: kommt ein
-Fall dazu, bricht er laut auf, waehrend eine Kette aus zwei Funktionen ihn still durchreichen wuerde
-([python-control-flow.md](./python-control-flow.md)).
+Der `match` ist an dieser Grenze kein Notbehelf, sondern der Wachposten: kommt ein Fall dazu, bricht
+er laut auf, waehrend eine Kette aus zwei Funktionen ihn still durchreichen wuerde
+([python-control-flow.md](./python-control-flow.md)). Damit er das wirklich tut, braucht er den
+werfenden Abschlusszweig aus dem naechsten Abschnitt — **ohne** ihn bricht er gerade nicht auf.
 
 **Ueber die Naht des Use Case gehen weiterhin nur Primitive**
 ([python-feature-slices.md](./python-feature-slices.md)). Die Domaenen-Union endet also an der
 Application-Grenze; dort wird sie in Code plus Parameter uebersetzt, nicht in einen Satz.
 Referenz im Repo: `contexts/identity/domain/email_errors.py` und der `EmailError`-`match`, der sie
 auswertet.
+
+## Jeder `match` ist vollstaendig — der Abschlusszweig wirft `assert_never`
+
+**Ein `match` endet nie offen.** Der letzte Zweig faengt entweder einen echten Restfall ab oder
+wirft; ein `match`, der beides nicht tut, ist ein Fehler, kein Stil.
+
+Der Grund ist eine Eigenschaft der Sprache, die man leicht falsch erinnert: **Python erzwingt
+Vollzaehligkeit zur Laufzeit nicht.** Passt kein Zweig, faellt der `match` still durch — in einer
+Funktion mit Rueckgabewert heisst das `None`, und der Fehler taucht irgendwo weiter oben als
+`AttributeError` auf einem `NoneType` auf, weit weg von seiner Ursache. In C# meldet das der
+Compiler; dieses Repo faehrt bewusst ohne Typpruefer, also muss der Code es selbst tun. Ein
+aufgezaehlter `match` "ohne Auffangzweig" ist deshalb **kein** Wachposten — er ist die Luecke.
+
+Der Abschluss ist [`typing.assert_never`](https://docs.python.org/3/library/typing.html#typing.assert_never),
+das Gegenstueck zu C#s `_ => throw new UnreachableException()`:
+
+```python
+from typing import assert_never
+
+def locale_tag(locale: Locale) -> str:
+    match locale:
+        case German():
+            return "de"
+        case English():
+            return "en"
+        case _:
+            assert_never(locale)
+```
+
+`assert_never` ist der stdlib-Weg und traegt doppelt: zur Laufzeit wirft es einen `AssertionError`
+mit dem unerwarteten Wert, und kaeme je ein Typpruefer dazu, meldete er einen nicht behandelten Fall
+schon beim Pruefen statt erst im Betrieb. Ein selbstgebauter `raise RuntimeError("unreachable")`
+kann das zweite nicht.
+
+**Das Subjekt muss ein Name sein.** `assert_never` braucht den gematchten Wert; ein
+`match await pipeline.run(request):` gibt ihn nicht her. Also erst binden, dann matchen:
+
+```python
+outcome = await pipeline.run(request)
+match outcome:
+    ...
+    case _:
+        assert_never(outcome)
+```
+
+**Wann der Default kein `assert_never` ist — und die Regel trotzdem gilt.** `assert_never` sagt
+"hier kommt nie etwas an". Das stimmt nur, wenn die Fallmenge **uns gehoert und geschlossen ist**:
+eine Tagged Union dieses Repos, `Result`, ein Value Object. Matcht der Code dagegen auf eine
+**offene Wertemenge aus fremder Hand** — ein Fehlertyp-String von Pydantic, ein Statuscode, roher
+Nutzereingabe-Text —, ist der Restfall real und braucht eine echte Antwort:
+
+```python
+match error.get("type"):          # Pydantics Fehlertypen, nicht unsere Union
+    case "missing":
+        return FieldRequired(field)
+    case "extra_forbidden":
+        return ExtraForbidden(field)
+    case _:
+        return FieldTypeError(field)   # neuer Pydantic-Typ ist ein Update, kein Bug
+```
+
+Beide Formen erfuellen dieselbe Regel — der `match` ist vollstaendig. Sie unterscheiden sich nur
+darin, ob der Default erreichbar ist. Die Frage dazu lautet nicht "kann das passieren?", sondern
+**"gehoert mir die Fallmenge?"**. Gehoert sie uns, ist ein neuer Fall ein Bug und muss laut werden;
+gehoert sie einer Bibliothek, ist ein neuer Fall zu erwarten und darf den Aufrufer nicht mit 500
+treffen. Wer den Default beantwortet statt zu werfen, schreibt **dazu**, warum die Menge offen ist.
+
+**Maschinell geprueft, nicht erinnert.** `tests/test_match_exhaustiveness.py` liest `src/` per AST
+und laesst jeden `match` durchfallen, dessen letzter Zweig weder wirft noch `assert_never` aufruft.
+Die offenen Wertemengen stehen dort namentlich mit Begruendung — eine neue Ausnahme kostet einen
+Eintrag und damit eine bewusste Entscheidung
+([`exp_maschinelle-absicherung-statt-review-regel.md`](../../docs/reflections/exp_maschinelle-absicherung-statt-review-regel.md)).
 
 ## Zwei Factories je Value Object: fallibles `parse` vs. infallibles `hydrate`
 

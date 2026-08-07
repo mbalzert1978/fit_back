@@ -1,7 +1,7 @@
 """Tagged Union AccountStatus - jeder Fall traegt seine eigenen Daten, kein Enum."""
 
 from dataclasses import dataclass
-from typing import final
+from typing import assert_never, final
 
 from src.contexts.shared_kernel import Timestamp
 
@@ -46,3 +46,5 @@ def account_status_tag(status: AccountStatus) -> str:
             return "suspended"
         case PendingDeletion():
             return "pending-deletion"
+        case _:
+            assert_never(status)

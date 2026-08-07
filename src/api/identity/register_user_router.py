@@ -10,7 +10,7 @@ schon fest, wenn die Pipeline zurückkommt. Die Sprachauswahl ist rein
 präsentativ und beeinflußt das fachliche Ergebnis nicht.
 """
 
-from typing import final
+from typing import assert_never, final
 
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
@@ -86,7 +86,8 @@ async def register_user(
     language = get_language_from_header(request.headers.get("accept-language"))
     resources: ResourcesCache = request.app.state.resources
 
-    match await pipeline.run(body.to_request()):
+    outcome = await pipeline.run(body.to_request())
+    match outcome:
         case RegistrationAccepted() as accepted:
             response = JSONResponse(
                 status_code=status.HTTP_201_CREATED,
@@ -143,6 +144,9 @@ async def register_user(
                 translated_errors,
                 language_tag=language,
             )
+
+        case _:
+            assert_never(outcome)
 
 
 def _problem(
