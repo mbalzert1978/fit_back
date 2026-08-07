@@ -1,6 +1,6 @@
-"""Alembic environment configuration for database migrations.
+"""Alembic-Umgebungskonfiguration für Datenbankmigrationen.
 
-Defines the migration environment for SQLAlchemy with async support.
+Konfiguriert die Migrationsumgebung für SQLAlchemy mit asynchroner Unterstützung.
 """
 
 import asyncio

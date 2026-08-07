@@ -1,4 +1,4 @@
-"""Drift-Pruefung beim Start: stimmen Fehlerfaelle und Textvorlagen noch ueberein?.
+"""Drift-Prüfung beim Start — Konsistenz zwischen Fehlerfällen und Textvorlagen.
 
 Die erwartete Code-Menge wird **aus den Fehler-Unions abgeleitet**, nicht danebengepflegt.
 Damit kann ein neuer Slice keine Fehlerfaelle mitbringen, deren Texte niemand hinterlegt
