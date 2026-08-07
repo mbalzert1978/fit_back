@@ -1,9 +1,6 @@
 """Tests für i18n Support am HTTP-Rand: RFC7231-Parsing, Template-Rendering, Migrationsnachweis."""
 
-import pytest
-
 from src.api.i18n import get_language_from_header, load_resources, translate
-
 
 # Lade Ressourcen beim Modulimport
 load_resources()

@@ -13,7 +13,7 @@ Domaenenfehler werden hier in sprachunabhaengige Codes + Parameter uebersetzt,
 nicht in Text fuer Menschen. Der Text entsteht erst am HTTP-Rand nach `Accept-Language`.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.domain import (
@@ -50,7 +50,9 @@ from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
 __all__ = ["build_register_user_rules"]
 
 
-def _as_field_errors_from_email(field: str, outcome: Result[object, EmailError]) -> list[FieldError]:
+def _as_field_errors_from_email(
+    field: str, outcome: Result[object, EmailError]
+) -> list[FieldError]:
     """Uebersetze einen EmailError in Feldfehler mit Code + Parametern."""
     match outcome:
         case Ok():
@@ -124,7 +126,9 @@ def _user_time_zone_error_to_code_params(error: Exception) -> tuple[str, Mapping
 
 
 def _as_field_errors_generic(
-    field: str, outcome: Result[object, Exception], converter: Callable[[Exception], tuple[str, Mapping[str, object]]]
+    field: str,
+    outcome: Result[object, Exception],
+    converter: Callable[[Exception], tuple[str, Mapping[str, object]]],
 ) -> list[FieldError]:
     """Uebersetze einen typisierten Fehler in Feldfehler mit Code + Parametern.
 
@@ -153,7 +157,9 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
 
 def password_must_be_long_enough(request: RegisterUserRequest) -> list[FieldError]:
     """Das Passwort muss die Mindestlaenge erfuellen."""
-    return _as_field_errors_generic("password", Password.parse(request.password), _password_error_to_code_params)
+    return _as_field_errors_generic(
+        "password", Password.parse(request.password), _password_error_to_code_params
+    )
 
 
 def display_name_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:
@@ -165,7 +171,9 @@ def display_name_must_be_wellformed(request: RegisterUserRequest) -> list[FieldE
 
 def locale_must_be_supported(request: RegisterUserRequest) -> list[FieldError]:
     """Die Sprache muss eine der unterstuetzten sein."""
-    return _as_field_errors_generic("locale", parse_locale(request.locale), _locale_error_to_code_params)
+    return _as_field_errors_generic(
+        "locale", parse_locale(request.locale), _locale_error_to_code_params
+    )
 
 
 def time_zone_must_be_known(request: RegisterUserRequest) -> list[FieldError]:

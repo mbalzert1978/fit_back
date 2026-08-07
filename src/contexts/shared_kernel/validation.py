@@ -18,7 +18,15 @@ from typing import final
 
 from src.contexts.shared_kernel.result import Ok, Result
 
-__all__ = ["FieldError", "FieldErrorDetail", "ResultRule", "Rule", "all_of", "chain", "group_by_field"]
+__all__ = [
+    "FieldError",
+    "FieldErrorDetail",
+    "ResultRule",
+    "Rule",
+    "all_of",
+    "chain",
+    "group_by_field",
+]
 
 
 type FieldErrorDetail = tuple[str, Mapping[str, object]]

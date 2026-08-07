@@ -5,9 +5,10 @@ um zu vermeiden, dass jeder Fehlerfall am Rand einen Datenbankzugriff kostet.
 
 Alle Resource-Dateien werden beim Start der Applikation geladen und auf
 Vollständigkeit geprüft - fehlt ein Code in einer Datei, ist das ein Startfehler
-(raises ValueError), kein Laufzeitfehler.
+(raises TypeError für malformed JSON, ValueError für fehlende Codes), kein Laufzeitfehler.
 """
 
+import contextlib
 import json
 from collections.abc import Mapping
 from pathlib import Path
@@ -50,11 +51,8 @@ class _ResourcesCache:
 
         # Zweite Pass: auf Vollständigkeit prüfen
         for language in SUPPORTED_LANGUAGES:
-            missing = all_codes - self._resources[language].keys()
-            if missing:
-                raise ValueError(
-                    f"Language '{language}' is missing codes: {sorted(missing)}"
-                )
+            if missing := all_codes - self._resources[language].keys():
+                raise ValueError(f"Language '{language}' is missing codes: {sorted(missing)}")
 
     def get(self, language: str, code: str) -> str | None:
         """Hole die Vorlage für einen Code in einer Sprache."""
@@ -62,9 +60,7 @@ class _ResourcesCache:
             return None
         return self._resources[language].get(code)
 
-    def translate(
-        self, code: str, parameters: Mapping[str, object], language: str
-    ) -> str:
+    def translate(self, code: str, parameters: Mapping[str, object], language: str) -> str:
         """Übersetze einen Code + Parameter zu Text."""
         template = self.get(language, code)
         if template is None:
@@ -92,7 +88,7 @@ def load_resources() -> None:
 
     Diese Funktion wird von der Anwendung beim Starten aufgerufen, um
     sicherzustellen, dass alle Fehlercodes in allen Sprachen definiert sind.
-    Wirft ValueError, wenn etwas fehlt oder falsch ist.
+    Wirft TypeError für malformed JSON, ValueError für fehlende Codes.
     """
     global _RESOURCES
     _RESOURCES = _ResourcesCache()
@@ -105,13 +101,11 @@ def translate(
 ) -> str:
     """Übersetze einen Code + Parameter zu Text in einer Sprache.
 
-    Wirft AssertionError, wenn load_resources() nicht vorher aufgerufen wurde.
-    Wirft ValueError, wenn der Code nicht existiert oder Parameter fehlen.
+    Wirft AssertionError, wenn load_resources() nicht vorher aufgerufen wurde,
+    wenn der Code nicht existiert, oder wenn ein Parameter im Template fehlt.
     """
     if _RESOURCES is None:
-        raise AssertionError(
-            "Resources not loaded. Call load_resources() during startup."
-        )
+        raise AssertionError("Resources not loaded. Call load_resources() during startup.")
     if parameters is None:
         parameters = {}
     return _RESOURCES.translate(code, parameters, language)
@@ -124,7 +118,8 @@ def get_language_from_header(accept_language: str | None) -> str:
     - q-Gewichte werden ausgewertet, höchstes gewinnt
     - Bei Gleichstand die zuerst genannte Sprache
     - Ein reiner Regionstreffer zählt (de-AT ⇒ de-DE, en-GB ⇒ en-US)
-    - Unbekannte Sprache, q=0, leerer oder defekter Header ⇒ de-DE
+    - Defekte q-Werte (z.B. q=abc) werden ignoriert, die Sprache behält Defaultgewicht 1.0
+    - Unbekannte Sprache, q=0, leerer oder syntaktisch defekter Header ⇒ de-DE
     - Die Sprachwahl darf nie eine sonst gültige Anfrage scheitern lassen
 
     Returns:
@@ -142,25 +137,21 @@ def get_language_from_header(accept_language: str | None) -> str:
             continue
 
         # Splitze in Sprache und Parameter (z.B. "de;q=0.9")
+        quality = 1.0
         if ";" in part:
             lang_part, params_part = part.split(";", 1)
             lang = lang_part.strip()
 
-            # Parse q-Gewicht
-            quality = 1.0
+            # Parse q-Gewicht — defekte q-Werte werden mit Defaultgewicht ignoriert
             for param in params_part.split(";"):
                 param = param.strip()
                 if param.startswith("q="):
-                    try:
+                    with contextlib.suppress(ValueError):
                         quality = float(param[2:])
                         # Begrenze auf [0, 1]
                         quality = max(0.0, min(1.0, quality))
-                    except ValueError:
-                        # Defekter q-Wert → ignorieren
-                        pass
         else:
             lang = part.strip()
-            quality = 1.0
 
         if lang and lang != "*":
             # Speichere auch den Index für Gleichstand-Auflösung
