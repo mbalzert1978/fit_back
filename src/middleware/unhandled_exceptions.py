@@ -32,6 +32,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
+from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.problem_details import ProblemDetails
 
 logger = logging.getLogger(__name__)
@@ -59,17 +60,29 @@ class UnhandledExceptionMiddleware(BaseHTTPMiddleware):
                 request.method,
                 request.url.path,
             )
+            language = get_language_from_header(request.headers.get("accept-language"))
+            resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
+
+            if resources is None:
+                title = "Internal Server Error"
+                detail = "The request could not be processed."
+            else:
+                title = translate(resources, "internal-server-error", language=language)
+                detail = translate(resources, "internal-server-error-detail", language=language)
+
             problem = ProblemDetails(
                 type=UNHANDLED_ERROR_TYPE,
-                title="Interner Serverfehler",
+                title=title,
                 status=HTTP_500_INTERNAL_SERVER_ERROR,
                 # Bewusst nichtssagend: was schiefging, steht im Log, nicht in
                 # der Antwort.
-                detail="Die Anfrage konnte nicht verarbeitet werden.",
+                detail=detail,
                 instance=request.url.path,
             )
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
                 content=problem.model_dump(exclude_none=True),
                 media_type="application/problem+json",
             )
+            response.headers["Content-Language"] = language
+            return response

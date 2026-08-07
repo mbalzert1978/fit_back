@@ -1,9 +1,9 @@
 """Tests für i18n Support am HTTP-Rand: RFC7231-Parsing, Template-Rendering, Migrationsnachweis."""
 
-from src.api.i18n import get_language_from_header, load_resources, translate
+from src.api.i18n import create_resources, get_language_from_header, translate
 
-# Lade Ressourcen beim Modulimport
-load_resources()
+# Erstelle Ressourcen beim Modulimport für alle Tests
+_RESOURCES = create_resources()
 
 
 class TestRFC7231LanguageSelection:
@@ -65,24 +65,30 @@ class TestTranslationRendering:
     """Template-Rendering mit Parametern."""
 
     def test_translate_to_german(self) -> None:
-        text = translate("password-too-short", {"minimum": 10, "actual_length": 5}, "de-DE")
+        text = translate(
+            _RESOURCES, "password-too-short", {"minimum": 10, "actual_length": 5}, "de-DE"
+        )
         assert "mindestens" in text.lower()
         assert "10" in text
 
     def test_translate_to_english(self) -> None:
-        text = translate("password-too-short", {"minimum": 10, "actual_length": 5}, "en-US")
+        text = translate(
+            _RESOURCES, "password-too-short", {"minimum": 10, "actual_length": 5}, "en-US"
+        )
         assert "at least" in text.lower()
         assert "10" in text
 
     def test_different_codes_produce_different_texts(self) -> None:
-        de1 = translate("email-already-registered", {}, "de-DE")
-        de2 = translate("password-too-short", {"minimum": 10, "actual_length": 5}, "de-DE")
+        de1 = translate(_RESOURCES, "email-already-registered", {}, "de-DE")
+        de2 = translate(
+            _RESOURCES, "password-too-short", {"minimum": 10, "actual_length": 5}, "de-DE"
+        )
         assert de1 != de2
 
     def test_type_and_code_language_independent(self) -> None:
         """Fehlercode ist sprachunabhängig (gleicher Code, beide Sprachen)."""
-        code_de = translate("email-already-registered", {}, "de-DE")
-        code_en = translate("email-already-registered", {}, "en-US")
+        code_de = translate(_RESOURCES, "email-already-registered", {}, "de-DE")
+        code_en = translate(_RESOURCES, "email-already-registered", {}, "en-US")
         # Codes sind unterschiedlich (de vs en), aber beide sollten vorhanden sein
         assert code_de  # nicht leer
         assert code_en  # nicht leer
@@ -94,16 +100,13 @@ class TestMigrationNachweis:
 
     def test_all_error_codes_in_both_languages(self) -> None:
         """Alle Codes sind in beiden Sprachen vollständig vorhanden."""
-        from src.api.i18n import _RESOURCES
-
-        assert _RESOURCES is not None
         de_codes = set(_RESOURCES._resources["de-DE"].keys())
         en_codes = set(_RESOURCES._resources["en-US"].keys())
         assert de_codes == en_codes
 
     def test_shared_kernel_text_is_empty(self) -> None:
         """text-is-empty Code ist vorhanden (shared_kernel/not_empty_string.py)."""
-        text = translate("text-is-empty", {}, "de-DE")
+        text = translate(_RESOURCES, "text-is-empty", {}, "de-DE")
         assert "leer" in text.lower()
 
     def test_identity_domain_texts_present(self) -> None:
@@ -117,7 +120,7 @@ class TestMigrationNachweis:
             ("user-time-zone-unknown", {"candidate": "Invalid/Zone"}),
         ]
         for code, params in test_codes:
-            text = translate(code, params, "de-DE")
+            text = translate(_RESOURCES, code, params, "de-DE")
             assert text, f"Code '{code}' not found"
 
     def test_application_validation_texts_present(self) -> None:
@@ -129,7 +132,7 @@ class TestMigrationNachweis:
             ("validation-failed-detail", {}),
         ]
         for code, params in test_codes:
-            text = translate(code, params, "de-DE")
+            text = translate(_RESOURCES, code, params, "de-DE")
             assert text, f"Code '{code}' not found"
 
     def test_idempotency_middleware_texts_present(self) -> None:
@@ -141,5 +144,5 @@ class TestMigrationNachweis:
             "idempotency-request-in-progress-detail",
         ]
         for code in codes:
-            text = translate(code, {}, "de-DE")
+            text = translate(_RESOURCES, code, {}, "de-DE")
             assert text, f"Code '{code}' not found"

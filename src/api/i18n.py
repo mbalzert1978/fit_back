@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import final
 
-__all__ = ["get_language_from_header", "load_resources", "translate"]
+__all__ = ["ResourcesCache", "create_resources", "get_language_from_header", "translate"]
 
 SUPPORTED_LANGUAGES = {"de-DE", "en-US"}
 DEFAULT_LANGUAGE = "de-DE"
@@ -27,7 +27,7 @@ LANGUAGE_FALLBACKS: Mapping[str, str] = {
 
 
 @final
-class _ResourcesCache:
+class ResourcesCache:
     """Lade Resource-Dateien einmalig und halte sie im Speicher."""
 
     def __init__(self) -> None:
@@ -79,36 +79,38 @@ class _ResourcesCache:
             ) from e
 
 
-# Globale Instanz - wird von load_resources() gesetzt
-_RESOURCES: _ResourcesCache | None = None
+def create_resources() -> ResourcesCache:
+    """Erstelle und validiere die Resource-Dateien beim Startup.
 
-
-def load_resources() -> None:
-    """Lade und validiere alle Resource-Dateien beim Startup.
-
-    Diese Funktion wird von der Anwendung beim Starten aufgerufen, um
-    sicherzustellen, dass alle Fehlercodes in allen Sprachen definiert sind.
+    Diese Funktion wird von der Anwendung während der Initialisierung
+    aufgerufen, um sicherzustellen, dass alle Fehlercodes in allen Sprachen
+    definiert sind. Die Instanz wird in app.state.resources gespeichert.
     Wirft TypeError für malformed JSON, ValueError für fehlende Codes.
     """
-    global _RESOURCES
-    _RESOURCES = _ResourcesCache()
+    return ResourcesCache()
 
 
 def translate(
+    resources: ResourcesCache,
     code: str,
     parameters: Mapping[str, object] | None = None,
-    language: str = DEFAULT_LANGUAGE,
+    language: str | None = None,
 ) -> str:
     """Übersetze einen Code + Parameter zu Text in einer Sprache.
 
-    Wirft AssertionError, wenn load_resources() nicht vorher aufgerufen wurde,
-    wenn der Code nicht existiert, oder wenn ein Parameter im Template fehlt.
+    Args:
+        resources: Die ResourcesCache-Instanz (normalerweise aus request.app.state.resources)
+        code: Der zu übersetzende Fehlercode
+        parameters: Optional dict mit Parametern für Template-Platzhalter
+        language: Zielsprache (de-DE oder en-US). Wenn None, wird DEFAULT_LANGUAGE verwendet.
+
+    Wirft AssertionError, wenn der Code nicht existiert oder Parameter fehlen.
     """
-    if _RESOURCES is None:
-        raise AssertionError("Resources not loaded. Call load_resources() during startup.")
     if parameters is None:
         parameters = {}
-    return _RESOURCES.translate(code, parameters, language)
+    if language is None:
+        language = DEFAULT_LANGUAGE
+    return resources.translate(code, parameters, language)
 
 
 def get_language_from_header(accept_language: str | None) -> str:

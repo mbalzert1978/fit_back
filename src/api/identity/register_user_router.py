@@ -16,7 +16,7 @@ from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.api.i18n import get_language_from_header, translate
+from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.identity.dependencies import RegisterUser
 from src.api.problem_details import ProblemDetails
 from src.contexts.identity.application.register_user import (
@@ -84,6 +84,7 @@ async def register_user(
     """
     # Wähle Sprache nach Accept-Language
     language = get_language_from_header(request.headers.get("accept-language"))
+    resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
 
     match await pipeline.run(body.to_request()):
         case RegistrationAccepted() as accepted:
@@ -106,8 +107,16 @@ async def register_user(
             return response
 
         case EmailAlreadyTaken(email=email):
-            title = translate("email-already-registered", {}, language)
-            detail = translate("email-already-registered-detail", {"email": email}, language)
+            title = (
+                translate(resources, "email-already-registered", language=language)
+                if resources
+                else "Email already registered"
+            )
+            detail = (
+                translate(resources, "email-already-registered-detail", {"email": email}, language)
+                if resources
+                else f"Email {email} is already registered"
+            )
             return _problem(
                 request,
                 status.HTTP_409_CONFLICT,
@@ -125,12 +134,20 @@ async def register_user(
             for field, field_errors in errors.items():
                 messages: list[str] = []
                 for code, parameters in field_errors:
-                    text = translate(code, parameters, language)
+                    text = translate(resources, code, parameters, language) if resources else code
                     messages.append(text)
                 translated_errors[field] = messages
 
-            title = translate("validation-failed", {}, language)
-            detail = translate("validation-failed-detail", {}, language)
+            title = (
+                translate(resources, "validation-failed", language=language)
+                if resources
+                else "Validation error"
+            )
+            detail = (
+                translate(resources, "validation-failed-detail", language=language)
+                if resources
+                else "Please check the fields"
+            )
             return _problem(
                 request,
                 status.HTTP_400_BAD_REQUEST,

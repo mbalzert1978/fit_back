@@ -69,7 +69,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_CONTENT
 from starlette.types import ASGIApp
 
-from src.api.i18n import get_language_from_header, translate
+from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.problem_details import ProblemDetails
 from src.contexts.shared_kernel.time_provider import TimeProvider
 
@@ -301,6 +301,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """Der Schluessel war schon vergeben - entscheide, was der Aufrufer bekommt."""
         language = get_language_from_header(request.headers.get("accept-language"))
+        resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
         existing = await find_key(engine, key)
         if existing is None:
             # Zwischen Reservierung und Abfrage geloescht (TTL-Bereinigung).
@@ -314,22 +315,42 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             # beiden bewusst nicht - sonst verriete sie, dass der Schluessel
             # jemand anderem gehoert.
             logger.warning("Idempotency key %s fuer eine abweichende Anfrage verwendet", key)
+            title = (
+                translate(resources, "idempotency-key-reused", language=language)
+                if resources
+                else "Idempotency key already in use"
+            )
+            detail = (
+                translate(resources, "idempotency-key-reused-detail", language=language)
+                if resources
+                else "This idempotency key belongs to a different request"
+            )
             return _problem(
                 request,
                 HTTP_422_UNPROCESSABLE_CONTENT,
                 KEY_REUSED_TYPE,
-                translate("idempotency-key-reused", {}, language),
-                translate("idempotency-key-reused-detail", {}, language),
+                title,
+                detail,
             )
 
         if existing["response_body"] is None:
             logger.info("Idempotency key %s: die erste Anfrage laeuft noch", key)
+            title = (
+                translate(resources, "idempotency-request-in-progress", language=language)
+                if resources
+                else "Request is already being processed"
+            )
+            detail = (
+                translate(resources, "idempotency-request-in-progress-detail", language=language)
+                if resources
+                else "A request with this idempotency key is already in progress"
+            )
             return _problem(
                 request,
                 HTTP_409_CONFLICT,
                 REQUEST_IN_PROGRESS_TYPE,
-                translate("idempotency-request-in-progress", {}, language),
-                translate("idempotency-request-in-progress-detail", {}, language),
+                title,
+                detail,
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)

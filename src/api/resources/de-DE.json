@@ -26,5 +26,7 @@
   "idempotency-key-reused": "Idempotency-Key bereits vergeben",
   "idempotency-key-reused-detail": "Dieser Idempotency-Key gehört zu einer anderen Anfrage",
   "idempotency-request-in-progress": "Anfrage wird bereits verarbeitet",
-  "idempotency-request-in-progress-detail": "Zu diesem Idempotency-Key läuft bereits eine Anfrage"
+  "idempotency-request-in-progress-detail": "Zu diesem Idempotency-Key läuft bereits eine Anfrage",
+  "internal-server-error": "Interner Serverfehler",
+  "internal-server-error-detail": "Die Anfrage konnte nicht verarbeitet werden."
 }

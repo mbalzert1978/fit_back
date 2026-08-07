@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from src.api.i18n import get_language_from_header, translate
+from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.problem_details import ProblemDetails
 
 logger = logging.getLogger(__name__)
@@ -37,8 +37,14 @@ async def validation_exception_handler(
         errors_dict[field].append(message)
 
     language = get_language_from_header(request.headers.get("accept-language"))
-    title = translate("validation-failed", {}, language)
-    detail = translate("validation-failed-detail", {}, language)
+    resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
+    if resources is None:
+        logger.warning("Resources not available in app.state, using fallback messages")
+        title = "Validation error"
+        detail = "Please check the fields marked with errors"
+    else:
+        title = translate(resources, "validation-failed", language=language)
+        detail = translate(resources, "validation-failed-detail", language=language)
 
     problem = ProblemDetails(
         type="https://api.example/errors/validation-failed",
