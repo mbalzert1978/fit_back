@@ -1,18 +1,33 @@
 ---
 id: "0048"
-title: "Infra: ruff auf Production-Level fuer src/ (select = ALL), Tests ausgenommen"
+title: "Infra (0008.5): ruff auf Production-Level fuer src/ (select = ALL), Tests ausgenommen"
 status: open
 milestone: M0
 type: AFK
 ---
 
-# Infra: ruff auf Production-Level fuer `src/` (`select = ALL`), Tests ausgenommen
+# Infra (laeuft als 0008.5): ruff auf Production-Level fuer `src/` (`select = ALL`), Tests ausgenommen
 
 ## What to build
 
 `src/` ist Produktionscode und wird ab sofort entsprechend geprueft: ruff laeuft mit
 `select = ["ALL"]`, Ausnahmen nur mit fachlicher Begruendung. Testcode wird sauber gehalten, aber
 nicht erzwungen — `tests/**` und `src/contexts/*/specs/**` sind vollstaendig ausgenommen.
+
+## Einplanung: unmittelbar nach 0008, vor jedem weiteren Feature-Ticket
+
+Dieses Ticket laeuft als naechstes, sobald 0008 gemergt ist — nicht ans Ende der Liste, obwohl
+seine Nummer das nahelegt. Die Nummer ist hier reine Vergabereihenfolge und **keine**
+Planungsaussage; verbindlich ist dieser Abschnitt.
+
+Der Grund ist einfach: jeder Slice, der **nach** diesem Ticket entsteht, wird unter dem scharfen
+Gate gebaut und kostet nichts extra. Jeder Slice, der **davor** entsteht, bringt seinen Anteil an
+Aufraeumarbeit mit — und die 120 Befunde von heute sind genau das, was sich angesammelt hat,
+solange das Gate aus war. Je spaeter das Ticket laeuft, desto groesser die Zahl, die es abarbeiten
+muss, und desto mehr Feature-PRs tragen Befunde, die niemand gemeldet hat.
+
+Praktisch heisst das: nach dem Merge von 0008 wird **kein** weiteres Feature-Ticket begonnen,
+bevor dieses hier durch ist.
 
 ## Warum eigenes Ticket
 
