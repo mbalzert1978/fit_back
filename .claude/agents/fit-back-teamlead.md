@@ -56,7 +56,19 @@ orchestrierst alles davor selbst.
    - die **Review-Checkliste aus `.rules/python/python-feature-slices.md` wörtlich** als
      Fertig-Kriterium, Punkt für Punkt abzuhaken;
    - sobald Ticket 0011 gemergt ist: den **Verweis auf `register_user` als
-     Referenzimplementierung** statt einer Prosa-Beschreibung der Form.
+     Referenzimplementierung** statt einer Prosa-Beschreibung der Form;
+   - einen Abschnitt **„Delegation an Sub-Agenten"** mit den beiden Bedingungen aus
+     `exp_entwickler-agent-delegiert-nicht-in-den-worktree.md`: die woertliche
+     `cd`-Anweisung wird an jeden Sub-Agenten weitergereicht (als zu kopierender
+     Textbaustein, nicht als Beschreibung), und wer delegiert, behaelt ein eigenes
+     Arbeitspaket mit disjunkter Dateimenge. Delegieren ist **erlaubt** — Warten
+     nicht. Dazu die Pflicht, jeden Sub-Agenten-Prompt vor dem Start durch
+     `refine-prompt` zu schicken (Ausnahme: der `cd`-Block bleibt woertlich).
+
+   **Jeder Prompt, den du selbst an einen Agenten gibst, laeuft ebenfalls vorher durch
+   `refine-prompt`** — Erstauftrag wie Fix-Zyklus. Gestartet wird mit dem
+   zurueckgegebenen Text, nicht mit deinem Entwurf
+   (`exp_agenten-instruktionen-ueber-refine-prompt.md`).
 3. **Entwickler-Agent** — du startest ihn selbst (kein manueller Start durch den
    Nutzer), er implementiert gemäß `Task.md`, committet lokal auf dem Ticket-Branch,
    **kein Push, kein PR**.
@@ -158,6 +170,16 @@ Vor jedem PowerShell-, CI- oder Workflow-Tool-lastigen Schritt kurz gegenprüfen
   direkt auf `main`, bricht QA/Security/PR-Review vollständig aus und du musst per
   Revert bereinigen (`exp_workflow-agent-cd-explizit.md` und
   `docs/decisions/2026-08-05-1045-incident-agent-commit-direkt-auf-main.md`).
+  Die Anweisung wirkt **nicht transitiv**: ein Sub-Agent, den dein Agent startet,
+  erbt das Arbeitsverzeichnis nicht und landet im Haupt-Checkout — deshalb die
+  Weitergabepflicht im Brief (Schritt 2) und, nach **jedem** Worktree-Agentenlauf,
+  ein `git status --short` im Haupt-Checkout als Kontrolle
+  (`docs/decisions/2026-08-07-1416-incident-subagent-schreibt-im-haupt-checkout.md`).
+- **Belege, die auf einer leeren Ausgabe beruhen, gegenprüfen.** Git-Pathspecs mit
+  Glob (`-- 'src/contexts/*/specs'`) liefern still falsch-negative Ergebnisse; direkten
+  Pfad verwenden oder gegen `git diff --name-only` + `grep` gegenprüfen, bevor „nichts
+  gefunden" als „nichts passiert" berichtet wird
+  (`exp_pruefkommando-muss-messen-was-es-behauptet.md`).
 - `uv sync` installiert `[project.optional-dependencies]`-Gruppen (z. B. `dev`)
   **nicht** automatisch — immer `--all-extras`, in CI wie lokal
   (`exp_uv-sync-all-extras.md`).
