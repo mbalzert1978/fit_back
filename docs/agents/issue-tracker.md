@@ -103,11 +103,13 @@ Geschwisterdateien, die das Skill sonst anlegt, fehlen weiterhin **mit Absicht**
 
 - `docs/agents/triage-labels.md` — das `triage`-Skill ist nicht installiert, die Labels hätten
   keinen Leser.
-- `docs/agents/domain.md` — es beschreibt, wo `CONTEXT.md` und `docs/adr/` liegen. Beides existiert
-  hier nicht (die ADR-Rolle spielt `docs/decisions/`), und ob dieses Repo ein Glossar braucht, ist
-  offener Nebel auf Map #25, abhängig von deren Ticket #27.
+- `docs/agents/domain.md` — es beschreibt, wo `CONTEXT.md` und `docs/adr/` liegen. `docs/adr/` gibt
+  es hier nicht und wird es nicht geben (die Rolle spielt `docs/decisions/`); `CONTEXT.md` entsteht
+  durch Ticket #34 der Map #25. Der Glossar-Nebel ist von #27 aufgelöst, die Skills werden von #35
+  auf beide Pfade richtiggestellt — danach ist neu zu bewerten, ob diese Datei noch fehlen soll.
 
 Ebenfalls bewusst unterlassen: der `## Agent skills`-Abschnitt, den das Setup-Skill in `CLAUDE.md`
-schreiben will. Map #25 hat als Ziel, `CLAUDE.md` auf ein Minimum aus Links zu kürzen; ein neuer
-Abschnitt würde deren Ticket #27 vorgreifen. Bis #27 entschieden ist, findet man diese Datei über
-`docs/agents/`.
+schreiben will. #27 hat entschieden, dass `CLAUDE.md` nichts über das Repo behauptet und nur noch
+verlinkt; ein Abschnitt, der den Skill-Bestand aufzählt, wäre genau so eine Behauptung. Seit der
+Ausführung durch #33 verlinkt `CLAUDE.md` sowohl `docs/agents/` als auch den Skill-Index
+`.claude/skills/CLAUDE.md` — die Fundbarkeit ist damit hergestellt, ohne dass etwas aufgezählt wird.

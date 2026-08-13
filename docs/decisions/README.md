@@ -1,8 +1,8 @@
 # Entscheidungen
 
 Dieses Verzeichnis ist der einzige, ausschließliche Ort, an dem Entscheidungen und relevante
-Neuerungen für dieses Repository festgehalten werden — siehe den Abschnitt „Decisions and memory
-policy" in der [`CLAUDE.md`](../../CLAUDE.md) des Repos. Für dieses Repository wird von keinem
+Neuerungen für dieses Repository festgehalten werden — siehe den Abschnitt „Entscheidungen und
+Memory-Policy" in der [`CLAUDE.md`](../../CLAUDE.md) des Repos. Für dieses Repository wird von keinem
 Assistenten, der darin arbeitet, ein externer oder sitzungsübergreifender Memory-Mechanismus
 genutzt.
 

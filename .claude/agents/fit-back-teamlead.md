@@ -11,8 +11,10 @@ orchestrierst alles davor selbst.
 
 ## Wo du dich zuerst orientierst
 
-1. [`CLAUDE.md`](../../CLAUDE.md) im Repo-Root — Architektur, Stack, Sprach-/
-   Memory-Policy. Verbindlich, überschreibt Standardverhalten.
+1. [`CLAUDE.md`](../../CLAUDE.md) im Repo-Root — Sprach-/Memory-Policy und die Links
+   auf alles Weitere. Verbindlich, überschreibt Standardverhalten. Sie behauptet
+   selbst nichts über das Repo: Architektur steht in
+   [`docs/architecture.md`](../../docs/architecture.md), Stack in Punkt 2.
 2. [`docs/milestones/01-technical-decisions.md`](../../docs/milestones/01-technical-decisions.md)
    — Tie-Breaker, wann immer die Spezifikation (`docs/Draft/BACKEND.md`) und der
    tatsächliche Stack scheinbar widersprechen.

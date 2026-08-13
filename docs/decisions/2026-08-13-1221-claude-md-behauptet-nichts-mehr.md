@@ -186,3 +186,64 @@ Abschnittstitel. Sie sind **nicht** angefasst worden; stattdessen behält
 `01-technical-decisions.md` an ihrer Stelle einen Abschnitt, der beide alten Titel nennt und
 weiterleitet. Ein Meilenstein-Plan ist Protokoll wie diese Datei — er wird nicht nachträglich
 umgeschrieben, damit ein Link kürzer wird.
+
+## Nachtrag vom 2026-08-13 aus der Ausführung ([#33](https://github.com/mbalzert1978/fit_back/issues/33))
+
+`CLAUDE.md` ist gekürzt: 118 → 55 Zeilen, dreizehn Links, alle geprüft. Vier Befunde aus der
+Ausführung, von denen der dritte die eigentliche Lücke dieser Entscheidung ist.
+
+**Eine dritte Stelle behauptete etwas — genannt waren nur zwei.** Das Ticket adressierte den
+Architektur-Block und „Wo die Dinge liegen". Die Aufzählung in Zeile 10–14, wonach
+`01-technical-decisions.md` die Entscheidungen zu „Web-Framework, Persistenz, Hintergrund-Jobs,
+Blob-Storage, **Cross-Context-Kommunikation, Repo-Layout**" hält, war seit **#32 einen Commit
+zuvor** falsch: die letzten beiden Punkte sind genau die zwei Abschnitte, die #32 aus jener Datei
+nach `docs/architecture.md` verschoben hat. Sie stand in der Sektion, die das Ticket nur
+„eindampfen" hieß — mechanisches Eindampfen hätte die veraltete Aufzählung mitgenommen. Bestätigt
+die Regel aus #32 an ihrem ersten Wiederholungsfall.
+
+**`.rules/README.md` ist die nächste Fundstelle der `CLAUDE.md`-Falle aus #27.** Die Datei
+dokumentiert den Aufbau als `common/` + `csharp/`; im Repo liegen `common/` + `python/`. Die
+gelöschte Beschreibung in `CLAUDE.md` war die richtige — dasselbe Muster, das #27 beim
+Architektur-Baum gefunden hat. Gebissen hat es hier **nicht**, weil `CLAUDE.md` als Einstieg
+`.rules/python/README.md` nennt und dieser Index korrekt ist (Lesereihenfolge und
+Konfliktauflösung stehen dort nachweislich). Der Substanzverlust ist damit null, die Falschaussage
+in `.rules/README.md` bleibt aber bestehen — sie ist älter als diese Map und gehört nicht hierher.
+
+**Die Rückrichtung war ungeprüft: wer wurde für das hierher geschickt, was jetzt weg ist?** Zwei
+Verweise zeigten auf `CLAUDE.md`, und beide sind erst beim Nachsehen aufgefallen:
+
+- `.claude/agents/fit-back-teamlead.md` schickt seinen Agenten in Punkt 1 seiner Orientierung an
+  `CLAUDE.md` — ausdrücklich **„Architektur, Stack, Sprach-/Memory-Policy"**. Genau die Architektur
+  hat dieser Schnitt entfernt. Der Verweis wäre nicht kaputtgegangen, sondern still ins Leere
+  gelaufen: die Datei existiert weiter, nur die Sache nicht mehr. Richtiggestellt auf
+  `docs/architecture.md`.
+- `docs/decisions/README.md` verwies auf einen Abschnitt „Decisions and memory policy" — einen
+  englischen Titel, den `CLAUDE.md` nie getragen hat. Bereits vorher tot, hier mitrepariert. Die
+  Schwesterdatei `docs/reflections/README.md` nennt den Titel korrekt; deshalb sind beide
+  Überschriften beim Kürzen **wörtlich stehen geblieben**.
+
+**Der Riegel bleibt inline, das Format nicht.** `YYYY-MM-DD-HHMM-<slug>.md` stand in `CLAUDE.md`
+*und* in `docs/decisions/README.md` — nach der Regel dieser Entscheidung bereits eine Drift mit
+Verzögerung. Inline geblieben ist der Riegel („kein externer Memory, Entscheidungen ausschließlich
+unter `docs/decisions/`"), verlinkt das Format. Ein Benennungsschema ist kein Riegel.
+
+**Offen geblieben:** `CONTEXT.md` wird von niemandem in `CLAUDE.md` verlinkt — #34 legt die Datei
+an, #35 hängt die zwei Skills um, den Link in die immer geladene Datei sah kein Ticket vor. #34 ist
+entsprechend ergänzt worden, statt hier einen Link auf eine noch nicht existierende Datei zu setzen.
+
+**Zur Abnahme:** `./make.ps1 ci` belegt hier **nichts** — nicht wegen `exclude` wie in #26, sondern
+weil dieses Repo für Markdown überhaupt kein prüfendes Werkzeug fährt. Geprüft wurde stattdessen
+maschinell, dass alle dreizehn Linkziele existieren, und per `grep`, dass keine verbliebene Zeile
+ihre Aussage ein zweites Mal im Repo hat.
+
+### Regel für diese Map
+
+**Ein Schnitt prüft nicht nur, was er entfernt, sondern auch, wer dafür hierher geschickt wurde.**
+Die bisherigen Stufen dieser Familie sehen alle nach vorn oder zur Seite; ein entfernter Inhalt
+hinterlässt aber einen Verweis, der weiter auf eine existierende Datei zeigt und deshalb nirgends
+als Bruch auffällt. Die zehnte Stufe: #22 prüft die **Ausgangslage**, #20 die **mitgelieferte
+Lösung**, #30 den **Ausfallmodus**, #29 den **Geltungsbereich eines Kommandos**, #21 den **einer
+eigenen früheren Notiz**, #27 die **Anzahl der Stellen**, #28 die **Richtung einer Kante**, #26 die
+**Haltbarkeit eines Berechtigungsbefunds**, #32 den Unterschied zwischen **benannter Fehlstelle und
+Bestandsaufnahme** — und hier die **Rückrichtung**: die eingehenden Verweise auf das, was gerade
+verschwindet.
