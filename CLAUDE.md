@@ -9,6 +9,8 @@ Wächst diese Datei um einen Absatz, der etwas über das Repo behauptet, gehört
 
 - [`docs/architecture.md`](docs/architecture.md) — vor jeder Annahme über Aufbau, Schichten,
   Contexts oder Querschnitts-Regeln zuerst hierher, und nirgends sonst nachschlagen.
+- [`CONTEXT.md`](CONTEXT.md) — das Glossar. Bevor ein Begriff neu geprägt oder ein Synonym benutzt
+  wird, zuerst hierher; ein Begriff, der dort geschärft wurde, wird auch im Code so genannt.
 - [`docs/Draft/BACKEND.md`](docs/Draft/BACKEND.md) — die fachliche Spezifikation.
 - [`docs/milestones/01-technical-decisions.md`](docs/milestones/01-technical-decisions.md) — der
   Tie-Breaker, wann immer Spezifikation und Stack sich scheinbar widersprechen.
