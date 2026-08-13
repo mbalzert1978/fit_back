@@ -28,12 +28,7 @@ Context-Liste, die maschinell geprüfte Abhängigkeitsrichtung, die beiden erlau
 Contexts (Postgres-Outbox für Fire-and-forget, aufrufer-eigenes `Protocol`-Port für synchrone
 Aufrufe) und die Querschnitts-Regeln.
 
-Der Grund ist die Bauart dieser Datei: Sie heißt „Technische **Entscheidungen**" und trägt unten
-eine Sektion „Nachträgliche Entscheidungen, die diese Datei ergänzen" — sie ist ein **Protokoll**,
-an das man anhängt, statt die Vergangenheit zu korrigieren. Genau deshalb war ihr Baum in fünf
-Punkten veraltet, während zwei andere Dateien dieselbe Architektur abweichend beschrieben. Protokoll
-und lebende Referenz sind zwei Genres; sie in einer Datei zu halten hat die Drift erst erzeugt. Die
-Begründung im Volltext:
+Der Grund im Volltext:
 [`2026-08-13-1221`](../decisions/2026-08-13-1221-claude-md-behauptet-nichts-mehr.md).
 
 Was hier bleibt, ist das Protokoll: die Stack-Tabelle oben und die Entscheidungshistorie unten.

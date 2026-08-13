@@ -1,145 +1,135 @@
 # Fit-back API
 
-A fitness and nutrition tracking backend built with Python, FastAPI, and PostgreSQL.
+Ein Backend für Fitness- und Ernährungs-Tracking, gebaut mit Python, FastAPI und PostgreSQL.
 
-## Prerequisites
+## Voraussetzungen
 
-- Docker and Docker Compose
-- or: Python 3.14+, PostgreSQL, and MinIO for local development
+- Docker und Docker Compose
+- oder: Python 3.14+, PostgreSQL und MinIO für die lokale Entwicklung
 
-## Quick Start with Docker Compose
+## Schnellstart mit Docker Compose
 
-### Environment Setup
+### Umgebung einrichten
 
-Create a `.env` file from the template (required before running Docker Compose):
+Eine `.env` aus der Vorlage anlegen (erforderlich, bevor Docker Compose läuft):
 
 ```bash
 cp .env.example .env
 ```
 
-Then edit `.env` and replace all `CHANGEME` values with your own secrets. **Never commit `.env` to version control.**
+Danach in `.env` alle `CHANGEME`-Werte durch eigene Geheimnisse ersetzen. **`.env` niemals in die
+Versionsverwaltung committen.**
 
-### Start the Services
+### Dienste starten
 
-Start postgres, minio, and the app in detached mode:
+postgres, minio und die App im Hintergrund starten:
 
 ```bash
 docker compose up -d
 ```
 
-This will:
-- Start PostgreSQL on port 5432 (see `.env.example` for required credentials)
-- Start MinIO on ports 9000 (API) and 9001 (Console)
-- Build and start the Fit-back API on port 8000
+Das bewirkt:
+- PostgreSQL startet auf Port 5432 (erforderliche Zugangsdaten siehe `.env.example`)
+- MinIO startet auf den Ports 9000 (API) und 9001 (Console)
+- Die Fit-back-API wird gebaut und startet auf Port 8000
 
-Wait for all services to be healthy (typically 10-15 seconds):
+Warten, bis alle Dienste gesund sind (typischerweise 10-15 Sekunden):
 
 ```bash
 docker compose ps
 ```
 
-### Verify the Health Endpoint
+### Health-Endpunkt prüfen
 
-Once the app is running, test the health endpoint with curl:
+Sobald die App läuft, den Health-Endpunkt mit curl testen:
 
 ```bash
 curl http://localhost:8000/api/v1/health
 ```
 
-Expected response (if database is connected):
+Erwartete Antwort (wenn die Datenbank verbunden ist):
 
 ```json
 {"status": "healthy"}
 ```
 
-### Stop the Services
+### Dienste stoppen
 
 ```bash
 docker compose down
 ```
 
-To also remove volumes (database data):
+Zusätzlich die Volumes entfernen (Datenbankinhalt):
 
 ```bash
 docker compose down -v
 ```
 
-## Development
+## Entwicklung
 
-### Using the Make Task Runner
+### Der Task-Runner
 
 ```bash
-# View available targets
+# Verfügbare Targets anzeigen
 ./make.ps1 help
 
-# Install dependencies
+# Abhängigkeiten installieren
 ./make.ps1 install
 
-# Run the app locally (without Docker)
+# Die App lokal starten (ohne Docker)
 ./make.ps1 run
 
-# Start the compose stack
+# Den Compose-Stack starten
 ./make.ps1 compose-up
 
-# Stop the compose stack
+# Den Compose-Stack stoppen
 ./make.ps1 compose-down
 
-# Run tests (requires test fixture)
+# Tests ausführen (benötigt die Test-Fixture)
 ./make.ps1 test
 
-# Lint and format checks
+# Lint- und Format-Prüfungen
 ./make.ps1 lint
 ./make.ps1 format
 ./make.ps1 format-check
 
-# Run all CI checks
+# Alle CI-Prüfungen ausführen
 ./make.ps1 ci
 ```
 
-### Local Development Setup
+### Lokales Setup ohne Docker
 
-If you prefer to run without Docker:
+Wer ohne Docker arbeiten will:
 
-1. Install dependencies:
+1. Abhängigkeiten installieren:
    ```bash
    uv sync
    ```
 
-2. Ensure PostgreSQL is running locally or set DB_* environment variables
+2. Sicherstellen, dass PostgreSQL lokal läuft, oder die `DB_*`-Umgebungsvariablen setzen
 
-3. Run the app:
+3. Die App starten:
    ```bash
    uv run python -m src.main
    ```
 
-4. Test the health endpoint:
+4. Den Health-Endpunkt testen:
    ```bash
    curl http://localhost:8000/api/v1/health
    ```
 
-## Project Structure
+## Projektstruktur und Architektur
 
-See [`docs/architecture.md`](docs/architecture.md) — the single living reference for the directory
-tree, the enforced dependency direction, and the cross-cutting rules. It is deliberately not
-repeated here: the copy that used to sit in this spot had drifted (it showed `src/shared_kernel/`
-at the top level, where the shared kernel has not lived since 2026-08-06, and omitted
-`middleware/`, `infrastructure/`, `settings.py` and `main.py` entirely).
+Siehe [`docs/architecture.md`](docs/architecture.md) — die einzige lebende Referenz für
+Verzeichnisbaum, Contexts, die maschinell erzwungene Abhängigkeitsrichtung, die erlaubten Kanäle
+zwischen Contexts und die Querschnitts-Regeln. Die Stack-Entscheidungen dahinter stehen in
+[`docs/milestones/01-technical-decisions.md`](docs/milestones/01-technical-decisions.md).
 
-## API Endpoints
+## API-Endpunkte
 
-### Health Check
+### Health-Check
 
-- **Endpoint:** `GET /api/v1/health`
-- **Description:** Returns the health status of the application and database connection
-- **Response (healthy):** `200 OK` with `{"status": "healthy"}`
-- **Response (unhealthy):** `503 Service Unavailable` with error details
-
-## Architecture
-
-Fit-back follows a modular monolith architecture with bounded contexts. Each context owns its database schema and communicates with other contexts through either:
-- Fire-and-forget reactions via a Postgres-backed outbox
-- Synchronous calls through consumer-owned Protocol ports
-
-See [`docs/architecture.md`](docs/architecture.md) for how this is actually laid out and enforced,
-and [`docs/milestones/01-technical-decisions.md`](docs/milestones/01-technical-decisions.md) for the
-stack choices behind it.
+- **Endpunkt:** `GET /api/v1/health`
+- **Beschreibung:** Liefert den Gesundheitszustand der Anwendung und der Datenbankverbindung
+- **Antwort (gesund):** `200 OK` mit `{"status": "healthy"}`
+- **Antwort (ungesund):** `503 Service Unavailable` mit Fehlerdetails

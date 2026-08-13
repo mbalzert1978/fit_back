@@ -6,12 +6,10 @@ sonst. `CLAUDE.md`, `README.md` und
 [`docs/milestones/01-technical-decisions.md`](milestones/01-technical-decisions.md) verlinken
 hierher, statt es zu wiederholen.
 
-Der Unterschied zu ihren Nachbarn ist das Genre: `docs/decisions/` und
-`01-technical-decisions.md` sind **Protokolle** — sie halten fest, was wann warum entschieden
-wurde, und hängen an, statt zu korrigieren. Diese Datei ist eine **Beschreibung des Ist-Zustands**
-und wird korrigiert, sobald er sich ändert. Beides in einer Datei zu halten hat die Drift erst
-erzeugt, die
-[`2026-08-13-1221`](decisions/2026-08-13-1221-claude-md-behauptet-nichts-mehr.md) gefunden hat.
+Diese Datei beschreibt den **Ist-Zustand** und wird korrigiert, sobald er sich ändert — anders als
+`docs/decisions/` und `01-technical-decisions.md`, die als **Protokolle** anhängen, statt die
+Vergangenheit zu korrigieren. Warum die Trennung nötig wurde:
+[`2026-08-13-1221`](decisions/2026-08-13-1221-claude-md-behauptet-nichts-mehr.md).
 
 Stand der Messung: 2026-08-13. Gebaut ist bisher der Slice `identity/register_user`; die übrigen
 fünf Contexts existieren als leere Schichten-Gerüste.
@@ -22,7 +20,7 @@ fünf Contexts existieren als leere Schichten-Gerüste.
 src/
   contexts/
     <context>/
-      domain/                    # Aggregate, Entitaeten, Value Objects, Domain-Ports (Protocol)
+      domain/                    # Aggregate, Entitäten, Value Objects, Domain-Ports (Protocol)
         entities/                # — nur stdlib
         ports/
         value_objects/
@@ -31,33 +29,33 @@ src/
           command.py             # Eingabe des Handlers
           handler.py             # der Use Case selbst
           pipeline.py            # Verdrahtung der Schritte
-          request.py             # Aussengrenze rein
-          response.py            # Aussengrenze raus, als Union aller Ausgaenge
+          request.py             # Außengrenze rein
+          response.py            # Außengrenze raus, als Union aller Ausgänge
           abstractions/          # Ports, die dieser Use Case selbst definiert
-          adapters/              # deren Umsetzung auf Domaene bzw. Infrastruktur
+          adapters/              # deren Umsetzung auf Domäne bzw. Infrastruktur
           mappers/               # einer je Richtung
           validators/            # Regeln des Use Case
-          fakes/                 # Doubles fuer die Test-API
-          test_api/              # oeffentliche Test-API des Use Case
+          fakes/                 # Doubles für die Test-API
+          test_api/              # öffentliche Test-API des Use Case
       infrastructure/            # SQLAlchemy-Modelle/Repositories, externe Adapter
-      contracts/                 # veroeffentlichtes Vokabular fuer andere Contexts - nur Primitive
-      specs/<use_case>/          # Tests ausschliesslich ueber die Test-API des Use Case
+      contracts/                 # veröffentlichtes Vokabular für andere Contexts — nur Primitive
+      specs/<use_case>/          # Tests ausschließlich über die Test-API des Use Case
     shared_kernel/               # Result[T,E], Timestamp, TimeProvider, EventPublisher/-Registry,
                                  # CodedError, NotEmptyString, IUserOwned, Rule-Pattern
-                                 # - haengt an nichts ausser der stdlib
+                                 # — hängt an nichts außer der stdlib
   api/                           # FastAPI-Router, ProblemDetails, Exception-Handler, i18n,
     <context>/                   # Composition Root - je Context ein Unterordner
     resources/                   # i18n-Ressourcen (de-DE.json, en-US.json)
-  middleware/                    # ASGI-Middleware: Idempotency-Key, Auffangpunkt fuer
+  middleware/                    # ASGI-Middleware: Idempotency-Key, Auffangpunkt für
                                  # unbehandelte Ausnahmen
-  infrastructure/                # kontextuebergreifende Infrastruktur: Outbox + Relay, DB-Schemata
-  settings.py                    # Konfiguration aus der Umgebung, geprueft beim Start
+  infrastructure/                # kontextübergreifende Infrastruktur: Outbox + Relay, DB-Schemata
+  settings.py                    # Konfiguration aus der Umgebung, geprüft beim Start
   main.py                        # nur Zusammenbau: Middleware, Handler, Router, Lifespan
 
-tests/                           # Integrationstests ueber Schichtgrenzen (API, Persistenz, Outbox)
+tests/                           # Integrationstests über Schichtgrenzen (API, Persistenz, Outbox)
 alembic/<schema>/                # ein versions/-Strang je DB-Schema
 setup.cfg                        # import-linter-Contracts
-pyproject.toml                   # Projekt, Abhaengigkeiten, ruff
+pyproject.toml                   # Projekt, Abhängigkeiten, ruff
 docker-compose.yml / Dockerfile  # lokale Infrastruktur: postgres, minio, app
 make.ps1                         # kanonischer Task-Runner
 ```
@@ -142,7 +140,7 @@ Spalte:
 | Keine Primitive Obsession | gilt; die Domäne spricht nur VOs/Entitäten, siehe [`python-feature-slices.md`](../.rules/python/python-feature-slices.md) |
 | Tagged Unions statt Enums | gilt und ist gebaut (`identity/domain/value_objects/account_status.py`); jedes `match` darüber endet mit `assert_never` ([`2026-08-07-1120`](decisions/2026-08-07-1120-jeder-match-endet-mit-assert-never.md)) |
 | ~~ausschließlich `DateTimeOffset`-Zeitstempel~~ | **überschrieben:** ein Zeitpunkt ist in Domäne und Persistenz ein `int` Unix-Sekunden im Value Object `Timestamp`; der Transport bleibt ISO-8601 ([`2026-08-06-1340`](decisions/2026-08-06-1340-unix-epoch-statt-datetime.md)) |
-| Optimistische Nebenläufigkeit über `RowVersion`/`If-Match` | **existiert heute nicht.** Der Shared-Kernel-Baustein wurde am 2026-08-06 entfernt, weil er Kontrollfluss über Exceptions war; ein Versionskonflikt ist ein Fall des `DomainError` seines Context. Entsteht neu mit Ticket 0015/0024 ([`2026-08-06-1330`](decisions/2026-08-06-1330-shared-kernel-neuschnitt.md)) |
+| Optimistische Nebenläufigkeit über `RowVersion`/`If-Match` | **existiert heute nicht.** Der Shared-Kernel-Baustein wurde am 2026-08-06 entfernt, weil er Kontrollfluss über Exceptions war; ein Versionskonflikt ist ein Fall des `DomainError` seines Context. Entsteht neu mit dem ersten echten Update-Pfad — [`0024`](issues/0024-m3-updateproduct-owner-only-if-match.md) und [`0037`](issues/0037-m6-updaterecipe-zutaten-crud-deleterecipe.md); [`0011`](issues/0011-m1-user-aggregate-registeruser-userregistered-outbox-event.md) nimmt es ausdrücklich aus seinem Schnitt ([`2026-08-06-1330`](decisions/2026-08-06-1330-shared-kernel-neuschnitt.md)) |
 
 Die frühere Zusammenfassung „einmalig in `shared_kernel` implementiert statt je Context" hielt
 nicht: sie stimmt für `Result[T,E]` und `Timestamp`, für das Fehlerformat ist der Ort seit dem
@@ -153,19 +151,3 @@ des Slice; der Router wählt daraus Statuscode und Body. Was die Middleware für
 Ausnahmen erreicht, ist per Definition kein Fachfall
 ([`2026-08-06-1620`](decisions/2026-08-06-1620-repo-layout-und-aufgeraeumter-einstiegspunkt.md),
 [`2026-08-07-0646`](decisions/2026-08-07-0646-fehlernutzlast-als-typisierter-fall-ist-regel.md)).
-
-## Was hier bewusst nicht steht
-
-Damit keine zweite Stelle entsteht, an der dieselbe Aussage driften kann:
-
-- **Stack-Wahl und ihre Begründung** (Python 3.14/`uv`, FastAPI, PostgreSQL/SQLAlchemy async,
-  Alembic, MinIO-Fork, `import-linter`) →
-  [`docs/milestones/01-technical-decisions.md`](milestones/01-technical-decisions.md).
-- **Coding-Standards und Slice-Form** → [`.rules/`](../.rules/), Einstieg
-  [`.rules/python/README.md`](../.rules/python/README.md).
-- **Fachliche Spezifikation** → [`docs/Draft/BACKEND.md`](Draft/BACKEND.md), portiert statt wörtlich
-  umgesetzt.
-- **Warum etwas so entschieden wurde** → [`docs/decisions/`](decisions/), eine Datei je
-  Entscheidung.
-- **Test-Ebenen und ihre Zuständigkeiten** →
-  [`docs/milestones/02-test-pyramide.md`](milestones/02-test-pyramide.md).
