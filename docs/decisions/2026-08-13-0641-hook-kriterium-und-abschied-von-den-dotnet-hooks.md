@@ -126,3 +126,17 @@ darunter `session-state-handler.py` und sämtliche `prefer-*`-Hooks.
   Kriterium oben unverändert; das war der ausdrückliche Zweck dieser Reihenfolge.
 - Der zuvor als „vielleicht" geführte ruff-Eintrag gegen `uuid.uuid4` ist damit entschieden und
   gehört in dasselbe Umsetzungs-Ticket.
+
+## Korrektur (2026-08-13, 07:22)
+
+Zwei Aussagen dieses Dokuments haben sich bei der Bearbeitung von
+[#18](https://github.com/mbalzert1978/fit_back/issues/18) als falsch erwiesen. Beide sind dort
+richtiggestellt: [Hook-Portfolio: neun Hooks gehen, der jq-Nudge bleibt](2026-08-13-0722-hook-portfolio-neun-loeschen-jq-nudge-bleibt.md).
+
+1. **`prefer-declarative-loops.py` ist nicht sprachneutral.** Er importiert und ruft
+   `cs_file_path()` und handelt inhaltlich von LINQ. Er ist ein vierter .NET-Hook, kann nicht
+   feuern — und die hier beschlossene Löschung von `cs_file_path()` hätte ihn bei jedem
+   `Edit`/`Write` mit einem ImportError brechen lassen. Er wird mitgelöscht.
+2. **`_utils.py` hat keine 14 Benutzer, sondern einen:** `_hook_session_state.py`, das hier
+   ohnehin gelöscht wird. Die Zahl 14 gilt nur für `_hook_utils.py`. `_utils.py` wird damit zur
+   Waise und ebenfalls gelöscht.
