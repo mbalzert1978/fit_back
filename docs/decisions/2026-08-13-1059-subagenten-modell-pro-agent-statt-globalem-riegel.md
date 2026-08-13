@@ -102,6 +102,17 @@ done | tail -5
 Erwartet: `senior-code-reviewer` und `fit-back-teamlead` auf `claude-opus-…`, `semble-search` auf
 `claude-haiku-…`.
 
+### Nachtrag 2026-08-13, 12:21 — die Umgebungshälfte ist erbracht
+
+In einer frischen Sitzung (Runde zu [#27](https://github.com/mbalzert1978/fit_back/issues/27))
+gemessen: `CLAUDE_CODE_SUBAGENT_MODEL` steht **nicht** mehr in der Prozessumgebung. Damit ist genau
+der Punkt nachgewiesen, den die vorige Sitzung wegen des eingefrorenen `env`-Blocks nicht führen
+konnte — der Ausbau wirkt, sobald eine Sitzung neu startet.
+
+**Die Modellhälfte steht weiter aus.** Der jüngste protokollierte Subagenten-Lauf ist von 10:02 und
+damit älter als der Ausbau um 10:59; seither lief keiner. Der Einzeiler oben bleibt gültig und wird
+beim nächsten Subagenten-Lauf aussagekräftig.
+
 ## Nebenbefund: 28 Gate-Läufe auf Haiku
 
 Sechzehn `senior-code-reviewer`- und zwölf `fit-back-teamlead`-Läufe seit dem 5. August liefen auf
