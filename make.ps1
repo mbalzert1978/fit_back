@@ -123,6 +123,13 @@ $targetTable = [ordered]@{
             Invoke-Target 'test'
         }
     }
+
+    'all' = @{
+        # Alias only - `all` is the name GNU make users reach for first. It stays a
+        # pure forward to 'ci' so the two can never drift apart.
+        Description = 'Alias for ci'
+        Action      = { Invoke-Target 'ci' }
+    }
 }
 
 function Invoke-Target {
