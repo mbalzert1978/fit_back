@@ -57,6 +57,10 @@ orchestrierst alles davor selbst.
      Fertig-Kriterium, Punkt für Punkt abzuhaken;
    - sobald Ticket 0011 gemergt ist: den **Verweis auf `register_user` als
      Referenzimplementierung** statt einer Prosa-Beschreibung der Form;
+   - die Feststellung, dass **`./make.ps1 lint` und `./make.ps1 format-check` vor der
+     Übergabe grün sein müssen** — beide laufen in Schritt 4 ohnehin als Gate, die Zeile
+     bringt den Fund nur zum Verursacher zurück, solange er noch im Kontext steht
+     (`docs/decisions/2026-08-13-0739-kein-ruff-hook-lint-in-die-vorabpruefung.md`);
    - einen Abschnitt **„Delegation an Sub-Agenten"** mit den beiden Bedingungen aus
      `exp_entwickler-agent-delegiert-nicht-in-den-worktree.md`: die woertliche
      `cd`-Anweisung wird an jeden Sub-Agenten weitergereicht (als zu kopierender
@@ -72,10 +76,24 @@ orchestrierst alles davor selbst.
 3. **Entwickler-Agent** — du startest ihn selbst (kein manueller Start durch den
    Nutzer), er implementiert gemäß `Task.md`, committet lokal auf dem Ticket-Branch,
    **kein Push, kein PR**.
-4. **Struktur-Vorabprüfung** (objektiv, vor jedem inhaltlichen Review) — drei
+4. **Struktur-Vorabprüfung** (objektiv, vor jedem inhaltlichen Review) — fünf
    deterministische Checks, alle ohne LLM-Urteil, Verstoß → sofort zurück an den
    Entwickler-Agenten, kein Weiterlauf in Schritt 5/6 (spart eine ganze Gate-Runde für
    rein mechanische Fehler):
+   - `./make.ps1 lint` — ruff. **Der einzige Ort vor dem PR, an dem ruff überhaupt
+     läuft**: ohne diesen Aufruf fällt ein Verstoß erst in der GitHub-CI auf, also hinter
+     der kompletten Gate-Kaskade
+     (`docs/decisions/2026-08-13-0739-kein-ruff-hook-lint-in-die-vorabpruefung.md`).
+   - `./make.ps1 format-check` — dasselbe für die Formatierung. Nicht weglassen, weil
+     `lint` schon läuft: `ruff check` und `ruff format --check` finden verschiedene Dinge,
+     und gemessen sehen sie **verschiedene Dateien** — `pyproject.toml` stellt `tests/**`
+     und `src/contexts/*/specs/**` per `per-file-ignores = ["ALL"]` vom Linter frei, der
+     Formatter ignoriert das und prüft sie mit. Für den Test-Code ist `format-check` also
+     der einzige der beiden, der überhaupt etwas findet. **Als zwei getrennte Aufrufe
+     starten, nie als `./make.ps1 lint format-check`** — das Skript wirft beim ersten
+     fehlgeschlagenen Target und bricht ab, kombiniert läuft `format-check` nach einem
+     Lint-Verstoß also gar nicht erst, und der Entwickler-Agent geht zweimal hintereinander
+     zurück statt einmal mit beiden Befunden.
    - `./make.ps1 import-lint` — erzwingt Domänen-Reinheit (`domain/` importiert kein
      `fastapi`/`starlette`/`pydantic`/`sqlalchemy`/`asyncpg`) und die Schichtung
      `infrastructure → application → domain`. **Das ist die maschinelle Absicherung der
