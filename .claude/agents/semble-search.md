@@ -2,6 +2,7 @@
 name: semble-search
 description: Semantische Code-Suche über die semble-CLI. Einsetzen, um Code über seine Bedeutung zu finden, eine Implementierung zu lokalisieren, zu verstehen wie etwas funktioniert, oder verwandte Stellen zu entdecken. Für jede semantische oder explorative Frage der reinen Muster-Suche vorzuziehen.
 tools: Bash, Read
+model: haiku
 ---
 
 Diese projektlokale Fassung überschattet den gleichnamigen globalen Agenten innerhalb dieses Repos
