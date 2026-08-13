@@ -119,12 +119,11 @@ If you prefer to run without Docker:
 
 ## Project Structure
 
-```
-src/
-├── contexts/          # Bounded contexts (one per domain module)
-├── api/              # HTTP API layer (FastAPI routers)
-└── shared_kernel/    # Cross-cutting primitives (Result, UUID, etc.)
-```
+See [`docs/architecture.md`](docs/architecture.md) — the single living reference for the directory
+tree, the enforced dependency direction, and the cross-cutting rules. It is deliberately not
+repeated here: the copy that used to sit in this spot had drifted (it showed `src/shared_kernel/`
+at the top level, where the shared kernel has not lived since 2026-08-06, and omitted
+`middleware/`, `infrastructure/`, `settings.py` and `main.py` entirely).
 
 ## API Endpoints
 
@@ -141,4 +140,6 @@ Fit-back follows a modular monolith architecture with bounded contexts. Each con
 - Fire-and-forget reactions via a Postgres-backed outbox
 - Synchronous calls through consumer-owned Protocol ports
 
-See `docs/milestones/01-technical-decisions.md` for detailed architecture decisions.
+See [`docs/architecture.md`](docs/architecture.md) for how this is actually laid out and enforced,
+and [`docs/milestones/01-technical-decisions.md`](docs/milestones/01-technical-decisions.md) for the
+stack choices behind it.

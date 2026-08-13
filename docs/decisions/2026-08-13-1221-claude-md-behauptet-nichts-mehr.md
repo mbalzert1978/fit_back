@@ -153,3 +153,36 @@ Die sechste Stufe derselben Familie: #22 prüft die **Ausgangslage**, #20 die **
 Lösung**, #30 den **Ausfallmodus**, #29 den **Geltungsbereich** eines Kommandos, #21 den
 **Geltungsbereich einer eigenen früheren Notiz** — und hier die **Anzahl der Stellen**, an denen
 eine Aussage steht.
+
+## Nachtrag vom 2026-08-13 aus der Ausführung ([#32](https://github.com/mbalzert1978/fit_back/issues/32))
+
+Beim Anlegen von `docs/architecture.md` haben zwei Aussagen dieser Entscheidung nicht gehalten:
+
+**Es waren vier Stellen, nicht drei.** Gezählt wurden `CLAUDE.md`, `01-technical-decisions.md` und
+`02-test-pyramide.md`. Übersehen wurde `README.md`, Abschnitt „Project Structure" — ein vierter
+Baum, und der falscheste von allen: er zeigt `src/shared_kernel/` auf oberster Ebene (dort liegt
+der Shared Kernel seit dem 2026-08-06 nicht mehr) und kennt `middleware/`, `infrastructure/`,
+`settings.py` und `main.py` überhaupt nicht. Er ist mit umgezogen. Die Regel dieser Entscheidung
+hat sich damit an ihrer eigenen Ausführung bewährt und zugleich geschärft: **die Anzahl der Stellen
+wird gesucht, nicht geschätzt** — hier per `grep` über alle `.md` des Repos.
+
+**Der Querschnitts-Absatz war an zwei weiteren Punkten falsch, nicht nur an der
+`DateTimeOffset`-Zeile.** Die Anweisung „beim Umzug gegen den Ist-Zustand geprüft" war richtig, ihr
+Anlass zu eng gefasst:
+
+- Das RFC-7807-Format ist **nicht** im Shared Kernel, sondern seit dem Neuschnitt vom 2026-08-06 in
+  `src/api/` — es ist HTTP-Rand, kein Domänen-Vokabular.
+- `RowVersion`/`If-Match` existiert im Repo **überhaupt nicht**; der Baustein wurde am 2026-08-06
+  entfernt und kommt als Fall des `DomainError` seines Context wieder, nicht als
+  Shared-Kernel-Typ.
+
+Der Satz „einmalig in `shared_kernel` implementiert statt je Context" stimmte damit für zwei von
+acht Punkten und war für zwei nachweislich falsch. In `docs/architecture.md` steht der Absatz
+deshalb als Tabelle mit einer Spalte „Stand in diesem Repo" — die Form macht es teurer, einen Punkt
+unbelegt mitzuschleppen.
+
+`m0-projekt-grundgeruest.md` und zwei Issue-Dateien verweisen in Prosa auf die beiden umgezogenen
+Abschnittstitel. Sie sind **nicht** angefasst worden; stattdessen behält
+`01-technical-decisions.md` an ihrer Stelle einen Abschnitt, der beide alten Titel nennt und
+weiterleitet. Ein Meilenstein-Plan ist Protokoll wie diese Datei — er wird nicht nachträglich
+umgeschrieben, damit ein Link kürzer wird.
