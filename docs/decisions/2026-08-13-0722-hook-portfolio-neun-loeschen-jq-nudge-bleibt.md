@@ -150,3 +150,27 @@ des Portfolios: ein Prozessstart bei **jedem** Tool-Aufruf, nur um eine Zahl zu 
 - [#23 Grenzen-Abschnitt in CLAUDE.md](https://github.com/mbalzert1978/fit_back/issues/23) will
   einen Abschnitt **hinzufügen** und steht damit gegen das neue Hauptziel. Es wird im neuen
   Kürzungs-Ticket erneut beurteilt.
+
+---
+
+## Nachtrag 2026-08-13, aus der Umsetzung von #26
+
+Zwei Aussagen dieses Docs sind bei der Ausführung nicht aufgegangen:
+
+1. **`_hook_utils.py` ist nicht „auf `load_hook_input` eingedampft"**, sondern auf **zwei**
+   Funktionen: `load_hook_input` *und* `bash_command`. Zweiteres braucht der jq-Nudge, der genau
+   dieses Doc am Leben hält — die Aussage widersprach also der eigenen Entscheidung eine Tabelle
+   weiter oben. Gefallen sind nur die C#-Teile (`cs_file_path`, `cs_new_fragments`,
+   `evaluate_csharp_rule_signals` samt Regexen und Kommentarblock) und das damit unbenutzte
+   `import re`.
+2. **Es sind vier `.py`-Dateien, nicht drei.** Das Abnahmekriterium stammt von #18 und ist vor #20
+   geschrieben worden, das den Worktree-Wächter hinzufügte. Endstand: `_hook_utils.py`,
+   `forbid-write-outside-worktree.py`, `prefer-jq-over-grep-json.py`, `session-state-handler.py`.
+
+Dazu ein gemessener Befund, der die Reichweite von `./make.ps1 ci` betrifft: **`.claude/` ist über
+`exclude` in `[tool.ruff]` für `ruff check` *und* `ruff format --check` unsichtbar.** Nachgewiesen
+mit einer absichtlich fehlformatierten Sonde in `.claude/hooks/`: `ruff format --check .` meldete
+„313 files already formatted" und übersah sie, derselbe Aufruf mit explizitem Pfad meldete sie.
+Anders als bei den `per-file-ignores` aus #29 greift `exclude` also für beide Kommandos. Für jede
+Hook-Änderung heißt das: **`ci` ist kein Beleg** — die Hooks müssen einzeln mit einer echten
+Nutzlast gefahren werden.

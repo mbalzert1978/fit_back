@@ -6,21 +6,6 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/csharp-rules-reminder.py\"",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-guid-newguid.py\"",
-            "timeout": 5
-          }
-        ]
-      },
-      {
         "matcher": "Edit|Write|NotebookEdit",
         "hooks": [
           {
@@ -35,24 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-dotnet-test.py\"",
-            "timeout": 5
-          },
-          {
-            "type": "command",
             "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/prefer-jq-over-grep-json.py\"",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-rules-read.py\"",
             "timeout": 5
           }
         ]
