@@ -60,6 +60,9 @@ ignore = [
     "TC003",   # und zur Laufzeit aufloesbare Annotationen sind uns lieber als gesparte Imports
 ]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"uuid.uuid4".msg = "Sortierbare IDs: uuid7() statt uuid4() — siehe .rules/python/python-modern-syntax.md."
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ALL"]
 "src/contexts/*/specs/**" = ["ALL"]
