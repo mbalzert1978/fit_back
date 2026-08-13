@@ -1,29 +1,28 @@
-# Security Guidelines
+# Sicherheit
 
-## Mandatory Security Checks
+## Pflichtprüfungen
 
-Before ANY commit:
-- [ ] No hardcoded secrets (API keys, passwords, tokens)
-- [ ] All user inputs validated
-- [ ] SQL injection prevention (parameterized queries)
-- [ ] XSS prevention (sanitized HTML)
-- [ ] CSRF protection enabled
-- [ ] Authentication/authorization verified
-- [ ] Rate limiting on all endpoints
-- [ ] Error messages don't leak sensitive data
+Vor JEDEM Commit:
 
-## Secret Management
+- [ ] Keine fest verdrahteten Geheimnisse (API-Schlüssel, Passwörter, Token)
+- [ ] Alle Nutzereingaben geprüft
+- [ ] SQL-Injection ausgeschlossen (parametrisierte Abfragen)
+- [ ] XSS ausgeschlossen (bereinigtes HTML)
+- [ ] CSRF-Schutz aktiv
+- [ ] Authentifizierung und Autorisierung nachgewiesen
+- [ ] Rate Limiting auf allen Endpunkten
+- [ ] Fehlermeldungen geben nichts Sensibles preis
 
-- NEVER hardcode secrets in source code
-- ALWAYS use environment variables or a secret manager
-- Validate that required secrets are present at startup
-- Rotate any secrets that may have been exposed
+## Umgang mit Geheimnissen
 
-## Security Response Protocol
+- Geheimnisse NIE in den Quellcode schreiben
+- IMMER Umgebungsvariablen oder einen Secret Manager verwenden
+- Beim Start prüfen, dass die benötigten Geheimnisse vorhanden sind
+- Jedes möglicherweise offengelegte Geheimnis austauschen
 
-If security issue found:
-1. STOP immediately
-2. Use **security-reviewer** agent
-3. Fix CRITICAL issues before continuing
-4. Rotate any exposed secrets
-5. Review entire codebase for similar issues
+## Vorgehen bei einem Fund
+
+1. SOFORT anhalten
+2. Kritische Punkte beheben, bevor es weitergeht
+3. Offengelegte Geheimnisse austauschen
+4. Die Codebasis auf gleichartige Stellen durchsehen

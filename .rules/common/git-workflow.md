@@ -1,39 +1,37 @@
-# Git Workflow
+# Git-Workflow
 
-## Commit Message Format
+## Format der Commit-Nachricht
+
+```text
+<typ>: <beschreibung>
+
+<optionaler Rumpf>
 ```
-<type>: <description>
 
-<optional body>
-```
+Typen: feat, fix, refactor, docs, test, chore, perf, ci
 
-Types: feat, fix, refactor, docs, test, chore, perf, ci
+Hinweis: Die Attribution ist global über `~/.claude/settings.json` abgeschaltet.
 
-Note: Attribution disabled globally via ~/.claude/settings.json.
+## Pull Requests
 
-## Pull Request Workflow
+Beim Erstellen eines PR:
 
-When creating PRs:
-1. Analyze full commit history (not just latest commit)
-2. Use `git diff [base-branch]...HEAD` to see all changes
-3. Draft comprehensive PR summary
-4. Include test plan with TODOs
-5. Push with `-u` flag if new branch
+1. Die vollständige Commit-Historie ansehen, nicht nur den letzten Commit
+2. `git diff <basis-branch>...HEAD` nutzen, um alle Änderungen zu sehen
+3. Eine aussagekräftige Zusammenfassung schreiben
+4. Einen Testplan mit offenen Punkten beilegen
+5. Bei einem neuen Branch mit `-u` pushen
 
-> For the full development process (planning, TDD, code review) before git operations,
-> see [development-workflow.md](./development-workflow.md).
+## Worktrees: nur auf ausdrückliche Bitte
 
-## Worktrees: Only on Explicit Request
+Keinen Git-Worktree anlegen, solange der Nutzer nicht ausdrücklich darum bittet. Sagt jemand „in
+einem eigenen Branch", ohne „Worktree" zu sagen, ist ein Branch im Haupt-Checkout gemeint
+(`git checkout -b <name>`) — die Wahl zwischen beidem gehört dem Nutzer, nicht einer Voreinstellung.
 
-Do not create a git worktree unless the user explicitly asks for one. When a user says
-"in a separate/own branch" without saying "worktree", that means a branch in the main
-checkout (`git checkout -b <name>`), not a worktree — the choice between the two belongs
-to the user, not to a default assumption.
-
-Worktrees put the result in a directory the user isn't working in, which then has to be
-merged or extracted back out — useful for AFK/multi-agent fan-out, unwanted overhead for
-an interactive session. If a worktree turns out to be wanted after the fact, use the
-project's dedicated worktree-creation tooling if one exists, rather than a raw
-`git worktree add`, so the new worktree gets the same local project context (skills,
-settings, docs) as the main checkout. When genuinely unsure which the user wants, ask
-instead of deciding.
+Ein Worktree legt das Ergebnis in ein Verzeichnis, in dem der Nutzer nicht arbeitet und aus dem es
+danach wieder herausgeholt oder gemergt werden muss — nützlich für unbeaufsichtigte Läufe und für
+mehrere Agenten parallel, unnötiger Aufwand in einer interaktiven Sitzung. Stellt sich ein Worktree
+nachträglich als gewünscht heraus, wird das dafür vorgesehene Projektwerkzeug benutzt statt eines
+rohen `git worktree add`, damit der neue Worktree denselben lokalen Projektkontext bekommt wie das
+Haupt-Checkout (Skills, Settings, Doku). Bei echter Unschlüssigkeit wird gefragt, nicht entschieden
+(siehe [escalation.md](./escalation.md)).

@@ -1,46 +1,50 @@
-# Anti-Anemic Domain Model
+# Kein blutarmes Domänenmodell
 
-## Core Principle (CRITICAL)
+## Grundsatz (KRITISCH)
 
-Objects do their own work. Handlers orchestrate, not execute.
+Objekte erledigen ihre Arbeit selbst. Handler orchestrieren, sie führen nicht aus.
 
-An **anemic domain** treats objects as passive data bags — the handler queries ports, inspects raw fields, and performs the domain logic itself.
-A **rich domain** puts logic where the data lives — the object calls the port and returns a meaningful result.
+Eine **blutarme Domäne** behandelt Objekte als passive Datenbehälter — der Handler fragt Ports ab,
+liest rohe Felder aus und erledigt die Domänenlogik selbst.
+Eine **reiche Domäne** legt die Logik dorthin, wo die Daten liegen — das Objekt ruft den Port und
+liefert ein aussagekräftiges Ergebnis.
 
-```
+```text
 // Pseudocode
-WRONG:  if !port.IsReady(object) → return; if !port.IsReady(object.Sibling) → return; result = Type.Form(object.a, object.b)
-CORRECT: result = object.ResolveAsync(port)   // object decides what "ready" means and how to form itself
+FALSCH:  wenn !port.IstBereit(objekt) → zurück; wenn !port.IstBereit(objekt.Geschwister) → zurück; ergebnis = Typ.Bilde(objekt.a, objekt.b)
+RICHTIG: ergebnis = objekt.LöseAuf(port)   // das Objekt entscheidet, was „bereit" heißt und wie es sich bildet
 ```
 
-## Handler Responsibility Contract
+## Verantwortung eines Handlers
 
-A handler must only:
-- Accept a request
-- Pass dependencies (ports) to domain objects
-- Commit the result (write to store, publish event, return to caller)
+Ein Handler darf nur:
 
-A handler must never:
-- Call ports repeatedly to reconstruct conditions the domain already knows
-- Extract raw fields to feed into static factory calls
-- Encode "is this object ready?" logic in `if`-chains
-- Repeat port calls that duplicate domain invariants
+- eine Anfrage entgegennehmen
+- Abhängigkeiten (Ports) an Domänenobjekte durchreichen
+- das Ergebnis festschreiben (in den Speicher schreiben, Ereignis veröffentlichen, zurückgeben)
 
-## Object-Calls-Port Pattern
+Ein Handler darf nie:
 
-Prefer `object.OperationAsync(port, cancellationToken)` over `port.OperationAsync(object, cancellationToken)`.
+- Ports wiederholt aufrufen, um Bedingungen zu rekonstruieren, die die Domäne bereits kennt
+- rohe Felder auslesen, um sie in statische Factory-Aufrufe zu füttern
+- „Ist dieses Objekt bereit?" in `if`-Ketten kodieren
+- Port-Aufrufe wiederholen, die Domänen-Invarianten duplizieren
 
-The object owns the invariant. It knows which port calls it needs and what the results mean.
-The port is an injectable dependency — a seam, not a decision-maker.
+## Muster: das Objekt ruft den Port
 
-```
-// CORRECT — object drives, port is the seam
+`objekt.Operation(port, ct)` ist `port.Operation(objekt, ct)` vorzuziehen.
+
+Das Objekt besitzt die Invariante. Es weiß, welche Port-Aufrufe es braucht und was deren Ergebnisse
+bedeuten. Der Port ist eine injizierte Abhängigkeit — eine Naht, kein Entscheider.
+
+```csharp
+// RICHTIG — das Objekt treibt, der Port ist die Naht
 if (await request.Path.FormGroupAsync(grouping, ct) is not { } group)
     return new GroupingResult.Pending();
 
 await group.MarkMembersGroupedAsync(grouping, ct);
 
-// WRONG — handler drives, object is passive data
+// FALSCH — der Handler treibt, das Objekt ist passive Daten
 if (!await grouping.IsDownloadedAsync(request.Path, ct)) return Pending();
 if (!await grouping.IsDownloadedAsync(candidate.Sibling.Value, ct)) return Pending();
 FileGroup group = FileGroup.Form(candidate.Stem, candidate.Jpl, candidate.Pdf);
@@ -48,24 +52,27 @@ await grouping.MarkGroupedAsync(candidate.Jpl.Value, candidate.Stem.Value, ct);
 await grouping.MarkGroupedAsync(candidate.Pdf.Value, candidate.Stem.Value, ct);
 ```
 
-## Domain Responsibilities
+## Was die Domäne besitzt
 
-Domain objects own:
-- The decision of whether an operation is possible
-- How to form or transition themselves
-- Naming of their own value concepts (stem, sibling, key)
-- Iteration over their own members
+Domänenobjekte besitzen:
 
-Domain objects do not own:
-- I/O (pass the port in, do not construct it)
-- Publishing events (handler publishes what the domain produced)
-- Error formatting or logging
+- die Entscheidung, ob eine Operation möglich ist
+- wie sie sich bilden oder in einen anderen Zustand übergehen
+- die Benennung ihrer eigenen Wertbegriffe (Stamm, Geschwister, Schlüssel)
+- die Iteration über ihre eigenen Mitglieder
 
-## Checklist
+Domänenobjekte besitzen nicht:
 
-Before marking a handler complete:
-- [ ] Handler has no multi-step port queries that reconstruct domain state
-- [ ] Static factory calls (`Type.Form(a, b, c)`) are inside the domain object, not the handler
-- [ ] Member-level operations (`MarkMembersGroupedAsync`) are one call on the aggregate, not N calls in the handler
-- [ ] Handler body fits in ~10 lines (orchestration only)
-- [ ] All branching on domain state is inside domain methods, not `if`-chains in the handler
+- IO (der Port wird hineingereicht, nicht konstruiert)
+- das Veröffentlichen von Ereignissen (der Handler veröffentlicht, was die Domäne erzeugt hat)
+- Fehleraufbereitung oder Protokollierung
+
+## Checkliste
+
+Bevor ein Handler als fertig gilt:
+
+- [ ] Der Handler hat keine mehrstufigen Port-Abfragen, die Domänenzustand rekonstruieren
+- [ ] Statische Factory-Aufrufe (`Typ.Bilde(a, b, c)`) stehen im Domänenobjekt, nicht im Handler
+- [ ] Operationen über Mitglieder sind ein Aufruf auf dem Aggregat, nicht N Aufrufe im Handler
+- [ ] Der Handler-Rumpf passt in etwa 10 Zeilen (nur Orchestrierung)
+- [ ] Jede Verzweigung über Domänenzustand steht in Domänenmethoden, nicht in `if`-Ketten im Handler

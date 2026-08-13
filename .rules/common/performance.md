@@ -1,55 +1,47 @@
-# Performance Optimization
+# Ressourcen und Kontext
 
-## Model Selection Strategy
+## Modellwahl
 
-**Haiku 4.5** (90% of Sonnet capability, 3x cost savings):
-- Lightweight agents with frequent invocation
-- Pair programming and code generation
-- Worker agents in multi-agent systems
+**Haiku** — leichte Agenten mit häufigem Aufruf, Codegenerierung im Paar, Arbeiter-Agenten in
+Mehr-Agenten-Systemen.
 
-**Sonnet 4.6** (Best coding model):
-- Main development work
-- Orchestrating multi-agent workflows
-- Complex coding tasks
+**Sonnet** — die eigentliche Entwicklungsarbeit, das Orchestrieren von Mehr-Agenten-Abläufen,
+komplexe Programmieraufgaben.
 
-**Opus 4.5** (Deepest reasoning):
-- Complex architectural decisions
-- Maximum reasoning requirements
-- Research and analysis tasks
+**Opus** — komplexe Architekturentscheidungen, Aufgaben mit dem höchsten Denkbedarf, Recherche und
+Analyse.
 
-## Context Window Management
+Das Modell wird an der Aufrufstelle gewählt, nicht global vorbelegt.
 
-Avoid last 20% of context window for:
-- Large-scale refactoring
-- Feature implementation spanning multiple files
-- Debugging complex interactions
+## Kontextfenster
 
-Lower context sensitivity tasks:
-- Single-file edits
-- Independent utility creation
-- Documentation updates
-- Simple bug fixes
+Die letzten 20 % des Kontextfensters meiden bei:
 
-## Extended Thinking + Plan Mode
+- großflächigem Refactoring
+- Implementierungen über mehrere Dateien hinweg
+- der Fehlersuche in verschränkten Abläufen
 
-Extended thinking is enabled by default, reserving up to 31,999 tokens for internal reasoning.
+Weniger kontextempfindlich sind:
 
-Control extended thinking via:
-- **Toggle**: Option+T (macOS) / Alt+T (Windows/Linux)
-- **Config**: Set `alwaysThinkingEnabled` in `~/.claude/settings.json`
-- **Budget cap**: `export MAX_THINKING_TOKENS=10000`
-- **Verbose mode**: Ctrl+O to see thinking output
+- Änderungen an einer einzelnen Datei
+- das Anlegen eigenständiger Hilfsmittel
+- Aktualisierungen der Dokumentation
+- einfache Fehlerkorrekturen
 
-For complex tasks requiring deep reasoning:
-1. Ensure extended thinking is enabled (on by default)
-2. Enable **Plan Mode** for structured approach
-3. Use multiple critique rounds for thorough analysis
-4. Use split role sub-agents for diverse perspectives
+## Erweitertes Denken
 
-## Build Troubleshooting
+Erweitertes Denken ist standardmäßig aktiv. Steuerung:
 
-If build fails:
-1. Use **build-error-resolver** agent
-2. Analyze error messages
-3. Fix incrementally
-4. Verify after each fix
+- **Umschalten**: Option+T (macOS) bzw. Alt+T (Windows/Linux)
+- **Konfiguration**: `alwaysThinkingEnabled` in `~/.claude/settings.json`
+- **Obergrenze**: `MAX_THINKING_TOKENS`
+- **Sichtbar machen**: Ctrl+O
+
+Bei Aufgaben mit hohem Denkbedarf: erweitertes Denken sicherstellen, den Plan-Modus nutzen, mehrere
+Kritikrunden fahren und für unterschiedliche Blickwinkel Subagenten mit getrennten Rollen einsetzen.
+
+## Wenn der Build scheitert
+
+1. Fehlermeldungen lesen
+2. Schrittweise korrigieren
+3. Nach jedem Schritt nachprüfen

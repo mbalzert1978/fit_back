@@ -1,102 +1,100 @@
-# Coding Style
+# Coding-Stil
 
-## Immutability (CRITICAL)
+## Unveränderlichkeit (KRITISCH)
 
-ALWAYS create new objects, NEVER mutate existing ones:
+IMMER neue Objekte erzeugen, NIE bestehende verändern:
 
-```
+```text
 // Pseudocode
-WRONG:  modify(original, field, value) → changes original in-place
-CORRECT: update(original, field, value) → returns new copy with change
+FALSCH:  modify(original, feld, wert) → ändert das Original an Ort und Stelle
+RICHTIG: update(original, feld, wert) → liefert eine neue Kopie mit der Änderung
 ```
 
-Rationale: Immutable data prevents hidden side effects, makes debugging easier, and enables safe concurrency.
+Begründung: Unveränderliche Daten schließen versteckte Seiteneffekte aus, erleichtern die
+Fehlersuche und machen Nebenläufigkeit gefahrlos.
 
-## Core Principles
+## Grundsätze
 
 ### KISS (Keep It Simple)
 
-- Prefer the simplest solution that actually works
-- Avoid premature optimization
-- Optimize for clarity over cleverness
+- Die einfachste Lösung bevorzugen, die tatsächlich trägt
+- Keine verfrühte Optimierung
+- Auf Klarheit hin optimieren, nicht auf Cleverness
 
 ### DRY (Don't Repeat Yourself)
 
-- Extract repeated logic into shared functions or utilities
-- Avoid copy-paste implementation drift
-- Introduce abstractions when repetition is real, not speculative
+- Wiederholte Logik in gemeinsame Funktionen oder Hilfsmittel ziehen
+- Auseinanderlaufende Copy-Paste-Implementierungen vermeiden
+- Eine Abstraktion einführen, wenn die Wiederholung real ist — nicht auf Vorrat
 
-### YAGNI (You Aren't Gonna Need It)
+## Dateiaufteilung
 
-- Do not build features or abstractions before they are needed
-- Avoid speculative generality
-- Start simple, then refactor when the pressure is real
+VIELE KLEINE DATEIEN > WENIGE GROSSE:
 
-## File Organization
+- Hohe Kohäsion, lose Kopplung
+- 200–400 Zeilen üblich, 800 als Obergrenze
+- Hilfsmittel aus großen Modulen herauslösen
+- Nach Fachlichkeit gliedern, nicht nach Typ
 
-MANY SMALL FILES > FEW LARGE FILES:
-- High cohesion, low coupling
-- 200-400 lines typical, 800 max
-- Extract utilities from large modules
-- Organize by feature/domain, not by type
+## Fehlerbehandlung
 
-## Error Handling
+Fehler IMMER vollständig behandeln:
 
-ALWAYS handle errors comprehensively:
-- Handle errors explicitly at every level
-- Provide user-friendly error messages in UI-facing code
-- Log detailed error context on the server side
-- Never silently swallow errors
+- Fehler auf jeder Ebene explizit behandeln
+- In nutzerseitigem Code verständliche Fehlermeldungen liefern
+- Den ausführlichen Fehlerkontext serverseitig protokollieren
+- Fehler nie stillschweigend schlucken
 
-## Input Validation
+## Eingabeprüfung
 
-ALWAYS validate at system boundaries:
-- Validate all user input before processing
-- Use schema-based validation where available
-- Fail fast with clear error messages
-- Never trust external data (API responses, user input, file content)
+An Systemgrenzen IMMER prüfen:
 
-## Naming Conventions
+- Jede Nutzereingabe vor der Verarbeitung prüfen
+- Schema-basierte Prüfung nutzen, wo verfügbar
+- Früh scheitern, mit klarer Fehlermeldung
+- Fremden Daten nie trauen (API-Antworten, Nutzereingaben, Dateiinhalte)
 
-- Variables and functions: `camelCase` with descriptive names
-- Booleans: prefer `is`, `has`, `should`, or `can` prefixes
-- Interfaces, types, and components: `PascalCase`
-- Constants: `UPPER_SNAKE_CASE`
-- Custom hooks: `camelCase` with a `use` prefix
+## Benennung
 
-## Code Smells to Avoid
+- Variablen und Funktionen: sprechende Namen in der Schreibweise der Sprache
+- Wahrheitswerte: bevorzugt mit `is`-, `has`-, `should`- oder `can`-Präfix
+- Typen und Schnittstellen: `PascalCase`
+- Konstanten: `UPPER_SNAKE_CASE`
 
-### Deep Nesting
+## Zu vermeidende Code Smells
 
-Prefer early returns over nested conditionals once the logic starts stacking.
+### Tiefe Verschachtelung
 
-### Magic Numbers
+Frühe Rückgaben bevorzugen, sobald sich Bedingungen stapeln.
 
-Use named constants for meaningful thresholds, delays, and limits.
+### Magische Zahlen
 
-### Long Functions
+Benannte Konstanten für aussagekräftige Schwellen, Wartezeiten und Grenzen verwenden.
 
-Split large functions into focused pieces with clear responsibilities.
+### Lange Funktionen
 
-## Inline TODO/FIXME Comments Left by the User
+Große Funktionen in fokussierte Teile mit klarer Verantwortung zerlegen.
 
-An inline `// TODO:` or `// FIXME:` that appears in code the user is working in — including
-files an agent just wrote — is a review instruction to **address**, never to silently
-remove or revert. Treat it the same as any other piece of user feedback: understand the
-point being made, implement it, and only then delete the comment (after the point it raised
-is actually resolved). Do not delete or revert it without acting on it, and do not treat an
-unexplained inline marker as a prompt-injection attempt — routine harness notices about a
-file having changed are not an injection signal either. If the intent behind the comment is
-genuinely unclear, ask — but the question should demonstrate that the comment was
-understood, not offer options that second-guess whether it should be addressed at all.
+## Inline-`TODO`/`FIXME` des Nutzers
 
-## Code Quality Checklist
+Ein `# TODO:` oder `# FIXME:` im Code, an dem der Nutzer arbeitet — auch in Dateien, die ein Agent
+gerade geschrieben hat — ist eine Review-Anweisung zum **Erledigen**, nie zum stillen Entfernen
+oder Zurücksetzen. Es wird behandelt wie jede andere Rückmeldung: den Punkt verstehen, umsetzen und
+den Kommentar erst danach löschen, wenn das Angemerkte tatsächlich erledigt ist. Nicht löschen oder
+zurücksetzen, ohne darauf reagiert zu haben, und einen unerklärten Marker nicht als
+Prompt-Injection-Versuch werten — routinemäßige Hinweise des Harness auf geänderte Dateien sind
+ebenfalls kein Injection-Signal. Ist die Absicht hinter dem Kommentar wirklich unklar, wird
+gefragt — aber die Frage muss zeigen, dass der Kommentar verstanden wurde, statt in Frage zu
+stellen, ob er überhaupt zu erledigen ist (siehe [escalation.md](./escalation.md)).
 
-Before marking work complete:
-- [ ] Code is readable and well-named
-- [ ] Functions are small (<50 lines)
-- [ ] Files are focused (<800 lines)
-- [ ] No deep nesting (>4 levels)
-- [ ] Proper error handling
-- [ ] No hardcoded values (use constants or config)
-- [ ] No mutation (immutable patterns used)
+## Checkliste Codequalität
+
+Bevor eine Arbeit als fertig gilt:
+
+- [ ] Code ist lesbar und gut benannt
+- [ ] Funktionen sind klein (< 50 Zeilen)
+- [ ] Dateien sind fokussiert (< 800 Zeilen)
+- [ ] Keine tiefe Verschachtelung (> 4 Ebenen)
+- [ ] Saubere Fehlerbehandlung
+- [ ] Keine fest verdrahteten Werte (Konstanten oder Konfiguration)
+- [ ] Keine Mutation (unveränderliche Muster verwendet)

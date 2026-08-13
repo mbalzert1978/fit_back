@@ -1,40 +1,48 @@
-# Common Patterns
+# Gemeinsame Muster
 
-## Skeleton Projects
+## Vorhandenes vor Neuem
 
-When implementing new functionality:
-1. Search for battle-tested skeleton projects
-2. Use parallel agents to evaluate options:
-   - Security assessment
-   - Extensibility analysis
-   - Relevance scoring
-   - Implementation planning
-3. Clone best match as foundation
-4. Iterate within proven structure
+Vor einer neuen Implementierung:
 
-## Design Patterns
+1. Nach erprobten Grundgerüsten und Referenzimplementierungen suchen
+2. Die Kandidaten bewerten — Sicherheit, Erweiterbarkeit, Passung zum Problem
+3. Den besten Treffer als Fundament übernehmen
+4. Innerhalb der erprobten Struktur weiterarbeiten
 
-### Repository Pattern
+## Entwurfsmuster
 
-Encapsulate data access behind a consistent interface:
-- Define standard operations: findAll, findById, create, update, delete
-- Concrete implementations handle storage details (database, API, file, etc.)
-- Business logic depends on the abstract interface, not the storage mechanism
-- Enables easy swapping of data sources and simplifies testing with mocks
+### Repository
 
-### API Response Format
+Datenzugriff hinter einer einheitlichen Schnittstelle kapseln:
 
-Use a consistent envelope for all API responses:
-- Include a success/status indicator
-- Include the data payload (nullable on error)
-- Include an error message field (nullable on success)
-- Include metadata for paginated responses (total, page, limit)
+- Standardoperationen festlegen: alle finden, nach Id finden, anlegen, ändern, löschen
+- Die konkrete Implementierung kennt die Speicherdetails (Datenbank, API, Datei)
+- Die Fachlogik hängt an der Abstraktion, nicht am Speichermechanismus
+- Das macht den Austausch der Datenquelle einfach und den Test ohne echte Quelle möglich
 
-### Anti-Corruption Layer (Boundary Adapters)
+### Format der API-Antwort
 
-An adapter that maps an internal type to an external one across a module boundary is **not** a redundant pass-through, even when the signatures look identical. It decouples the internal model from the external one and is what keeps the seam testable.
+Für alle API-Antworten dieselbe Hülle verwenden:
 
-- A bridge that translates an internal command/marker (domain language) into an external infra command/marker (DTO) is a deliberate boundary, not an identity wrapper. Distinct internal and external marker types are the point — the domain depends only on the internal one, so a test can substitute a fake at that seam without touching the external infrastructure.
-- A domain layer (entity + handler + store interface) is kept even when it carries no behavior yet — documented future use cases land there naturally. The DTO → entity → DTO "round-trip" is the deliberate price of separation.
+- ein Feld für Erfolg bzw. Status
+- die Nutzlast (bei Fehler leer)
+- ein Feld für die Fehlermeldung (bei Erfolg leer)
+- Metadaten bei seitenweisen Antworten (Gesamtzahl, Seite, Seitengröße)
 
-Do not flag such layers as "thin wrapper", "identity wrapper", "valueless indirection", or "pass-through" in review and propose deleting them — that couples internal directly to external and removes the test seam. This is a recurring review misjudgment.
+### Anti-Corruption Layer (Adapter an der Grenze)
+
+Ein Adapter, der einen internen Typ über eine Modulgrenze hinweg auf einen externen abbildet, ist
+**keine** überflüssige Durchreiche — auch dann nicht, wenn die Signaturen gleich aussehen. Er
+entkoppelt das interne Modell vom externen und ist genau das, was die Naht prüfbar hält.
+
+- Eine Brücke, die ein internes Kommando oder einen internen Marker (Domänensprache) in ein externes
+  Infrastruktur-Kommando übersetzt, ist eine bewusste Grenze, keine Identitätshülle. Getrennte
+  interne und externe Markertypen sind der Zweck: die Domäne hängt nur am internen, deshalb kann ein
+  Test an dieser Naht ein Double einsetzen, ohne die externe Infrastruktur anzufassen.
+- Eine Domänenschicht (Entität, Handler, Speicher-Schnittstelle) bleibt bestehen, auch wenn sie noch
+  kein Verhalten trägt — dokumentierte künftige Anwendungsfälle landen dort von selbst. Der Umweg
+  DTO → Entität → DTO ist der bewusste Preis der Trennung.
+
+Solche Schichten im Review **nicht** als „dünne Hülle", „Identitäts-Wrapper", „wertlose
+Indirektion" oder „Durchreiche" anmerken und ihre Löschung vorschlagen — das koppelt Intern direkt
+an Extern und nimmt die Test-Naht weg. Das ist ein wiederkehrendes Fehlurteil in Reviews.
