@@ -110,3 +110,25 @@ damit bleibt Punkt (a) des Kriteriums dort offen — die Frage wird eigenständi
 Die **Umsetzung** — Schritt 4 im Pipeline-Dokument ergänzen und die Zeile ins
 `Task.md`-Template — läuft über die normale Ticket-Pipeline, nicht über die Wayfinder-Map; so
 steht es in deren Destination.
+
+## Nachtrag zur Umsetzung (2026-08-13)
+
+Zwei Punkte oben haben sich bei der Umsetzung in
+[#29](https://github.com/mbalzert1978/fit_back/issues/29) nicht gehalten:
+
+- **Der Weg.** Die Map hat ihre Destination am selben Tag neu gefasst und die Ausführung ihrer
+  eigenen Entscheidungen mit hineingenommen; #29 lief damit als `wayfinder:task`-Kind der Map,
+  nicht über die Ticket-Pipeline. Der letzte Absatz oben beschreibt einen Weg, den es so nicht
+  mehr gibt.
+- **Das „`Task.md`-Template".** Eine solche Datei existiert nicht — `/Task.md` ist gitignored und
+  ticketspezifisch. Die Vorlage für den Brief ist die verbindliche Aufzählung in Schritt 2 von
+  [`.claude/agents/fit-back-teamlead.md`](../../.claude/agents/fit-back-teamlead.md); dort steht
+  die Zeile jetzt. Beide Änderungen dieser Entscheidung liegen deshalb in derselben Datei.
+
+Dazu ein Befund, der die Begründung oben schärft: `per-file-ignores = ["ALL"]` entlastet
+`tests/**` und `src/contexts/*/specs/**` nur vom **Linter**. Der Formatter kennt die Einstellung
+nicht und prüft beide Bäume mit — gemessen an einem eingebauten Formatierungsverstoß unter
+`tests/`, den `format-check` findet, während `lint` den daneben liegenden ungenutzten Import dort
+nicht sieht. Das Argument „der Hook-Umfang wäre zur Hälfte leer" gilt also für `ruff check`,
+nicht für `ruff format --check`; an der Entscheidung ändert es nichts, weil beide jetzt als
+Gate-Schritt laufen.
