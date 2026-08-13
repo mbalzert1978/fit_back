@@ -9,4 +9,6 @@
 | Granularity | {{GRANULARITY}} |
 | Template + hygiene | {{TEMPLATE_HYGIENE}} |
 
+Vocabulary source: {{VOCABULARY_SOURCE}}
+
 {{OFFENDERS}}

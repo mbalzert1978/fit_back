@@ -1,7 +1,7 @@
 ---
 name: docs-code-consistency
-description: "Check that a repo's documentation (docstrings, README, prose docs/ADRs/CONTEXT.md) is consistent with the current code and return an objective PASS/FAIL verdict plus an itemized, located drift report. Use when the user wants to check docs against the code — \"check the docstrings still match the code\", \"schau nach ob alle docstrings dem code entsprechen\", \"is the README still accurate\", \"Doku-/Artefakt-Konsistenz zum Code prüfen\", \"verify the docs match the code\", \"README drifted from the real workflow\"."
-arguments: "Optional. Scope = the package/dir to check (default: the whole repo). Optionally the doc types to check — docstrings / README / docs+ADRs+CONTEXT.md (default: all). Optionally a severity threshold for the pass criterion — `high` or `medium` (default: config.json `severity_default`, ships as `medium`)."
+description: "Check that a repo's documentation (docstrings, README, prose docs/decision docs/CONTEXT.md) is consistent with the current code and return an objective PASS/FAIL verdict plus an itemized, located drift report. Use when the user wants to check docs against the code — \"check the docstrings still match the code\", \"schau nach ob alle docstrings dem code entsprechen\", \"is the README still accurate\", \"Doku-/Artefakt-Konsistenz zum Code prüfen\", \"verify the docs match the code\", \"README drifted from the real workflow\"."
+arguments: "Optional. Scope = the package/dir to check (default: the whole repo). Optionally the doc types to check — docstrings / README / docs+decision-docs+CONTEXT.md (default: all). Optionally a severity threshold for the pass criterion — `high` or `medium` (default: config.json `severity_default`, ships as `medium`)."
 ---
 
 # Docs ↔ Code Consistency
@@ -57,7 +57,7 @@ A drift item is worthless unless it's **grounded and located**. Every item must 
 2. **README ↔ reality** — documented install/usage/workflow commands and entry points exist
    and reflect the current setup (e.g. a README still describing the old workflow after a move
    to `uv`). — *mechanical (file targets) + judgement (does the command still do what it says)*
-3. **Doc artifacts (`docs/`, ADRs, `CONTEXT.md`) ↔ code** — referenced files/functions/flags
+3. **Doc artifacts (`docs/`, decision docs, `CONTEXT.md`) ↔ code** — referenced files/functions/flags
    still exist; code examples match current signatures; links and anchors resolve. — *mechanical
    (refs/links) + judgement (examples)*
 4. **Stale references, both directions** — documented symbols/paths/flags that no longer exist
@@ -92,19 +92,22 @@ Use the project's code search to locate doc↔code links: for semantic lookup ("
 behaviour this docstring describes?") dispatch the **`semble-search`** subagent, which drives the
 **`semble` CLI**. Use **grep/glob** (and `probe`) where the question is exact — symbol, path, or
 flag existence — by choice, not as a stand-in for semantic search.
-Read `CONTEXT.md` / `docs/adr/` the way **`grill-with-docs`** and **`deepen-module`** maintain
-them — check the *same* artifacts, don't invent a parallel set.
+Read `CONTEXT.md` and the repo's **decision docs** — the directory named by `decision_docs_dir`
+in the bundled `config.json`, never a guessed path — and check the *same* artifacts other doc
+skills maintain, don't invent a parallel set. If `decision_docs_dir` is unset, or set to a
+directory that doesn't exist, **stop with `Verdict: CONFIG ERROR`** naming the path — a decision
+directory that silently isn't there looks exactly like a repo with no drift in it.
 
 ## Process
 
 1. **Resolve scope.** Take the package/dir, doc types, and severity threshold from `arguments`.
    If scope/doc-types are missing **and** the repo is large, ask once with `AskUserQuestion`
-   (header `Scope`) — which dir, and which doc types (docstrings / README / docs+ADRs+CONTEXT.md
+   (header `Scope`) — which dir, and which doc types (docstrings / README / docs+decision-docs+CONTEXT.md
    / all). Otherwise default to the whole repo, all doc types, threshold `medium`.
 2. **Mechanical pass.** Run `scan` over the doc set. For each unresolved reference, confirm it's
    genuine drift (not an illustrative example) — discard the rest.
 3. **Judgement pass.** For each doc claim about behaviour (docstrings, README workflow, code
-   examples in ADRs/docs), find the code (`semble-search` → grep) and compare. Record only
+   examples in decision docs/docs), find the code (`semble-search` → grep) and compare. Record only
    mismatches you can locate at both ends. Use `probe` to prove existence/absence for every
    symbol/flag/path you cite, in both directions (stale doc ref *and* uncovered public surface).
 4. **Assign severity** to each item via the rubric.
@@ -133,7 +136,7 @@ or
 | --- | ------------ | ------------- | -------- | ----------- |
 | high | `README.md:14` | `pyproject.toml` / `uv.lock` | README says `pip install -r requirements.txt`; project uses the `uv` workflow (no requirements.txt) | rewrite the install section to `uv sync` |
 | high | `src/cfg.py:30` docstring | `src/cfg.py:34` signature | docstring documents param `retries`; the parameter is `max_retries` | rename in docstring |
-| medium | `docs/adr/0002.md:21` | `src/store.py` | ADR example calls `Store.save(obj, flush=True)`; `save()` no longer takes `flush` | update the example |
+| medium | `<decision_docs_dir>/…-storage.md:21` | `src/store.py` | decision doc's example calls `Store.save(obj, flush=True)`; `save()` no longer takes `flush` | update the example |
 
 - **Scope checked:** *what doc types / dir, and the threshold used.*
 - **Fix is out of scope:** this run only reports drift; apply the *Fix implied* column in a

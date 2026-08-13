@@ -9,7 +9,7 @@ This handles only the *deterministic* half of the verdict — the existence and
 resolution checks the agent must never eyeball. The judgement half (does the prose
 actually describe the behaviour?) stays in SKILL.md. Two subcommands:
 
-  scan   Parse markdown docs (README, docs/, ADRs, CONTEXT.md) and report every
+  scan   Parse markdown docs (README, docs/, decision docs, CONTEXT.md) and report every
          local reference that does NOT resolve: broken markdown links, dead
          heading anchors, backticked file paths and fenced-command file targets
          that no longer exist on disk. High precision on purpose — under-extract

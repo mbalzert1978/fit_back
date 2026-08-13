@@ -104,9 +104,11 @@ Geschwisterdateien, die das Skill sonst anlegt, fehlen weiterhin **mit Absicht**
 - `docs/agents/triage-labels.md` — das `triage`-Skill ist nicht installiert, die Labels hätten
   keinen Leser.
 - `docs/agents/domain.md` — es beschreibt, wo `CONTEXT.md` und `docs/adr/` liegen. `docs/adr/` gibt
-  es hier nicht und wird es nicht geben (die Rolle spielt `docs/decisions/`); `CONTEXT.md` entsteht
-  durch Ticket #34 der Map #25. Der Glossar-Nebel ist von #27 aufgelöst, die Skills werden von #35
-  auf beide Pfade richtiggestellt — danach ist neu zu bewerten, ob diese Datei noch fehlen soll.
+  es hier nicht und wird es nicht geben (die Rolle spielt `docs/decisions/`); `CONTEXT.md` liegt
+  seit Ticket #34 der Map #25 im Repo-Root. #35 hat `docs-code-consistency` auf `docs/decisions/`
+  umgehängt — über `decision_docs_dir` in dessen `config.json`, nicht im Skill-Text, weil
+  repo-spezifische Pfade dorthin gehören. Damit ist neu zu bewerten, ob diese Datei noch fehlen
+  soll: die beiden Skills, für die sie gedacht war, finden ihre Artefakte inzwischen selbst.
 
 Ebenfalls bewusst unterlassen: der `## Agent skills`-Abschnitt, den das Setup-Skill in `CLAUDE.md`
 schreiben will. #27 hat entschieden, dass `CLAUDE.md` nichts über das Repo behauptet und nur noch

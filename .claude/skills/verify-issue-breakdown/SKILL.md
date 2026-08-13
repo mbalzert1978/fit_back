@@ -1,7 +1,7 @@
 ---
 name: verify-issue-breakdown
 description: Verify that a to-issues breakdown is a sound tracer-bullet decomposition before it is published — full plan coverage, every slice vertical, an acyclic dependency graph, and each issue on-template — and return PASS/FAIL. Use when checking a drafted issue breakdown, verifying vertical slices before publishing to the tracker, or gating a to-issues run before publish.
-arguments: "Primary: the drafted slice list + its source plan/PRD to verify — a path, a URL, or inline text (default: read both from the conversation context, the to-issues breakdown). Optional `glossary_path`: path to the domain glossary / ADRs to enable criterion 6's vocabulary sub-check (default: discover in the repo, else skip that sub-check)."
+arguments: "Primary: the drafted slice list + its source plan/PRD to verify — a path, a URL, or inline text (default: read both from the conversation context, the to-issues breakdown). Optional `glossary_path`: path to the domain glossary / decision docs to enable criterion 6's vocabulary sub-check (default: discover in the repo; if nothing is found the sub-check is skipped and said so in the report)."
 ---
 
 # Verify Issue Breakdown
@@ -29,13 +29,15 @@ Each criterion is testable and feeds the verdict.
 
 Self-contained for the core check: the source plan/PRD and the drafted slice list are both in the conversation context when to-issues invokes this gate (file read only if a reference is passed instead).
 
-One soft prerequisite, for criterion 6's vocabulary sub-check only: the project's **domain glossary and ADRs**. Read them from the repo when a path is given or they are discoverable — a file read when the path is known, otherwise the **`semble-search`** subagent (semble CLI) to locate them. If no glossary/ADRs are found, skip the vocabulary sub-check and note it; do not FAIL criterion 6 on vocabulary alone.
+One soft prerequisite, for criterion 6's vocabulary sub-check only: the project's **domain glossary and decision docs** (`CONTEXT.md` at the repo root in most repos; decision docs under whatever directory the repo keeps them in). Read them from the repo when a path is given or they are discoverable — a file read when the path is known, otherwise the **`semble-search`** subagent (semble CLI) to locate them.
+
+If nothing is found, the vocabulary sub-check does **not** run — and that has to be **visible in the verdict**, not swallowed: fill `{{VOCABULARY_SOURCE}}` with `not found — vocabulary sub-check skipped` and name where you looked. A check that silently doesn't run looks exactly like a check that passed. Still do not FAIL criterion 6 on vocabulary alone.
 
 No issue-tracker access is needed in this mode (the check runs before publishing).
 
 ## Process
 
-1. Read the source plan/PRD and the drafted slice list from context (or fetch the passed reference). Optionally load the domain glossary + ADRs.
+1. Read the source plan/PRD and the drafted slice list from context (or fetch the passed reference). Optionally load the domain glossary + decision docs.
 2. Extract every requirement / user story from the plan into a checklist. Extract every slice as `{title, type, blocked_by, what_to_build, acceptance_criteria}`.
 3. Run each criterion check, recording Pass/Fail and the specific offending slice(s):
    - Coverage: map requirements ↔ slices; record unmapped requirements and orphan slices.
@@ -60,6 +62,7 @@ Fill the tokens:
 - `{{VERDICT}}` — `PASS` or `FAIL`.
 - `{{ONE_LINE_REASON}}` — the headline (e.g. "all 12 slices vertical, graph acyclic, plan fully covered"; on FAIL, the worst failing criterion).
 - `{{PLAN_COVERAGE}}` … `{{TEMPLATE_HYGIENE}}` — `Pass` or `Fail` per criterion.
+- `{{VOCABULARY_SOURCE}}` — the glossary/decision docs the vocabulary sub-check actually read (e.g. `CONTEXT.md`), or `not found — vocabulary sub-check skipped` plus where you looked. Never leave it blank.
 - `{{OFFENDERS}}` — empty on a clean PASS; on FAIL, the offenders only, one line each, slice → what's wrong → the fix:
 
   - **Slice 4 "Settings page"** — horizontal (UI only, no persistence path) → fold the save/read path in, or mark blocked-by the schema slice.
