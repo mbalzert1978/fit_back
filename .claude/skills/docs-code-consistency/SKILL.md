@@ -88,9 +88,10 @@ etc.); read the source and judge, using `probe` to confirm any symbol you cite.
 
 ## Lookup
 
-Use the project's code search to locate doc↔code links: prefer the user's **`semble`** MCP
-(`mcp__semble__search`) / CLI for semantic lookup ("where is the behaviour this docstring
-describes?"); fall back to **grep/glob** (and `probe`) for exact symbol/path/flag existence.
+Use the project's code search to locate doc↔code links: for semantic lookup ("where is the
+behaviour this docstring describes?") dispatch the **`semble-search`** subagent, which drives the
+**`semble` CLI**. Use **grep/glob** (and `probe`) where the question is exact — symbol, path, or
+flag existence — by choice, not as a stand-in for semantic search.
 Read `CONTEXT.md` / `docs/adr/` the way **`grill-with-docs`** and **`deepen-module`** maintain
 them — check the *same* artifacts, don't invent a parallel set.
 
@@ -103,9 +104,9 @@ them — check the *same* artifacts, don't invent a parallel set.
 2. **Mechanical pass.** Run `scan` over the doc set. For each unresolved reference, confirm it's
    genuine drift (not an illustrative example) — discard the rest.
 3. **Judgement pass.** For each doc claim about behaviour (docstrings, README workflow, code
-   examples in ADRs/docs), find the code (semble → grep) and compare. Record only mismatches you
-   can locate at both ends. Use `probe` to prove existence/absence for every symbol/flag/path
-   you cite, in both directions (stale doc ref *and* uncovered public surface).
+   examples in ADRs/docs), find the code (`semble-search` → grep) and compare. Record only
+   mismatches you can locate at both ends. Use `probe` to prove existence/absence for every
+   symbol/flag/path you cite, in both directions (stale doc ref *and* uncovered public surface).
 4. **Assign severity** to each item via the rubric.
 5. **Combine.** PASS iff no item is at or above the threshold; else FAIL. Order items by severity.
 

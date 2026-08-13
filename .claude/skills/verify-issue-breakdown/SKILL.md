@@ -29,7 +29,7 @@ Each criterion is testable and feeds the verdict.
 
 Self-contained for the core check: the source plan/PRD and the drafted slice list are both in the conversation context when to-issues invokes this gate (file read only if a reference is passed instead).
 
-One soft prerequisite, for criterion 6's vocabulary sub-check only: the project's **domain glossary and ADRs**. Read them from the repo (file read, or `mcp__semble__search` if available) when a path is given or they are discoverable. **Not yet wired up** — if no glossary/ADRs are found, skip the vocabulary sub-check and note it; do not FAIL criterion 6 on vocabulary alone.
+One soft prerequisite, for criterion 6's vocabulary sub-check only: the project's **domain glossary and ADRs**. Read them from the repo when a path is given or they are discoverable — a file read when the path is known, otherwise the **`semble-search`** subagent (semble CLI) to locate them. If no glossary/ADRs are found, skip the vocabulary sub-check and note it; do not FAIL criterion 6 on vocabulary alone.
 
 No issue-tracker access is needed in this mode (the check runs before publishing).
 
