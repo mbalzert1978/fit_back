@@ -17,7 +17,6 @@ The skills live directly in `.claude/skills/` so this repo **loads its own skill
   auto-commit/                                            SKILL.md  scripts/  config.json
   build-verifier/                                         SKILL.md  scripts/  assets/
   compress-prompt/                                        SKILL.md  scripts/  assets/  config.json
-  deepen-module/                                          SKILL.md
   design-pattern-fit-check/                               SKILL.md
   docs-code-consistency/                                  SKILL.md  scripts/  config.json
   done/                                                   SKILL.md  assets/
@@ -45,10 +44,8 @@ The skills live directly in `.claude/skills/` so this repo **loads its own skill
   fixer-switch-statements/                                SKILL.md
   fixer-temporary-field/                                  SKILL.md
   graphify-windows/                                       SKILL.md
-  grill-with-docs/                                        SKILL.md
   handoff/                                                SKILL.md  assets/
   illegal-state-check/                                    SKILL.md
-  improve-codebase-architecture/                          SKILL.md  assets/  config.json
   issue-close/                                            SKILL.md
   issue-status/                                           SKILL.md  scripts/  config.json
   issues-to-prs/                                          SKILL.md  assets/  config.json
@@ -153,9 +150,8 @@ Skills are grouped into the four buckets (see Design Contract below). Current in
 
 - `architecture-adr-check` — checks code changes against this repo's architecture-decision docs and the issue they implement (paths via `config.json`, missing config = `CONFIG ERROR` not a silent pass) — invariants honored, acceptance criteria met — returning PASS/FAIL plus a `Findings: <n>` count.
 - `design-pattern-fit-check` — reviews a diff for shapeless/procedural code where a named GoF/architectural pattern (Strategy, State, Factory, Builder, Decorator, Observer, Command, Chain of Responsibility, Template Method, Adapter, Repository) would express it more cleanly — requires naming the concrete pattern and sketching the seams, not just "add an abstraction" — returning BLOCK/APPROVE plus a `Findings: <n>` count.
-- `docs-code-consistency` — checks docs (docstrings, README, docs/decision docs/CONTEXT.md) against the current code and returns PASS/FAIL plus an itemized, located drift report — checker, not fixer.
+- `docs-code-consistency` — checks docs (docstrings, README, the configured decision docs, CONTEXT.md) against the current code and returns PASS/FAIL plus an itemized, located drift report — checker, not fixer.
 - `illegal-state-check` — reviews a diff's data/type model for representable-but-invalid states — a flag/enum plus optional fields only valid in some combinations, an unconstrained primitive standing in for a constrained domain, a mutable object with violable invariants — and pushes to make the bad state unrepresentable, not merely checked. Returns BLOCK/APPROVE plus a `Findings: <n>` count.
-- `improve-codebase-architecture` — reviews a codebase for deepening opportunities (shallow modules worth collapsing).
 - `language-idiom-check` — reviews a diff for missed idioms of the language actually in use (pattern matching, records, collection pipelines, destructuring, ...) and for imperative code that should be declarative (pattern matching over cascades, immutable values, pure functions). Returns BLOCK/APPROVE plus a `Findings: <n>` count.
 - `lint-and-format-check` — runs this repo's configured `linter`/`formatter` (command + args from `config.json`, any language) — unconfigured proposes a pair by detected language and stops as `CONFIG ERROR` rather than guessing — returning PASS/FAIL plus a `Findings: <n>` count.
 - `propose-skills` — scans chat history for repeated manual tasks that should be skills and proposes each (name, bucket, one job), skipping what existing skills cover.
@@ -202,9 +198,7 @@ Skills are grouped into the four buckets (see Design Contract below). Current in
 
 - `audit-to-issues` — audits a repo on a chosen axis (over-engineering / illegal-states / pythonic) and turns each finding into a clean, reviewed, deduped issue — delegates to `ponytail-audit` and `to-issues`.
 - `auto-commit` — groups a working tree's changes into cohesive Conventional-Commits, previews the plan, then commits each group.
-- `deepen-module` — drives a deepening candidate from architecture review to settled, documented design.
 - `done` — end-of-session wrapper: runs `/reflect`, prints summary, updates task state.
-- `grill-with-docs` — stress-tests a plan against the domain model and updates documentation inline.
 - `issues-to-prs` — implements each selected open issue as an independent, parallel git-worktree agent and ships exactly one PR per issue — disjointness-gated, no shared merge.
 - `multi-agent-thermo-nuclear-review` — manual-only multi-agent fan-out of `thermo-nuclear-code-quality-review` — per configured lens, diverse finders + one adversarial verifier run in parallel, reconciled against the agent's own reading; delegates the rubric and size-pass to thermo-nuclear by path.
 - `prototype` — builds a throwaway prototype to flesh out a design; routes between two branches.
