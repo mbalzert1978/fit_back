@@ -74,7 +74,6 @@ The skills live directly in `.claude/skills/` so this repo **loads its own skill
   to-issues/                                              SKILL.md  scripts/  assets/  config.json
   to-prd/                                                 SKILL.md  assets/
   token-budget-audit/                                     SKILL.md  scripts/  assets/  config.json
-  ubiquitous-language-doc/                                SKILL.md  assets/  config.json
   validate-fix-loop/                                      SKILL.md  scripts/  assets/  config.json
   verbessere-text/                                        SKILL.md  scripts/
   verifier-alternative-classes-with-different-interfaces/ SKILL.md
@@ -211,7 +210,6 @@ Skills are grouped into the four buckets (see Design Contract below). Current in
 - `prototype` — builds a throwaway prototype to flesh out a design; routes between two branches.
 - `tdd` — test-driven development with red-green-refactor loop.
 - `to-issues` — breaks a plan/PRD into tracer-bullet issues, gates with `verify-issue-breakdown` before publish.
-- `ubiquitous-language-doc` — generates/refreshes a CONTEXT.md Ubiquitous-Language glossary derived from the code, wires it into CLAUDE.md, and quality-gates it by reviewing the glossary as source code.
 - `validate-fix-loop` — dispatches the quality validators listed in `config.json` (default: 8 general validators plus the 23 `verifier-<smell>` code-smell checks) in parallel each iteration, then routes each validator's findings — via `config.json`'s `fixer_map` — to its own `fixer-<smell>` skill where one is mapped, or batches unmapped validators' findings into one `apply-validator-findings` call, running fixer dispatches sequentially; repeats until every validator reports zero findings, total findings plateau across an iteration, or `max_iterations` is hit.
 <!-- END GENERATED: sync-skill-index -->
 
