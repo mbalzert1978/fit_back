@@ -114,6 +114,13 @@ $targetTable = [ordered]@{
         Action      = { Invoke-Step 'compose-down' { docker compose down } }
     }
 
+    'claude-doctor' = @{
+        # The check itself is Python (scripts/claude_doctor.py) so it stays runnable
+        # on machines without pwsh - see docs/claude/README.md.
+        Description = 'Check the Claude setup: external tools and hook references'
+        Action      = { Invoke-Step 'claude-doctor' { uv run --script scripts/claude_doctor.py } }
+    }
+
     'ci' = @{
         Description = 'lint + format-check + import-lint + test, in that order'
         Action      = {

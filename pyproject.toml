@@ -68,3 +68,8 @@ ignore = [
 "src/contexts/*/specs/**" = ["ALL"]
 "alembic/*/versions/**" = ["INP001"]  # Alembic verwaltet diese Revisionen über seinen eigenen Loader
 "alembic/env.py" = ["INP001"]  # Alembic führt env.py direkt auf, kein importierbares Paket
+"scripts/**" = [
+    "INP001",  # direkt aufgerufene Skripte, kein importierbares Paket
+    "T201",    # `print` ist bei einem CLI-Werkzeug die Ausgabe, nicht ein Debug-Rest
+    "S101",    # `assert` im mitgelieferten --demo-Selbsttest
+]

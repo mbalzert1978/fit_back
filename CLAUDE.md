@@ -25,6 +25,8 @@ Wächst diese Datei um einen Absatz, der etwas über das Repo behauptet, gehört
   `.rules/` **nichts**, solange kein Decision-Doc sie annimmt.
 - [`docs/agents/`](docs/agents/) — Konventionen, auf die die Skills sich stützen (u. a. der
   Issue-Tracker).
+- [`docs/claude/README.md`](docs/claude/README.md) — was in `.claude/` liegt und wer es liest;
+  Einstieg für die Claude-Seite des Repos, inklusive `./make.ps1 claude-doctor`.
 - [`.rules/`](.rules/) — die verbindlichen Coding-Standards. Einstieg und Konfliktauflösung:
   [`.rules/python/README.md`](.rules/python/README.md).
 
