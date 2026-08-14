@@ -3,6 +3,18 @@
     "MAX_THINKING_TOKENS": "10000"
   },
   "model": "opus",
+  "permissions": {
+    "allow": [
+      "Bash(uv run:*)",
+      "Bash(./make.ps1:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

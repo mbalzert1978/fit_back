@@ -1,13 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build *)",
-      "Bash(dotnet test *)",
-      "Bash(git add *)",
+      "Bash(git add:*)",
       "Bash(git commit -m ' *)",
-      "Bash(git checkout *)",
-      "Bash(bash .claude/hooks/session-state-handler.sh)",
-      "Bash(xargs cat -n)"
+      "Bash(git checkout:*)"
     ]
   },
   "enabledPlugins": {
