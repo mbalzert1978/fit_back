@@ -37,39 +37,6 @@
           }
         ]
       }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-state-handler.py\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-state-handler.py\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-state-handler.py\"",
-            "timeout": 10
-          }
-        ]
-      }
     ]
   },
   "enabledPlugins": {
