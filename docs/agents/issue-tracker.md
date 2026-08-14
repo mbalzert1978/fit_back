@@ -90,8 +90,10 @@ gh issue list --label wayfinder:map --state all --json number,title,state
 
 ### Live wayfinding efforts
 
+Keine. Die einzige Map ist am 2026-08-14 geschlossen worden:
+
 - [**#25 — Wayfinder-Map: Hook-Portfolio und semble-Anbindung des Claude-Setups**](https://github.com/mbalzert1978/fit_back/issues/25)
-  — die Claude-Code-Konfiguration dieses Repos (`.claude/`, `CLAUDE.md`). Trägt ausnahmsweise auch
+  (**geschlossen**) — die Claude-Code-Konfiguration dieses Repos (`.claude/`, `CLAUDE.md`). Trägt ausnahmsweise auch
   die **Ausführung** ihrer Entscheidungen als `wayfinder:task`-Kinder, statt sie an die
   Ticket-Pipeline abzugeben; die Begründung steht in ihren Notes. Entscheidungen landen als Datei
   unter [`docs/decisions/`](../decisions/), auf Deutsch.
