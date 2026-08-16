@@ -129,7 +129,44 @@ def translate(
     return resources.translate(code, parameters, language)
 
 
-def get_language_from_header(accept_language: str | None) -> str:  # noqa: C901, PLR0912 -- RFC 7231 parsing with q-weight, normalization, and fallbacks
+def _quality_of(parameters: str) -> float:
+    """Lies das q-Gewicht aus den Parametern eines Language-Range.
+
+    Ein fehlendes oder defektes q (q=abc) lässt das Defaultgewicht 1.0 stehen;
+    Werte außerhalb [0, 1] werden auf den Bereich beschnitten.
+    """
+    for parameter in parameters.split(";"):
+        stripped = parameter.strip()
+        if stripped.startswith("q="):
+            with contextlib.suppress(ValueError):
+                return max(0.0, min(1.0, float(stripped[2:])))
+    return 1.0
+
+
+def _range_of(part: str) -> tuple[str, float] | None:
+    """Zerlege einen Header-Eintrag ("de-AT;q=0.9") in Tag und Gewicht.
+
+    Leere Einträge und der Wildcard `*` sind keine Sprachwahl und fallen weg.
+    """
+    tag, _, parameters = part.strip().partition(";")
+    tag = tag.strip()
+    return None if not tag or tag == "*" else (tag, _quality_of(parameters))
+
+
+def _supported_form_of(tag: str) -> str | None:
+    """Bilde ein Language-Tag auf eine unterstützte Sprache ab, sonst None.
+
+    Erst die exakte Übereinstimmung (auf BCP 47 normalisiert, de_DE ⇒ de-DE,
+    Groß-/Kleinschreibung egal), dann der reine Sprachtreffer (de-AT ⇒ de-DE).
+    """
+    normalized = tag.replace("_", "-").lower()
+    exact = next(
+        (language for language in SUPPORTED_LANGUAGES if language.lower() == normalized), None
+    )
+    return exact or LANGUAGE_FALLBACKS.get(normalized.split("-")[0])
+
+
+def get_language_from_header(accept_language: str | None) -> str:
     """Parse den Accept-Language-Header und wähle die beste passende Sprache.
 
     Regeln (RFC 7231):
@@ -144,59 +181,15 @@ def get_language_from_header(accept_language: str | None) -> str:  # noqa: C901,
         Ein unterstütztes Sprach-Tag oder DEFAULT_LANGUAGE.
 
     """
-    if not accept_language or not accept_language.strip():
-        return DEFAULT_LANGUAGE
-
-    # Parse alle Sprachen mit ihren q-Gewichten
-    languages_with_quality: list[tuple[str, float, int]] = []
-
-    for i, part in enumerate(accept_language.split(",")):
-        part_stripped = part.strip()
-        if not part_stripped:
-            continue
-
-        # Splitze in Sprache und Parameter (z.B. "de;q=0.9")
-        quality = 1.0
-        if ";" in part_stripped:
-            lang_part, params_part = part_stripped.split(";", 1)
-            lang = lang_part.strip()
-
-            # Parse q-Gewicht — defekte q-Werte werden mit Defaultgewicht ignoriert
-            for param in params_part.split(";"):
-                param_stripped = param.strip()
-                if param_stripped.startswith("q="):
-                    with contextlib.suppress(ValueError):
-                        quality = float(param_stripped[2:])
-                        # Begrenze auf [0, 1]
-                        quality = max(0.0, min(1.0, quality))
-        else:
-            lang = part_stripped.strip()
-
-        if lang and lang != "*":
-            # Speichere auch den Index für Gleichstand-Auflösung
-            languages_with_quality.append((lang, quality, i))
-
-    # Sortiere nach q-Gewicht (absteigend), dann nach Index (aufsteigend)
-    languages_with_quality.sort(key=lambda x: (-x[1], x[2]))
-
-    # Wähle die beste Sprache
-    for lang_tag, quality, _ in languages_with_quality:
-        if quality == 0:
-            # q=0 bedeutet "akzeptiere ich nicht"
-            continue
-
-        # Normalisiere auf BCP 47 (de-DE, nicht DE-DE)
-        lang_tag_normalized = lang_tag.replace("_", "-").lower()
-
-        # 1. Exakte Übereinstimmung (case-insensitive)?
-        for supported_lang in SUPPORTED_LANGUAGES:
-            if supported_lang.lower() == lang_tag_normalized:
-                return supported_lang
-
-        # 2. Regionstreffer? (de → de-DE, en → en-US)
-        lang_only = lang_tag_normalized.split("-")[0]
-        if lang_only in LANGUAGE_FALLBACKS:
-            return LANGUAGE_FALLBACKS[lang_only]
-
-    # Keine passende Sprache gefunden → Default
-    return DEFAULT_LANGUAGE
+    ranges = [entry for entry in map(_range_of, (accept_language or "").split(",")) if entry]
+    # sorted ist stabil, das erhält bei gleichem Gewicht die Reihenfolge des Headers
+    by_quality = sorted(ranges, key=lambda entry: -entry[1])
+    return next(
+        (
+            supported
+            for tag, quality in by_quality
+            # q=0 heißt "akzeptiere ich nicht"
+            if quality > 0 and (supported := _supported_form_of(tag))
+        ),
+        DEFAULT_LANGUAGE,
+    )
