@@ -11,8 +11,9 @@ fuer Fall.
 """
 
 from dataclasses import dataclass
+from functools import partial
 from ipaddress import ip_address
-from typing import assert_never, final
+from typing import final
 
 from src.contexts.identity.domain.email_errors import (
     EmailAddressLiteralInvalid,
@@ -146,28 +147,48 @@ def _address_literal_is_valid(candidate: str, literal: str) -> Result[str, Email
 def _labels_are_valid(candidate: str, domain: str, idn: IdnEncoder) -> Result[str, EmailError]:
     """Jedes durch Punkt getrennte Label ist fuer sich genommen gueltig.
 
-    Ein leeres Label deckt gleich drei Faelle ab: fuehrender Punkt, doppelter
-    Punkt und - der haeufigste Tippfehler - der abschliessende Punkt.
+    Ein Label pro Regel, verkettet mit demselben `chain` wie die Regeln der
+    Gesamtadresse: das erste ungueltige Label gewinnt, die folgenden laufen gar
+    nicht mehr.
     """
-    for label in domain.split("."):
-        if not label:
-            return Err(EmailDomainHasEmptyLabel(domain))
-        if label.startswith("-") or label.endswith("-"):
-            return Err(EmailDomainLabelHasEdgeHyphen(label))
-        ascii_form = _ascii_form_of(label, idn)
-        match ascii_form:
-            case Err() as unencodable:
-                return unencodable
-            case Ok(value=ascii_label):
-                # Faellt bewusst durch: ein gueltiges Label bedeutet nur, dass die
-                # Schleife mit dem naechsten weitermacht.
-                if len(ascii_label) > MAX_LABEL_LENGTH:
-                    return Err(EmailDomainLabelTooLong(label, len(ascii_label), MAX_LABEL_LENGTH))
-                if any(not _is_ascii_label_character(c) for c in ascii_label):
-                    return Err(EmailDomainLabelHasInvalidCharacters(label))
-            case _:
-                assert_never(ascii_form)
-    return Ok(candidate)
+    per_label = (
+        partial(_label_is_valid, label=label, domain=domain, idn=idn) for label in domain.split(".")
+    )
+    return chain(*per_label)(candidate)
+
+
+def _label_is_valid(
+    candidate: str, *, label: str, domain: str, idn: IdnEncoder
+) -> Result[str, EmailError]:
+    """Ein einzelnes Label - gepruefte Adresse durchgereicht, damit die Kette weiterlaeuft."""
+    return (
+        _label_is_not_empty(label, domain)
+        .bind(_label_has_no_edge_hyphen)
+        .bind(lambda checked: _ascii_form_of(checked, idn))
+        .bind(lambda ascii_label: _ascii_label_fits_the_limits(label, ascii_label))
+        .map(lambda _: candidate)
+    )
+
+
+def _label_is_not_empty(label: str, domain: str) -> Result[str, EmailError]:
+    """Ein leeres Label deckt drei Faelle ab: fuehrender, doppelter, abschliessender Punkt."""
+    return Ok(label) if label else Err(EmailDomainHasEmptyLabel(domain))
+
+
+def _label_has_no_edge_hyphen(label: str) -> Result[str, EmailError]:
+    """Ein Label faengt nicht mit einem Bindestrich an und hoert nicht mit einem auf."""
+    if label.startswith("-") or label.endswith("-"):
+        return Err(EmailDomainLabelHasEdgeHyphen(label))
+    return Ok(label)
+
+
+def _ascii_label_fits_the_limits(label: str, ascii_label: str) -> Result[str, EmailError]:
+    """Laenge und Zeichenvorrat gelten fuer die ASCII-Form - gemeldet wird das Original."""
+    if len(ascii_label) > MAX_LABEL_LENGTH:
+        return Err(EmailDomainLabelTooLong(label, len(ascii_label), MAX_LABEL_LENGTH))
+    if any(not _is_ascii_label_character(c) for c in ascii_label):
+        return Err(EmailDomainLabelHasInvalidCharacters(label))
+    return Ok(ascii_label)
 
 
 def _ascii_form_of(label: str, idn: IdnEncoder) -> Result[str, EmailError]:
