@@ -1,6 +1,6 @@
 {
     "python.testing.pytestArgs": [
-        "src\\contexts",
+        "src/contexts",
         "tests"
     ],
     "python.testing.unittestEnabled": false,
