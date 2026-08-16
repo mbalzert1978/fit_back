@@ -94,6 +94,14 @@ $targetTable = [ordered]@{
         Action      = { Invoke-Step 'import-lint' { uv run lint-imports } }
     }
 
+    'complexity' = @{
+        # complexipy misst kognitive Komplexitaet je Funktion und faellt ab Wert 15.
+        # Per uvx statt als Projekt-Dependency - das Werkzeug prueft den Code, es
+        # gehoert nicht zu seiner Laufzeit.
+        Description = 'Check cognitive complexity per function (complexipy)'
+        Action      = { Invoke-Step 'complexity' { uvx complexipy -f src } }
+    }
+
     'migrate' = @{
         # Depends on docs/issues/0003 (Alembic baseline). "heads" (plural) is
         # required, not "head" - each of the 7 schemas is its own independent
@@ -122,11 +130,12 @@ $targetTable = [ordered]@{
     }
 
     'ci' = @{
-        Description = 'lint + format-check + import-lint + test, in that order'
+        Description = 'lint + format-check + import-lint + complexity + test, in that order'
         Action      = {
             Invoke-Target 'lint'
             Invoke-Target 'format-check'
             Invoke-Target 'import-lint'
+            Invoke-Target 'complexity'
             Invoke-Target 'test'
         }
     }
