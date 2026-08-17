@@ -55,7 +55,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_uv-sync-all-extras.md](exp_uv-sync-all-extras.md) — `uv sync` installiert Extras nicht automatisch, `--all-extras` noetig
 - [exp_verify-subagent-progress-claims.md](exp_verify-subagent-progress-claims.md) — Fortschrittsmeldungen von Orchestrator-Agenten per git/gh selbst verifizieren, nie ungeprueft weiterreichen
 - [exp_versionswahl-aktuell-statt-gewohnheit.md](exp_versionswahl-aktuell-statt-gewohnheit.md) — aktuelle stabile Version statt Trainingsdaten-Gewohnheit waehlen
-- [exp_waechter-fehlalarm-nicht-umgehen-sondern-melden.md](exp_waechter-fehlalarm-nicht-umgehen-sondern-melden.md) — ein Kontroll-Hook, der am Aufrufer-Kontext statt am Zielpfad entscheidet, wird gemeldet, nicht still umgangen
+- [exp_waechter-fehlalarm-nicht-umgehen-sondern-melden.md](exp_waechter-fehlalarm-nicht-umgehen-sondern-melden.md) — ein Kontroll-Hook, der am Aufrufer-Kontext statt am Zielpfad entscheidet: melden ist Pflicht, der Umweg zulaessig, Stehenbleiben die staerkere Variante
 - [exp_workflow-agent-cd-explizit.md](exp_workflow-agent-cd-explizit.md) — Workflow-Pipeline-Prompts brauchen explizites `cd` in den Worktree
 - [exp_workflow-tool-args-bug.md](exp_workflow-tool-args-bug.md) — Workflow-Tool `args` kann `undefined` sein, Eingaben hardcoden
 - [exp_zweifelsfaelle-bericht-deckt-regel-luecken-auf.md](exp_zweifelsfaelle-bericht-deckt-regel-luecken-auf.md) — verpflichtender Zweifelsfall-Bericht im Agenten-Brief ist der billigste Test der eigenen Regel

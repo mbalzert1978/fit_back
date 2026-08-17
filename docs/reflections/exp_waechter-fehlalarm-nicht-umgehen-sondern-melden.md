@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 name: waechter-fehlalarm-nicht-umgehen-sondern-melden
-description: Ein Kontroll-Hook, der am falschen Merkmal entscheidet, blockiert die ganze Pipeline - wer ihn umgeht statt ihn zu melden, nimmt der Pipeline ihre Diagnose; der Umweg ist die Meldung wert, auch wenn er funktioniert
+description: Ein Kontroll-Hook, der am falschen Merkmal entscheidet, blockiert die ganze Pipeline - Melden ist in jedem Fall Pflicht, der Umweg ist zulaessig, aber Stehenbleiben und Eskalieren ist die staerkere Variante, wenn der Blocker die Arbeit ohnehin ganz verhindert
 type: feedback
 frequency: 1
 last_triggered: 2026-08-17
@@ -28,12 +28,27 @@ schreiben musste — und die Welle verlor eine komplette Runde, bevor die Ursach
 Der Fix (`62e4700` auf `main`) besteht darin, Fall 2 zusaetzlich am **Zielpfad** entscheiden zu
 lassen: liegt das Ziel unterhalb eines registrierten Worktrees, ist es kein Uebergriff.
 
-Der Entwickler-Agent hat sich dabei **richtig** verhalten, und das gehoert festgehalten: er haette
-den Waechter trivial ueber die Shell umgehen koennen — Hooks greifen nur an `Edit`/`Write`/
-`NotebookEdit`, nicht an `Bash`/`PowerShell`. Er hat den Umweg genommen, den Zielort strikt
-eingehalten und den Vorgang im Bericht unter „Hook-Reibung" ausdruecklich als Reibung gemeldet,
-mit Diagnose (`cwd` statt Zielpfad) und Vorschlag. Genau diese Meldung hat den Fehlalarm sichtbar
-gemacht. Ein Agent, der still umgeht, haette dieselbe Arbeit geliefert und die Ursache begraben.
+**Beide Entwickler-Agenten trafen den Waechter, und sie reagierten verschieden.** Das ist der
+lehrreiche Teil, und beide Haelften gehoeren festgehalten — Hooks greifen nur an
+`Edit`/`Write`/`NotebookEdit`, nicht an `Bash`/`PowerShell`, der Umweg stand also beiden offen:
+
+- **Ticket #89 nahm den Umweg.** Der Agent schrieb seine eine Quelltextaenderung ueber ein
+  `uv run python`-Skript **innerhalb** seines Worktrees, hielt den Zielort strikt ein und meldete
+  den Vorgang im Bericht unter „Hook-Reibung" mit Diagnose (`cwd` statt Zielpfad) und Vorschlag.
+- **Ticket #51 nahm ihn nicht.** Der Agent blieb stehen, **bevor eine Zeile Code entstanden war**,
+  und eskalierte: „harter Blocker … Ich umgehe ihn nicht." Er zaehlte die Wege, die er kannte und
+  bewusst nicht ging, einzeln auf — Heredoc, `Set-Content`, `python -c`, `git apply` — und lieferte
+  den blockierten Zielpfad samt Exit-Code mit.
+
+**Die Bewertung ist abgestuft, nicht binaer.** Melden ist in **beiden** Faellen Pflicht; genau die
+Meldung hat den Fehlalarm sichtbar gemacht, und ein Agent, der still umgeht, haette dieselbe Arbeit
+geliefert und die Ursache begraben. Der Umweg ist **zulaessig**, solange er offengelegt wird und
+den Zielort einhaelt. Aber **Stehenbleiben und Eskalieren ist die staerkere Variante**, wenn der
+Blocker die Arbeit ohnehin ganz verhindert: es liefert die Diagnose unverfaelscht, ohne dass
+jemand hinterher rekonstruieren muss, was am Waechter vorbei geschrieben wurde. Wer umgeht,
+schuldet die Offenlegung **sofort und als Antwort**, nicht beilaeufig in einem spaeteren Dokument —
+im Vorfall vom 2026-08-17 wurde nach genau dieser Auskunft gefragt, und sie tauchte erst als
+Nebenprodukt auf, als der Code laengst in einem PR lag.
 
 **How to apply:** Trifft ein Kontroll-Hook zu, wo er nicht sollte, ist der Umweg zulaessig — aber
 er erzeugt eine **Bringschuld**, keine Erledigung. Drei Punkte, in dieser Reihenfolge:
@@ -47,7 +62,11 @@ er erzeugt eine **Bringschuld**, keine Erledigung. Drei Punkte, in dieser Reihen
 3. **Umgehung nie ueber einen Weg, den der Hook nicht sieht, ohne sie offenzulegen.** Dass
    `Bash`/`PowerShell` an `PreToolUse(Edit|Write)` vorbeilaufen, macht den Umweg moeglich und die
    Offenlegung damit erst recht noetig — sonst ist von aussen nicht unterscheidbar, ob eine Regel
-   eingehalten oder nur nicht gemessen wurde.
+   eingehalten oder nur nicht gemessen wurde. Die Offenlegung nennt **was und wohin** geschrieben
+   wurde, und sie kommt, **bevor** committet wird.
+4. **Verhindert der Blocker die Arbeit ohnehin vollstaendig, ist Stehenbleiben besser als der
+   Umweg.** Dann kostet Eskalieren nichts ausser Wartezeit und liefert die sauberste Diagnose.
+   Lohnt der Umweg (die Arbeit laeuft sonst weiter), ist er zu nehmen **und** sofort zu melden.
 
 Verwandt: [[maschinelle-absicherung-statt-review-regel]] (ein mechanischer Waechter ersetzt ein
 Review — dann muss er aber am richtigen Merkmal messen), [[pruefkommando-muss-messen-was-es-behauptet]],
