@@ -22,10 +22,9 @@ Die Faelle liegen teils hier, teils in [`email_errors.py`](./email_errors.py)
 (Importzyklus, dort begruendet); die Union unten waechst mit jedem weiteren
 Use Case.
 
-Die Formulierung fuer Menschen gehoert **nicht** hierher, sondern in die
-Application-Schicht: die Domaene sagt, *was* der Fall ist, nicht *wie* er heisst.
-Der vollstaendige `match` in `application/shared/domain_error_message.py` meldet
-sofort, wenn zu einem neuen Fall die Meldung fehlt.
+Die Formulierung fuer Menschen gehoert **nicht** hierher, sondern an den Rand:
+die Domaene sagt, *was* der Fall ist, nicht *wie* er heisst. Dass zu jedem neuen
+Fall auch eine Textvorlage existiert, melden die oben genannten Waechter.
 """
 
 from dataclasses import dataclass
