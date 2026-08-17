@@ -51,7 +51,7 @@ im Vorfall vom 2026-08-17 wurde nach genau dieser Auskunft gefragt, und sie tauc
 Nebenprodukt auf, als der Code laengst in einem PR lag.
 
 **How to apply:** Trifft ein Kontroll-Hook zu, wo er nicht sollte, ist der Umweg zulaessig — aber
-er erzeugt eine **Bringschuld**, keine Erledigung. Drei Punkte, in dieser Reihenfolge:
+er erzeugt eine **Bringschuld**, keine Erledigung. Vier Punkte, in dieser Reihenfolge:
 
 1. **Sofort pruefen, woran der Waechter entscheidet**, bevor man weiterarbeitet: liest er das
    Ziel oder den Kontext des Aufrufers? Ein Waechter, der Kontext liest, hat ein Fehlalarm-Muster
