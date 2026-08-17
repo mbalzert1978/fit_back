@@ -239,14 +239,14 @@ er das per `asyncio.TaskGroup`.
 
 ```python
 class DhcpServerRepository(Protocol):
-    async def load(self, server: ServerName) -> "Result[DhcpServer, DomainError]": ...
+    async def load(self, server: ServerName) -> "Result[DhcpServer, DhcpServerError]": ...
 
 
 class DhcpServerRepositoryAdapter:
     def __init__(self, gateway: MacSearchDhcpGateway) -> None:
         self._gateway = gateway
 
-    async def load(self, server: ServerName) -> "Result[DhcpServer, DomainError]":
+    async def load(self, server: ServerName) -> "Result[DhcpServer, DhcpServerError]":
         match await self._gateway.get_scopes(server.value):
             case ScopesFound(scopes=scopes):
                 async with asyncio.TaskGroup() as tg:
@@ -340,7 +340,7 @@ Dataclasses nebeneinander sind keine Trennung, nur Duplikat.
 
 **Outcome** braucht es nur, wenn die Operation einen Fehlschlag kennt, der *dem Slice* gehoert und
 nicht der Domaene. Ist das Domaenen-`Result` bereits das vollstaendige Ergebnis, gibt der Handler
-es **direkt** zurueck (`Handler = Callable[[Command], Result[Order, DomainError]]`) — ein Wrapper,
+es **direkt** zurueck (`Handler = Callable[[Command], Result[Order, OrderRepositoryError]]`) — ein Wrapper,
 der nur einen Fall umhuellt, ist Zeremonie.
 
 ### Ein Mapper pro Richtung, nicht einer pro Operation
