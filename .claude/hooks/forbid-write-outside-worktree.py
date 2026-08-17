@@ -5,7 +5,11 @@
 #   1. cwd inside .claude/worktrees/<name>  -> every write into the main checkout is
 #      blocked. Paths outside the repo (scratchpad, temp) stay allowed.
 #   2. cwd in the main checkout, call comes from a sub-agent (agent_id present) and at
-#      least one worktree is registered -> every write into the main checkout is blocked.
+#      least one worktree is registered -> writes into the main checkout are blocked, but
+#      a write that lands inside a registered worktree passes: that is not the main
+#      checkout, and it is the only case 2 write a sub-agent can legitimately make. It
+#      cannot cd its way out of this case, because Edit/Write report the session cwd and
+#      a `cd` in a Bash call does not move it (2026-08-17).
 #      This is the 2026-08-07 incident: a sub-agent does not inherit its parent's cd and
 #      lands in the main checkout, indistinguishable from a legitimate session except for
 #      agent_id.
@@ -66,7 +70,7 @@ def containing_worktree(cwd, base):
     return base / cwd.relative_to(base).parts[0]
 
 
-def any_worktree_registered(root, base):
+def registered_worktrees(root, base):
     """git is authoritative here: a leftover directory is not an active worktree."""
     try:
         out = subprocess.run(
@@ -77,14 +81,15 @@ def any_worktree_registered(root, base):
             timeout=5,
         )
     except (OSError, subprocess.SubprocessError):
-        return False
+        return []
     if out.returncode != 0:
-        return False
-    return any(
-        Path(line[len("worktree ") :].strip()).resolve().is_relative_to(base)
+        return []
+    listed = (
+        Path(line[len("worktree ") :].strip()).resolve()
         for line in out.stdout.splitlines()
         if line.startswith("worktree ")
     )
+    return [path for path in listed if path.is_relative_to(base)]
 
 
 def block(message):
@@ -133,7 +138,11 @@ if worktree is not None:
         )
     sys.exit(0)
 
-if data.get("agent_id") and any_worktree_registered(root, base):
+worktrees = registered_worktrees(root, base)
+
+if data.get("agent_id") and worktrees:
+    if any(target.is_relative_to(path) for path in worktrees):
+        sys.exit(0)  # lands in a worktree, so not the main checkout
     block(
         f"Blockiert: Sub-Agent schreibt in den Haupt-Checkout, waehrend ein Worktree "
         f"offen ist.\n"
