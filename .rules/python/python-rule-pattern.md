@@ -152,15 +152,45 @@ Nur einsetzen, wenn zwei *verschiedene* Request-Typen tatsaechlich dieselbe Vali
 ueber dieselben Felder stellen (Ausfuehrung vs. Vorschau derselben Operation) — nicht, um
 unverwandte Typen in ein gemeinsames Regelwerk zu zwingen, dem sie inhaltlich nicht zustimmen.
 
-## Validierungsregeln laufen in der Handler-Pipeline, nicht vorab im Command geparst
+## Eine Regel darf warten: `AsyncRule[T]` neben `Rule[T]`
 
-Die Collect-all-`Rule` wird direkt gegen das public Request-DTO registriert und von einem
-Validierungs-Decorator (siehe [python-error-handling.md](./python-error-handling.md) fuer den
-`Result`-Typ und [python-feature-slices.md](./python-feature-slices.md) fuer die
-Handler-Pipeline) konsumiert — der Kern-Handler sieht nie einen ungueltigen Request, und die
-Command-Konstruktion, die daraus die Domaenen-Value-Objects baut, ist **infallibel**: Validierung
-ist bereits eine Ebene hoeher gelaufen, das Command braucht deshalb keinen eigenen
-`Result`/Fehlerkanal, der diese Pruefung dupliziert.
+Manche Fragen sind ohne IO nicht zu beantworten — ein Nachschlagen in einer Referenzliste, eine
+Rueckfrage bei einem fremden Context ueber einen Port. Als `Rule[T]` sind sie nicht formulierbar
+und wandern sonst zwangslaeufig in den Handler, wo sie niemand mehr als Regel wiederfindet. Dafuer
+steht neben der synchronen Form dieselbe Form mit Wartezeit:
+
+```python
+type AsyncRule[T] = Callable[[T], Awaitable[list[FieldError]]]
+
+
+def all_of_async[T](*rules: AsyncRule[T]) -> AsyncRule[T]: ...   # alle laufen, alle Meldungen fallen an
+def as_async[T](rule: Rule[T]) -> AsyncRule[T]: ...              # hebt eine synchrone Regel
+```
+
+Zwei Dinge daran sind Regel, nicht Geschmack:
+
+- **Eine synchrone Regel wird gehoben, nicht `async` umgeschrieben.** `as_async` macht sie
+  anschlussfaehig; sie ohne IO als `async def` zu schreiben ist eine Zusage, die sie nicht einloest.
+- **Kein Cancellation-Token daneben.** `asyncio` propagiert den Abbruch ueber `CancelledError`
+  selbst; `all_of_async` nutzt `asyncio.TaskGroup`, damit unabhaengige Regeln nebenlaeufig laufen
+  und der Abbruch an alle durchschlaegt ([python-async.md](./python-async.md)).
+
+Die Kombinatoren **OR** und **Conditional** aus der Vorlage sind bewusst nicht gebaut — sie kommen
+mit dem ersten Fall, der sie braucht (`docs/decisions/2026-08-07-1331-…`).
+
+## Validierungsregeln laufen als erstes Behavior der Pipeline, nicht vorab im Command geparst
+
+Die Collect-all-`Rule` wird direkt gegen das public Request-DTO registriert und vom
+**Validierungs-Behavior** der Pipeline konsumiert (`validating(...)` in
+`shared_kernel/pipeline.py`; siehe [python-error-handling.md](./python-error-handling.md) fuer den
+`Result`-Typ und [python-feature-slices.md](./python-feature-slices.md) fuer die Behavior-Kette).
+Es hebt die gesammelten `FieldError` in den **einen** Fehlerkanal des Use Case und kuerzt ab —
+nicht ein `if` im Slice, das einen zweiten Kanal und einen zweiten Fold nach sich zoege.
+
+Damit sieht der Kern-Handler nie einen ungueltigen Request, und die Command-Konstruktion, die
+daraus die Domaenen-Value-Objects baut, ist **infallibel**: Validierung ist bereits eine Ebene
+hoeher gelaufen, das Command braucht deshalb keinen eigenen `Result`/Fehlerkanal, der diese
+Pruefung dupliziert.
 
 ## Review-Checkliste
 
@@ -170,4 +200,5 @@ ist bereits eine Ebene hoeher gelaufen, das Command braucht deshalb keinen eigen
 - [ ] Keine Regel wird nach einem Fehlschlag ein zweites Mal ausgewertet, nur um herauszufinden, welche Teilregel fehlgeschlagen ist — diese Information kommt aus der einen Auswertung.
 - [ ] Keine feature-lokale `Protocol`-Klasse bildet `Rule`/`ResultRule` strukturell nach; Features importieren/komponieren den gemeinsamen Typalias.
 - [ ] Eine ueber mehrere Request-Typen geteilte Regel ist dadurch gerechtfertigt, dass sie wirklich dieselbe Frage ueber dieselben Felder stellt, ausgedrueckt ueber ein gemeinsames `Protocol` — nicht durch das Zusammenzwingen unverwandter Typen.
-- [ ] Validierung laeuft in der Pipeline via `Rule[TRequest]`, nicht vorab im Command geparst; die Command-Konstruktion ist infallibel, sobald Validierung vorgelagert bereits gelaufen ist.
+- [ ] Validierung laeuft als **erstes Behavior** der Pipeline via `Rule[TRequest]`/`AsyncRule[TRequest]`, nicht als `if` im Slice und nicht vorab im Command geparst; die Command-Konstruktion ist infallibel, sobald Validierung vorgelagert bereits gelaufen ist.
+- [ ] Eine Regel ist nur dann `AsyncRule`, wenn sie wirklich IO braucht; eine synchrone Regel wird mit `as_async` gehoben, nicht umgeschrieben.
