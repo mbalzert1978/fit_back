@@ -1,5 +1,6 @@
 """Tests für Idempotency-Key-Middleware."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -8,9 +9,11 @@ from fastapi.responses import JSONResponse
 
 from src.contexts.shared_kernel.time_provider import FakeTimeProvider
 from src.middleware.idempotency import (
+    LOGGED_KEY_MAX_LENGTH,
     IdempotencyKeyMiddleware,
     calculate_request_hash,
     is_idempotent_method,
+    truncate_for_log,
 )
 
 
@@ -158,3 +161,67 @@ class TestIdempotencyKeyMiddlewareConfiguration:
         middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
         assert middleware.ttl_days == 7
+
+
+class TestTruncateForLog:
+    """Tests fuer truncate_for_log()."""
+
+    def test_value_within_limit_stays_unchanged(self) -> None:
+        """Ein Wert bis zur Obergrenze wird unveraendert durchgereicht."""
+        value = "x" * LOGGED_KEY_MAX_LENGTH
+
+        assert truncate_for_log(value) == value
+
+    def test_overlong_value_is_cut_marked_and_carries_length(self) -> None:
+        """Ein zu langer Wert wird gekuerzt, markiert und nennt die Laenge des Originals."""
+        value = "a" * LOGGED_KEY_MAX_LENGTH + "b" * 200
+
+        truncated = truncate_for_log(value)
+
+        assert value not in truncated
+        assert truncated.startswith("a" * LOGGED_KEY_MAX_LENGTH)
+        assert "gekuerzt" in truncated
+        assert str(len(value)) in truncated
+
+
+@pytest.mark.asyncio
+class TestInvalidIdempotencyKeyLogging:
+    """Der abgelehnte Header landet gekuerzt im Log, nicht in voller Laenge."""
+
+    @staticmethod
+    async def _dispatch_with_key(key_header: str) -> None:
+        """Schicke eine POST-Anfrage mit diesem Idempotency-Key durch die Middleware."""
+        middleware = IdempotencyKeyMiddleware(MagicMock(), time_provider=FakeTimeProvider())
+
+        request = AsyncMock()
+        request.method = "POST"
+        request.headers = {"Idempotency-Key": key_header}
+
+        call_next = AsyncMock()
+        call_next.return_value = JSONResponse({"status": "created"}, status_code=201)
+
+        await middleware.dispatch(request, call_next)
+
+    async def test_overlong_key_is_logged_truncated(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Der volle Wert fehlt im Log; gekuerzte Form und Originallaenge stehen darin."""
+        overlong = "a" * LOGGED_KEY_MAX_LENGTH + "b" * 500
+
+        with caplog.at_level(logging.WARNING, logger="src.middleware.idempotency"):
+            await self._dispatch_with_key(overlong)
+
+        assert overlong not in caplog.text
+        assert "a" * LOGGED_KEY_MAX_LENGTH in caplog.text
+        assert "gekuerzt" in caplog.text
+        assert str(len(overlong)) in caplog.text
+
+    async def test_key_within_limit_is_logged_unchanged(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Ein Wert innerhalb der Obergrenze wird nicht angetastet."""
+        key_header = "not-a-uuid"
+
+        with caplog.at_level(logging.WARNING, logger="src.middleware.idempotency"):
+            await self._dispatch_with_key(key_header)
+
+        assert f"Invalid Idempotency-Key format: {key_header}" in caplog.text
+        assert "gekuerzt" not in caplog.text

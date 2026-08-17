@@ -83,6 +83,10 @@ CACHEABLE_STATUS_CODES = frozenset({200, 201})
 KEY_REUSED_TYPE = "https://api.example/errors/idempotency-key-reused"
 REQUEST_IN_PROGRESS_TYPE = "https://api.example/errors/request-in-progress"
 
+# So viele Zeichen eines abgelehnten Header-Werts kommen ins Log. Eine UUID hat
+# 36 Zeichen; wer sich in einer vertippt hat, sieht seinen Wert damit noch ganz.
+LOGGED_KEY_MAX_LENGTH = 64
+
 # Reservierung und Entscheidung in einem Statement: gibt es die Zeile schon,
 # kommt nichts zurueck - und genau das ist die Auskunft "ein anderer war
 # schneller". Ohne vorgelagertes SELECT gibt es dazwischen kein Zeitfenster.
@@ -155,6 +159,28 @@ def is_idempotent_method(method: str) -> bool:
 
     """
     return method.upper() in IDEMPOTENT_METHODS
+
+
+def truncate_for_log(value: str) -> str:
+    """Kuerze einen Wert des Aufrufers auf ein Mass, das sich gefahrlos loggen laesst.
+
+    Ein abgelehnter Header ist ungeprueft und beliebig lang; ungekuerzt geloggt
+    macht ihn eine einzige Anfrage zu Log-Flooding. Zur Diagnose traegt hinter
+    den ersten Zeichen nichts mehr bei - ausser der Laenge des Originals, die
+    deshalb in der Markierung steht.
+
+    Args:
+        value: Der zu loggende Wert
+
+    Returns:
+        Den Wert unveraendert, solange er `LOGGED_KEY_MAX_LENGTH` nicht
+        ueberschreitet; sonst seinen Anfang, als gekuerzt markiert und um die
+        Laenge des Originals ergaenzt.
+
+    """
+    if len(value) <= LOGGED_KEY_MAX_LENGTH:
+        return value
+    return f"{value[:LOGGED_KEY_MAX_LENGTH]}... [gekuerzt, Originallaenge {len(value)}]"
 
 
 async def claim_key(
@@ -275,7 +301,9 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         try:
             idempotency_key = UUID(idempotency_key_header)
         except ValueError:
-            logger.warning(f"Invalid Idempotency-Key format: {idempotency_key_header}")  # noqa: G004 -- Non-sensitive validation info
+            logger.warning(
+                "Invalid Idempotency-Key format: %s", truncate_for_log(idempotency_key_header)
+            )
             return await call_next(request)
 
         # Die Idempotenz haengt an der Nutzeridentitaet - die setzt die
