@@ -12,8 +12,8 @@ from src.middleware.idempotency import (
     LOGGED_KEY_MAX_LENGTH,
     IdempotencyKeyMiddleware,
     calculate_request_hash,
+    format_key_for_log,
     is_idempotent_method,
-    truncate_for_log,
 )
 
 
@@ -163,25 +163,48 @@ class TestIdempotencyKeyMiddlewareConfiguration:
         assert middleware.ttl_days == 7
 
 
-class TestTruncateForLog:
-    """Tests fuer truncate_for_log()."""
+class TestFormatKeyForLog:
+    """Tests fuer format_key_for_log()."""
 
     def test_value_within_limit_stays_unchanged(self) -> None:
-        """Ein Wert bis zur Obergrenze wird unveraendert durchgereicht."""
+        """Ein Wert bis zur Obergrenze wird unverstuemmelt durchgereicht, nur eingefasst."""
         value = "x" * LOGGED_KEY_MAX_LENGTH
 
-        assert truncate_for_log(value) == value
+        formatted = format_key_for_log(value)
 
-    def test_overlong_value_is_cut_marked_and_carries_length(self) -> None:
-        """Ein zu langer Wert wird gekuerzt, markiert und nennt die Laenge des Originals."""
-        value = "a" * LOGGED_KEY_MAX_LENGTH + "b" * 200
+        assert formatted == repr(value)
+        assert value in formatted
+        assert "gekuerzt" not in formatted
 
-        truncated = truncate_for_log(value)
+    def test_one_character_over_the_limit_is_already_cut(self) -> None:
+        """Ein einziges Zeichen ueber der Grenze wird gekuerzt und nennt die Originallaenge."""
+        value = "a" * LOGGED_KEY_MAX_LENGTH + "b"
 
-        assert value not in truncated
-        assert truncated.startswith("a" * LOGGED_KEY_MAX_LENGTH)
-        assert "gekuerzt" in truncated
-        assert str(len(value)) in truncated
+        formatted = format_key_for_log(value)
+
+        assert value not in formatted
+        assert formatted.startswith(repr("a" * LOGGED_KEY_MAX_LENGTH))
+        assert "gekuerzt" in formatted
+        assert str(len(value)) in formatted
+
+    def test_marker_inside_the_value_cannot_pose_as_a_truncation(self) -> None:
+        """Ein Wert, der wie eine Kuerzungs-Marke aussieht, bleibt in den Anfuehrungszeichen."""
+        forged = "abc... [gekuerzt, Originallaenge 999999]"
+        assert len(forged) <= LOGGED_KEY_MAX_LENGTH
+
+        formatted = format_key_for_log(forged)
+
+        assert formatted == repr(forged)
+        assert not formatted.endswith("]")
+
+    def test_control_characters_never_reach_the_log_raw(self) -> None:
+        """Steuerzeichen im Wert stehen maskiert im Log, nicht roh."""
+        formatted = format_key_for_log("a\nb\tc")
+
+        assert "\n" not in formatted
+        assert "\t" not in formatted
+        assert "\\n" in formatted
+        assert "\\t" in formatted
 
 
 @pytest.mark.asyncio
@@ -223,5 +246,6 @@ class TestInvalidIdempotencyKeyLogging:
         with caplog.at_level(logging.WARNING, logger="src.middleware.idempotency"):
             await self._dispatch_with_key(key_header)
 
-        assert f"Invalid Idempotency-Key format: {key_header}" in caplog.text
+        assert f"Invalid Idempotency-Key format: {key_header!r}" in caplog.text
+        assert key_header in caplog.text
         assert "gekuerzt" not in caplog.text
