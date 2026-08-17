@@ -206,4 +206,10 @@ async def test_das_ereignis_erreicht_einen_registrierten_handler(
     (announced,) = delivered
     assert announced.event_type == UserRegistered.EVENT_TYPE
     assert announced.occurred_at == Timestamp(_REGISTERED_AT)
-    assert announced.payload == {"user_id": result.user_id, "locale": "de"}
+    assert announced.payload == {
+        "userId": result.user_id,
+        "email": "markus@example.de",
+        "locale": "de",
+        "timeZoneId": "Europe/Berlin",
+        "registeredAt": _REGISTERED_AT,
+    }
