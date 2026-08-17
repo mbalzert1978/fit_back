@@ -9,7 +9,7 @@ import pytest
 
 from src.contexts.shared_kernel.pipeline import Behavior, Handler, build_pipeline
 from src.contexts.shared_kernel.result import Err, Ok, Result
-from src.contexts.shared_kernel.validation import FieldError, all_of_async
+from src.contexts.shared_kernel.validation import AsyncRule, FieldError, all_of_async
 
 pytestmark = pytest.mark.asyncio
 
@@ -93,7 +93,7 @@ async def test_ein_abkuerzendes_behavior_stoppt_auch_die_folgenden() -> None:
 async def test_all_of_async_sammelt_alle_befunde_in_regelreihenfolge() -> None:
     """Collect-all bleibt collect-all, auch wenn die Regeln warten muessen."""
 
-    def regel(feld: str) -> object:
+    def regel(feld: str) -> AsyncRule[str]:
         async def pruefe(_: str) -> list[FieldError]:
             return [FieldError(feld, "fehlt", {})]
 
