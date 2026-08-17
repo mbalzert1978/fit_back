@@ -55,6 +55,23 @@ def _beispiele() -> dict[str, Mapping[str, object]]:
     }
 
 
+def _beispiel_zur_nutzlast(payload: Mapping[str, object]) -> Mapping[str, object]:
+    """Loese das Beispiel ueber die **Feldmenge** auf, nie ueber seinen Dateinamen.
+
+    Additiv kommt eine neue Datei mit erhoehter `<version>` dazu, die alte bleibt
+    liegen (README daneben). Ein fest verdrahteter Dateiname pruefte danach die
+    Werte des falschen Beispiels, waehrend die Produktion laengst das neue
+    emittiert - der Test bliebe gruen und sagte nichts mehr.
+    """
+    felder = set(payload)
+    passend = {name: b for name, b in _beispiele().items() if set(b) == felder}
+    assert len(passend) == 1, (
+        f"Die Nutzlast {sorted(payload)} passt auf {sorted(passend)} statt auf genau ein Beispiel. "
+        f"Massgeblich ist die Datei unter {BEISPIELE}, nicht der Produktionscode."
+    )
+    return next(iter(passend.values()))
+
+
 def test_es_gibt_ueberhaupt_ein_beispiel() -> None:
     """Ohne Beispiel-Datei prueft der Roundtrip-Spec unten nichts und bliebe trotzdem gruen."""
     assert _beispiele(), f"Keine Beispiel-Nutzlast unter {BEISPIELE}"
@@ -68,7 +85,11 @@ def test_jedes_beispiel_traegt_die_felder_der_konsumenten(name: str) -> None:
 
 @pytest.mark.asyncio
 async def test_das_emittierte_ereignis_entspricht_genau_einem_beispiel() -> None:
-    """Feldmenge identisch - kein Feld zuviel, keines zu wenig."""
+    """Feldmenge identisch - kein Feld zuviel, keines zu wenig.
+
+    Das Aufloesen **ist** hier die Pruefung: `_beispiel_zur_nutzlast` verlangt
+    genau ein Beispiel mit dieser Feldmenge und liefert dessen Inhalt.
+    """
     api = RegisterUserTestApi().at_unix_time(ZEITPUNKT)
 
     ergebnis = await api.run(
@@ -84,13 +105,7 @@ async def test_das_emittierte_ereignis_entspricht_genau_einem_beispiel() -> None
     assert isinstance(ergebnis, RegistrationAccepted)
     (gemeldet,) = api.published_events
     assert gemeldet.event_type == UserRegistered.EVENT_TYPE
-    passend = [
-        name for name, beispiel in _beispiele().items() if set(beispiel) == set(gemeldet.payload)
-    ]
-    assert len(passend) == 1, (
-        f"Die Nutzlast {sorted(gemeldet.payload)} passt auf {passend} statt auf genau ein Beispiel. "
-        f"Massgeblich ist die Datei unter {BEISPIELE}, nicht der Produktionscode."
-    )
+    assert _beispiel_zur_nutzlast(gemeldet.payload)
 
 
 @pytest.mark.asyncio
@@ -110,7 +125,7 @@ async def test_das_emittierte_ereignis_traegt_die_werte_des_beispiels() -> None:
 
     assert isinstance(ergebnis, RegistrationAccepted)
     (gemeldet,) = api.published_events
-    beispiel = _beispiele()["v1-vollstaendig.json"]
+    beispiel = _beispiel_zur_nutzlast(gemeldet.payload)
     assert gemeldet.payload[ERZEUGT] == ergebnis.user_id
     assert {feld: wert for feld, wert in gemeldet.payload.items() if feld != ERZEUGT} == {
         feld: wert for feld, wert in beispiel.items() if feld != ERZEUGT
