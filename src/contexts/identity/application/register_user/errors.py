@@ -10,6 +10,12 @@ und nicht ueber `UserRegistryError` gebildet: waechst die Port-Union, soll das
 eine Aenderung **hier** erzwingen und nicht still durchschlagen. Der Fold in
 `mappers/register_user_response_mapper.py` haette den neuen Fall sonst erst zur
 Laufzeit im `assert_never` gemeldet.
+
+Erzwungen wird das nicht vom Typpruefer - den hat dieser Stack bewusst nicht
+(`.rules/python/README.md`) -, sondern gemessen von
+`tests/contexts/identity/test_register_user_error_channel.py`: er zaehlt die
+Ausgaenge von `UserRegistryError` gegen die Faelle dieser Union und diese gegen
+die Arme des Folds. Waechst die Port-Union, wird er rot.
 """
 
 from collections.abc import Sequence
