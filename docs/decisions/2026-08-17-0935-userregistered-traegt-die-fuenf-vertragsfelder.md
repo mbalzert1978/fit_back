@@ -12,13 +12,18 @@ Die Nutzlast von `UserRegistered` traegt ab sofort fuenf Felder, in camelCase:
 { "userId": "…", "email": "…", "locale": "de", "timeZoneId": "Europe/Berlin", "registeredAt": 1798221600 }
 ```
 
-Der veroeffentlichte Vertrag liegt als Datei unter
-`src/contexts/identity/contracts/events/user_registered/examples/v1-vollstaendig.json`; bei einer
-Abweichung ist **die Datei massgeblich**, nicht der Produktionscode.
-`src/contexts/identity/specs/contracts/test_user_registered_contract.py` misst das tatsaechlich
-emittierte Ereignis dagegen — Feldmenge identisch, nicht nur Teilmenge.
-
 Vorher trug die Nutzlast `user_id` und `locale`.
+
+> **Nachtrag vom selben Tag, nach dem Review zu PR #91.** Dieser Eintrag hielt hier
+> urspruenglich fest, der veroeffentlichte Vertrag liege als Beispiel-Datei unter
+> `contracts/events/user_registered/examples/` und werde von einem eigenen Contract-Spec
+> dagegen gemessen. **Dieser Mechanismus ist zurueckgenommen** — Contract-Testing laeuft in
+> diesem Repo ueber Pact, consumer-driven vom Frontend nach unten
+> ([#94](https://github.com/mbalzert1978/fit_back/issues/94)). Die Entscheidung *dieses*
+> Eintrags — welche fuenf Felder die Nutzlast traegt — ist davon unberuehrt und gilt
+> unveraendert; gedeckt ist sie heute durch die Slice-Specs. Nur die Begruendung ueber die
+> Beispiel-Datei ist entfallen. Der Absatz ist stehen gelassen und nicht umgeschrieben, weil
+> dieses Verzeichnis ein datiertes Protokoll ist und kein gepflegter Ist-Stand.
 
 ## Warum, und wogegen abgewogen wurde
 
