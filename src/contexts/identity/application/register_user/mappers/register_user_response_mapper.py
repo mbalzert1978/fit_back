@@ -23,9 +23,14 @@ def to_response(outcome: Result[User, RegisterUserError]) -> RegisterUserRespons
     """Uebersetze den Ausgang der Pipeline in die public Antwort.
 
     Hier wird gematcht statt `map`/`bind` verkettet, und das ist Absicht: aus
-    einem `Result` werden drei **verschiedene** Response-Typen. Das ist ein Fold
-    aus dem `Result` heraus, keine Transformation darin - `map` kaeme nie aus dem
-    Ok-Zweig heraus.
+    einem `Result` werden drei **verschiedene** Response-Typen. Die Kette kaeme da
+    durchaus heraus - `map` plus `map_err` und eine Extraktion aus dem
+    `Result[Response, Response]` am Ende. Sie traegt bis dorthin aber eine
+    Unterscheidung weiter, die der naechste Schritt ohnehin einebnet, und verteilt
+    die Response-Erzeugung auf zwei Funktionen plus einen Einsammelschritt, statt
+    sie an **einer** Stelle zu halten. `assert_never` bliebe in beiden Formen
+    erhalten - in der Kette waende es im `map_err` ueber die Fehler-Union; es
+    spricht fuer keine der beiden.
 
     **Der eine Fold des Slice.** Bis Stufe 3 gab es zwei - einen fuer die
     Feldfehler aus der Validierung, einen fuer den Domaenenfehler aus dem

@@ -23,14 +23,17 @@ class UserRegistered:
     Tag bilden. Ein Nachfragen waere jedes Mal ein synchroner Rueckruf in genau
     den Context, der gerade fire-and-forget gemeldet hat.
 
-    Der **verbindliche** Feldbestand steht nicht hier, sondern in
-    `contracts/events/user_registered/examples/` - eine `.json`-Datei je Fall.
-    Bei einer Abweichung ist die Beispiel-Datei massgeblich und dieser Code
-    falsch, nicht umgekehrt: sie ist der veroeffentlichte Vertrag, und
-    `specs/contracts/test_user_registered_contract.py` misst ihn gegen das
-    tatsaechlich emittierte Ereignis. Ein Feld darf additiv dazukommen (neue
-    Datei mit erhoehter `<version>`); Umbenennen oder Entfernen ist ein Bruch
-    und braucht ein eigenes Ticket, das die Konsumenten mitzieht.
+    Gedeckt ist der Feldbestand heute allein durch die Slice-Specs
+    (`specs/register_user/test_register_user.py` misst die Nutzlast des
+    emittierten Ereignisses Feld fuer Feld). Einen eigenen Contract-Test gibt es
+    nicht: Contract-Testing laeuft in diesem Repo ueber Pact, consumer-driven vom
+    Frontend nach unten; welche Form der Vertrag bekommt, entscheidet
+    [#94](https://github.com/mbalzert1978/fit_back/issues/94).
+
+    Unabhaengig davon bleibt es dabei: ein Feld darf additiv dazukommen, aber
+    eines umzubenennen oder zu entfernen ist ein Bruch und braucht ein eigenes
+    Ticket, das die Konsumenten mitzieht. Diese Zusage haengt nicht am
+    Pruefverfahren.
 
     Primitive statt Value Objects, weil das hier die Aussenseite ist - ein
     `UserId` des Identity-Context haette in Goals nichts verloren.
