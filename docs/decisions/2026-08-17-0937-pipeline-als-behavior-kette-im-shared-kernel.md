@@ -5,7 +5,7 @@
 
 ## Was entschieden wurde
 
-`src/contexts/shared_kernel/pipeline.py` (nur stdlib) traegt drei Bausteine:
+`src/contexts/shared_kernel/pipeline.py` (nur stdlib) traegt **die Naht und sonst nichts**:
 
 ```python
 type Handler[TIn, TOut, E] = Callable[[TIn], Awaitable[Result[TOut, E]]]
@@ -13,12 +13,26 @@ type Behavior[TIn, TOut, E] = Callable[[TIn, Handler[TIn, TOut, E]], Awaitable[R
 
 
 def build_pipeline[TIn, TOut, E](handler, *behaviors) -> Handler[TIn, TOut, E]: ...
+```
+
+Jedes **konkrete** Behavior liegt in einer eigenen Einheit unter
+`src/contexts/shared_kernel/behaviors/` und haengt von der Naht ab, nicht umgekehrt — heute genau
+eines:
+
+```python
+# behaviors/validating.py
 def validating[TIn, TOut, E](rule: AsyncRule[TIn], on_invalid) -> Behavior[TIn, TOut, E]: ...
 ```
 
+Die Trennung ist die Antwort auf die Frage, wo das **zweite** Querschnitts-Behavior hingehoert: als
+Nachbarmodul in `behaviors/`. Bliebe es bei einer Datei, aenderte sich die Naht — die alle teilen —
+jedes Mal mit, wenn ein einzelnes Behavior dazukommt, und zoege dessen Abhaengigkeiten
+(`validating` braucht `validation.py`) fuer alle mit herein.
+
 Das **erste** Behavior liegt aussen; ein Behavior, das `Err` liefert, ohne den naechsten Schritt zu
 rufen, laesst den Handler nicht laufen. Beides ist in `tests/test_pipeline.py` belegt, weil beides
-an der Signatur nicht abzulesen ist.
+an der Signatur nicht abzulesen ist; das Validierungs-Behavior in
+`tests/test_validating_behavior.py`.
 
 Der Referenz-Slice `register_user` haengt genau ein Behavior in die Kette — die
 Eingabe-Validierung — und hat danach **einen** gemeinsamen Fehlertyp (`RegisterUserError =
@@ -43,7 +57,8 @@ Logging) hatte keinen Ort ausser „ein Absatz mehr in `run`".
   synchronen Regeln des Slice werden beim Verdrahten mit `as_async` gehoben, statt sie ohne Not
   `async` zu schreiben.
 - **`validation.py` wird nicht ersetzt.** `Rule`, `all_of`, `FieldError` bleiben, wo sie sind;
-  `pipeline.py` weiss, *wann* validiert wird, nicht *was* gilt.
+  `behaviors/validating.py` weiss, *wann* validiert wird, nicht *was* gilt — und `pipeline.py`
+  weiss von beidem nichts.
 
 ## Bewusst nicht gebaut
 

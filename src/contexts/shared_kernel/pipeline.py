@@ -1,4 +1,4 @@
-"""Die Pipeline: ein Handler, umschlossen von einer Kette gleichgeformter Behaviors.
+"""Die Naht der Pipeline: ein Handler, umschlossen von einer Kette gleichgeformter Behaviors.
 
 Ein **Handler** beantwortet die fachliche Frage eines Use Case; ein **Behavior**
 sitzt davor und dahinter, ruft den naechsten Schritt selbst - oder eben nicht -
@@ -7,21 +7,20 @@ beiden Eigenschaften, um die es geht: **Reihenfolge** (das erste Behavior ist da
 aeusserste) und **Abkuerzen** (wer `Err` liefert, ohne den naechsten Schritt zu
 rufen, beendet den Durchlauf).
 
-Das ist die Stelle, an der alles Querschnittliche landet, sobald es zum zweiten
-Mal gebraucht wird - Transaktionsklammer, Idempotenz, Messung, Logging. Heute
-haengt genau ein Behavior in der Kette: die Eingabe-Validierung.
+Dieses Modul beantwortet **nur**, wie eine Kette gefaltet und gerufen wird - kein
+einziges konkretes Behavior. Die liegen je Aufgabe in einer eigenen Einheit unter
+[`behaviors/`](./behaviors/) und haengen von hier ab, nicht umgekehrt: sonst
+zoege jedes weitere Querschnitts-Behavior (Transaktionsklammer, Idempotenz,
+Messung, Logging) eine weitere Abhaengigkeit in die Naht, die alle teilen.
 
-Bewusst **nur stdlib** und bewusst **kein** Ersatz fuer `validation.py`: `Rule`,
-`all_of`/`all_of_async` und `FieldError` bleiben dort und werden hier nur
-benutzt. Dieses Modul weiss, *wann* validiert wird, nicht *was* gilt.
+Bewusst **nur stdlib**.
 """
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 
-from src.contexts.shared_kernel.result import Err, Ok, Result
-from src.contexts.shared_kernel.validation import AsyncRule, FieldError
+from src.contexts.shared_kernel.result import Result
 
-__all__ = ["Behavior", "Handler", "build_pipeline", "validating"]
+__all__ = ["Behavior", "Handler", "build_pipeline"]
 
 
 type Handler[TIn, TOut, E] = Callable[[TIn], Awaitable[Result[TOut, E]]]
@@ -60,30 +59,3 @@ def _around[TIn, TOut, E](
         return await behavior(request, inner)
 
     return run
-
-
-def validating[TIn, TOut, E](
-    rule: AsyncRule[TIn], on_invalid: Callable[[Sequence[FieldError]], E]
-) -> Behavior[TIn, TOut, E]:
-    """Baue das Behavior, das die Eingabe prueft, bevor irgendetwas anderes laeuft.
-
-    Es hebt die gesammelten `FieldError` in den **einen** Fehlerkanal der
-    Pipeline - `on_invalid` sagt, wie der Fall dieses Use Case dafuer heisst -
-    und kuerzt ab. Damit fallen die beiden frueher getrennten Fehlerkanaele
-    (Feldfehler hier, Domaenenfehler dort) zusammen und der Slice braucht nur
-    noch **einen** Fold am Ende.
-    """
-
-    async def behave(request: TIn, inner: Handler[TIn, TOut, E]) -> Result[TOut, E]:
-        checked = await _checked(rule, request, on_invalid)
-        return await checked.bind_async(inner)
-
-    return behave
-
-
-async def _checked[TIn, E](
-    rule: AsyncRule[TIn], request: TIn, on_invalid: Callable[[Sequence[FieldError]], E]
-) -> Result[TIn, E]:
-    """Werte das Regelwerk aus und uebersetze sein Urteil in den Fehlerkanal."""
-    errors = await rule(request)
-    return Err(on_invalid(errors)) if errors else Ok(request)

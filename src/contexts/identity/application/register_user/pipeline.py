@@ -40,7 +40,8 @@ from src.contexts.identity.application.register_user.response import RegisterUse
 from src.contexts.identity.application.register_user.validators import build_register_user_rules
 from src.contexts.identity.domain import IdnEncoder, User
 from src.contexts.shared_kernel import Result, TimeProvider
-from src.contexts.shared_kernel.pipeline import Handler, build_pipeline, validating
+from src.contexts.shared_kernel.behaviors import validating
+from src.contexts.shared_kernel.pipeline import Handler, build_pipeline
 from src.contexts.shared_kernel.validation import as_async
 
 __all__ = ["RegisterUserPipeline", "build_register_user_pipeline"]
