@@ -49,11 +49,13 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_review-agent-null-findings-ist-kein-freibrief.md](exp_review-agent-null-findings-ist-kein-freibrief.md) — APPROVE mit 0 Findings ist ein Rohbefund; gruene Matrix und selbst geschlossene Zweifelsfaelle sind Warnsignale
 - [exp_security-gate-triage-teamlead.md](exp_security-gate-triage-teamlead.md) — generische Security-Findings ohne Spezifikations-Basis selbst triagieren
 - [exp_spec-prueft-ergebnis-nicht-implementierung.md](exp_spec-prueft-ergebnis-nicht-implementierung.md) — viele Eingabefaelle rechtfertigen keine tiefere Testebene; fremde Bibliotheken werden nie mitgetestet
+- [exp_startquittung-ist-kein-fortschritt.md](exp_startquittung-ist-kein-fortschritt.md) — Hintergrund-Kinder eines Subagenten sterben an der Turn-Grenze; Fortschritt wird an Git gemessen, nicht an Tool-Quittungen
 - [exp_subprocess-python-literal-vs-sys-executable.md](exp_subprocess-python-literal-vs-sys-executable.md) — `subprocess.run(["python", ...])` loest ueber PATH auf, nicht zum aktiven Venv - `sys.executable` verwenden
 - [exp_sqlalchemy-list-bind-needs-any.md](exp_sqlalchemy-list-bind-needs-any.md) — Python-list als SQL-Bind-Param braucht `= ANY(:param)`, nicht `IN (:param)`
 - [exp_uv-sync-all-extras.md](exp_uv-sync-all-extras.md) — `uv sync` installiert Extras nicht automatisch, `--all-extras` noetig
 - [exp_verify-subagent-progress-claims.md](exp_verify-subagent-progress-claims.md) — Fortschrittsmeldungen von Orchestrator-Agenten per git/gh selbst verifizieren, nie ungeprueft weiterreichen
 - [exp_versionswahl-aktuell-statt-gewohnheit.md](exp_versionswahl-aktuell-statt-gewohnheit.md) — aktuelle stabile Version statt Trainingsdaten-Gewohnheit waehlen
+- [exp_waechter-fehlalarm-nicht-umgehen-sondern-melden.md](exp_waechter-fehlalarm-nicht-umgehen-sondern-melden.md) — ein Kontroll-Hook, der am Aufrufer-Kontext statt am Zielpfad entscheidet, wird gemeldet, nicht still umgangen
 - [exp_workflow-agent-cd-explizit.md](exp_workflow-agent-cd-explizit.md) — Workflow-Pipeline-Prompts brauchen explizites `cd` in den Worktree
 - [exp_workflow-tool-args-bug.md](exp_workflow-tool-args-bug.md) — Workflow-Tool `args` kann `undefined` sein, Eingaben hardcoden
 - [exp_zweifelsfaelle-bericht-deckt-regel-luecken-auf.md](exp_zweifelsfaelle-bericht-deckt-regel-luecken-auf.md) — verpflichtender Zweifelsfall-Bericht im Agenten-Brief ist der billigste Test der eigenen Regel
