@@ -23,13 +23,24 @@ Jedes Feature ist ein eigenes Python-Paket, intern geschichtet:
 | `application/` | public Request-/Response-DTOs, public Ports (Gateway/Datenquelle) + deren Ergebnis-Typen, interner **Command** (VOs, ggf. unter `shared/` geteilt), interne **Handler** (Orchestrator), interne **Port-Adapter** (Domain-Port-Implementierung, Anti-Corruption-Layer), **Mapper** (je Richtung eine Funktion/Klasse), **Eingabe-Validierungsregeln** (`Rule Pattern`, collect-all, unter `validators/`), **Test-API + In-Memory-Fakes** (siehe unten — Teil des Slice, nicht des Testprojekts), Wiring | `domain`, gemeinsames `common`-Paket, minimales DI (z. B. reine Funktionen/`functools.partial`, kein Framework noetig) |
 | `specs/<use_case>/` | Verhaltens-Specs, ausschliesslich ueber die public Test-API des Use Case — **der Regelfall** | nur das Feature-Paket selbst (keine `_private`-Importe quer durchs Paket) |
 | `specs/domain/` | Domain-Unit-Test je Aggregat/Value Object/Union, **nur wenn das Verhalten ueber die Test-API nicht ausdrueckbar ist** | die Domaene direkt |
-| `specs/contracts/` | Contract-Tests an Context-Grenzen ([`02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md), Form A) | das eigene Port-`Protocol` |
+| `specs/contracts/` | Contract-Tests an Context-Grenzen ([`02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md), Form A) — **derzeit leer, Form offen**, siehe Hinweis unter der Tabelle | das eigene Port-`Protocol` |
 
 Der Ordner heisst `specs/`, nicht `tests/`: er enthaelt nicht nur Tests im engeren Sinn, sondern
 die **ausfuehrbare Spezifikation** des Verhaltens. `slice-shape-check` prueft nur `specs/<use_case>/`
 gegen die Test-API-Regel; die beiden anderen Unterordner sind davon ausgenommen, weil sie
 per Definition tiefer greifen — und genau deshalb sind sie die Ausnahme, nicht die zweite
 Standardebene.
+
+> **`specs/contracts/` ist derzeit leer, und das ist ein offener Punkt, kein Endzustand.** Dass es
+> Contract-Tests an Context-Grenzen gibt, steht fest; **wie** sie aussehen, nicht. Der frueher hier
+> beschriebene Mechanismus — handgeschriebene Beispiel-Payloads unter
+> `contracts/events/<event>/examples/*.json` samt Roundtrip-Test — ist zurueckgenommen worden.
+> Contract-Testing laeuft in diesem Repo kuenftig ueber **Pact**, consumer-driven vom Frontend nach
+> unten; die Form entscheidet
+> [#94](https://github.com/mbalzert1978/fit_back/issues/94). Bis dahin wird hier **kein** neuer
+> Contract-Test angelegt, und die Feldmenge veroeffentlichter Ereignisse ist nur durch die
+> Slice-Specs gedeckt. Auch `02-test-pyramide.md` beschreibt unter „Form B" noch den alten
+> Mechanismus und wird mit #94 nachgezogen.
 
 ### Ein Spec prueft das Ergebnis, nicht den Weg dorthin
 
@@ -74,8 +85,11 @@ application/<use_case>/
 Domaenenfehler zusammenfallen (siehe „Die Pipeline ist eine Kette von Behaviors" weiter unten).
 
 Ein **Bounded Context** ist die Feature-Paket-Grenze: **eine** `domain/`-Schicht, darunter **je Use Case
-ein eigener `application/<use_case>/`-Ordner**. Der Fehlertyp (`Result[T, E]`, siehe unten) ist damit
-**context-eigen**, nicht use-case-eigen — alle Use Cases eines Contexts teilen ihn.
+ein eigener `application/<use_case>/`-Ordner**. Der Fehlertyp folgt dieser Grenze **nicht**: das `E`
+in `Result[T, E]` gehoert der **Operation**, nicht dem Context — je Port, je `parse`-Factory, je
+Domaenen-Regel eine eigene Union ihrer erwarteten Ausgaenge (siehe „Die Domaene spricht durchgehend
+`Result[T, E]`" unten). Ein context-weiter Sammeltyp verspricht an jeder Naht alles, was der Context
+kennt, und zwingt jeden Fold, Faelle zu behandeln, die dort nie eintreten.
 
 `domain/` gliedert sich physisch in `entities/`, `value_objects/`, `ports/`, `rules/`; der
 Namespace bleibt flach (Value-Object-Ergebnisse und Entitaeten referenzieren sich gegenseitig —

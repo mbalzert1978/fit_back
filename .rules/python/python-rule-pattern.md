@@ -71,12 +71,12 @@ vierzehn Arme hat — einen je Adressregel, jeder mit eigenem Code.
 
 Do — Fail-fast Domaenen-Check mit einem typisierten Fehler:
 ```python
-type ResultRule[T] = Callable[[T], "Result[T, DomainError]"]
+type ResultRule[T, E] = Callable[[T], Result[T, E]]
 
 
-def chain[T](*rules: ResultRule[T]) -> ResultRule[T]:
-    def combined(value: T) -> "Result[T, DomainError]":
-        result: Result[T, DomainError] = Ok(value)
+def chain[T, E](*rules: ResultRule[T, E]) -> ResultRule[T, E]:
+    def combined(value: T) -> Result[T, E]:
+        result: Result[T, E] = Ok(value)
         for rule in rules:
             result = result.bind(rule)
         return result
@@ -84,8 +84,10 @@ def chain[T](*rules: ResultRule[T]) -> ResultRule[T]:
     return combined
 
 
-def reservation_exists(server: DhcpServer) -> "Result[DhcpServer, DomainError]": ...
-def old_mac_matches(server: DhcpServer) -> "Result[DhcpServer, DomainError]": ...
+# Das `E` gehoert der Operation: hier die Union der Ausgaenge dieser einen Pruefung,
+# kein context-weiter Sammeltyp (siehe python-feature-slices.md).
+def reservation_exists(server: DhcpServer) -> Result[DhcpServer, ScopeError]: ...
+def old_mac_matches(server: DhcpServer) -> Result[DhcpServer, ScopeError]: ...
 
 check = chain(reservation_exists, old_mac_matches)
 outcome = check(server)  # genau ein Fehler kommt direkt aus outcome, keine Nachfrage noetig
