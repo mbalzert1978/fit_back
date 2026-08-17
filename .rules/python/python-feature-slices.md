@@ -345,6 +345,12 @@ derselben Signatur, jedes faehig, vorher und nachher zu laufen und mit `Err` abz
 Bausteine stehen einmal im Shared Kernel (`shared_kernel/pipeline.py`, nur stdlib) und werden
 nicht je Feature nachgebaut:
 
+`shared_kernel/pipeline.py` traegt **nur die Naht** — `Handler`, `Behavior`, `build_pipeline`. Ein
+**konkretes** Behavior bekommt eine eigene Einheit unter `shared_kernel/behaviors/` (heute
+`validating.py`); dorthin gehoeren kuenftig auch Transaktionsklammer, Idempotenz und Messung. Die
+Naht darf kein einzelnes Behavior kennen, sonst wird sie die Sammelstelle, die die
+Dateiaufteilungs-Regel gerade verhindern soll.
+
 ```python
 type Handler[TIn, TOut, E] = Callable[[TIn], Awaitable[Result[TOut, E]]]
 type Behavior[TIn, TOut, E] = Callable[[TIn, Handler[TIn, TOut, E]], Awaitable[Result[TOut, E]]]

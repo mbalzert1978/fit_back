@@ -182,7 +182,7 @@ mit dem ersten Fall, der sie braucht (`docs/decisions/2026-08-07-1331-…`).
 
 Die Collect-all-`Rule` wird direkt gegen das public Request-DTO registriert und vom
 **Validierungs-Behavior** der Pipeline konsumiert (`validating(...)` in
-`shared_kernel/pipeline.py`; siehe [python-error-handling.md](./python-error-handling.md) fuer den
+`shared_kernel/behaviors/validating.py`; siehe [python-error-handling.md](./python-error-handling.md) fuer den
 `Result`-Typ und [python-feature-slices.md](./python-feature-slices.md) fuer die Behavior-Kette).
 Es hebt die gesammelten `FieldError` in den **einen** Fehlerkanal des Use Case und kuerzt ab —
 nicht ein `if` im Slice, das einen zweiten Kanal und einen zweiten Fold nach sich zoege.
