@@ -27,6 +27,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_fixture-die-none-liefert-ist-ein-ausschalter.md](exp_fixture-die-none-liefert-ist-ein-ausschalter.md) — eine Fixture, die `None` liefert, damit die Tests durchlaufen, ist kein Test-Double, sondern ein Ausschalter
 - [exp_gate-finding-gegen-die-spezifikation-halten.md](exp_gate-finding-gegen-die-spezifikation-halten.md) — ein Finding, das einer woertlich spezifizierten Entscheidung widerspricht, wird abgelehnt, nicht umgesetzt
 - [exp_gestalt-beim-zusammenbau-nicht-im-startup.md](exp_gestalt-beim-zusammenbau-nicht-im-startup.md) — Middleware/Router/Handler stehen auf Modulebene fest; der Lifespan legt nur Ressourcen an
+- [exp_gh-api-paginate-schneidet-still-ab.md](exp_gh-api-paginate-schneidet-still-ab.md) — `gh api` liefert ohne `--paginate` nur die ersten 30 Eintraege und sagt es nicht
 - [exp_gh-cli-full-path-required.md](exp_gh-cli-full-path-required.md) — `gh` im Bash-Tool nie ueber PATH aufrufbar, immer vollen Windows-Pfad nutzen
 - [exp_gruenes-gate-ohne-scope-angabe.md](exp_gruenes-gate-ohne-scope-angabe.md) — jeder Checker muss seinen tatsaechlichen Pruefumfang mitausgeben, sonst ist „nichts gefunden" nicht von „nichts geprueft" zu unterscheiden
 - [exp_hintergrund-agent-delegiert-nicht-weiter.md](exp_hintergrund-agent-delegiert-nicht-weiter.md) — ein Hintergrund-Agent, der weiterdelegiert und wartet, endet leer; er muss selbst und synchron pruefen

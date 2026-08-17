@@ -8,7 +8,7 @@
   same `./make.ps1 <target>` commands work identically in the main checkout and in every
   worktree. Targets mirror the commands documented in CLAUDE.md.
 
-  Some targets depend on tooling introduced by later docs/issues/ tickets (ruff config,
+  Some targets depend on tooling introduced by later tickets (ruff config,
   import-linter contract, docker-compose.yml, alembic setup) and will fail with the
   underlying tool's own error until that ticket lands - see the comment on each target.
 
@@ -56,7 +56,7 @@ $targetTable = [ordered]@{
     }
 
     'test' = @{
-        # Depends on docs/issues/0009 (pytest + testcontainers-postgres fixture).
+        # Depends on issue #49 (pytest + testcontainers-postgres fixture).
         Description = 'Run the test suite (uv run pytest)'
         Action      = {
             Write-Host "==> test" -ForegroundColor Cyan
@@ -71,25 +71,25 @@ $targetTable = [ordered]@{
     }
 
     'lint' = @{
-        # Depends on docs/issues/0002 (ruff config).
+        # Depends on issue #42 (ruff config).
         Description = 'Lint with ruff'
         Action      = { Invoke-Step 'lint' { uv run ruff check . } }
     }
 
     'format' = @{
-        # Depends on docs/issues/0002 (ruff config).
+        # Depends on issue #42 (ruff config).
         Description = 'Format in place with ruff'
         Action      = { Invoke-Step 'format' { uv run ruff format . } }
     }
 
     'format-check' = @{
-        # Depends on docs/issues/0002 (ruff config).
+        # Depends on issue #42 (ruff config).
         Description = 'Check formatting without writing changes (CI-safe)'
         Action      = { Invoke-Step 'format-check' { uv run ruff format --check . } }
     }
 
     'import-lint' = @{
-        # Depends on docs/issues/0002 (.importlinter contract).
+        # Depends on issue #42 (.importlinter contract).
         Description = 'Check bounded-context import boundaries (import-linter)'
         Action      = { Invoke-Step 'import-lint' { uv run lint-imports } }
     }
@@ -103,7 +103,7 @@ $targetTable = [ordered]@{
     }
 
     'migrate' = @{
-        # Depends on docs/issues/0003 (Alembic baseline). "heads" (plural) is
+        # Depends on issue #43 (Alembic baseline). "heads" (plural) is
         # required, not "head" - each of the 7 schemas is its own independent
         # branch/head in this multi-schema Alembic layout.
         Description = 'Apply database migrations (alembic upgrade heads)'
@@ -111,13 +111,13 @@ $targetTable = [ordered]@{
     }
 
     'compose-up' = @{
-        # Depends on docs/issues/0001 (docker-compose.yml: postgres, minio, app).
+        # Depends on issue #41 (docker-compose.yml: postgres, minio, app).
         Description = 'Start postgres/minio/app via docker compose (detached)'
         Action      = { Invoke-Step 'compose-up' { docker compose up -d } }
     }
 
     'compose-down' = @{
-        # Depends on docs/issues/0001 (docker-compose.yml).
+        # Depends on issue #41 (docker-compose.yml).
         Description = 'Stop and remove the docker compose stack'
         Action      = { Invoke-Step 'compose-down' { docker compose down } }
     }

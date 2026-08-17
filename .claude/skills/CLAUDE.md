@@ -13,7 +13,6 @@ The skills live directly in `.claude/skills/` so this repo **loads its own skill
 .claude/skills/
   apply-validator-findings/                               SKILL.md
   architecture-adr-check/                                 SKILL.md  scripts/  config.json
-  audit-to-issues/                                        SKILL.md
   auto-commit/                                            SKILL.md  scripts/  config.json
   build-verifier/                                         SKILL.md  scripts/  assets/
   compress-prompt/                                        SKILL.md  scripts/  assets/  config.json
@@ -46,8 +45,6 @@ The skills live directly in `.claude/skills/` so this repo **loads its own skill
   graphify-windows/                                       SKILL.md
   handoff/                                                SKILL.md  assets/
   illegal-state-check/                                    SKILL.md
-  issue-close/                                            SKILL.md
-  issue-status/                                           SKILL.md  scripts/  config.json
   issues-to-prs/                                          SKILL.md  assets/  config.json
   language-idiom-check/                                   SKILL.md
   lint-and-format-check/                                  SKILL.md  scripts/  config.json
@@ -68,7 +65,6 @@ The skills live directly in `.claude/skills/` so this repo **loads its own skill
   sync-skill-index/                                       SKILL.md  scripts/  assets/  config.json
   tdd/                                                    SKILL.md
   thermo-nuclear-code-quality-review/                     SKILL.md  scripts/  config.json
-  to-issues/                                              SKILL.md  scripts/  assets/  config.json
   to-prd/                                                 SKILL.md  assets/
   token-budget-audit/                                     SKILL.md  scripts/  assets/  config.json
   validate-fix-loop/                                      SKILL.md  scripts/  assets/  config.json
@@ -97,7 +93,6 @@ The skills live directly in `.claude/skills/` so this repo **loads its own skill
   verifier-speculative-generality/                        SKILL.md
   verifier-switch-statements/                             SKILL.md
   verifier-temporary-field/                               SKILL.md
-  verify-issue-breakdown/                                 SKILL.md  scripts/  assets/
   worktree-entfernen/                                     SKILL.md  scripts/  config.json
   worktree-erstellen/                                     SKILL.md  scripts/  config.json
 CLAUDE.md
@@ -134,8 +129,6 @@ Skills are grouped into the four buckets (see Design Contract below). Current in
 - `fixer-switch-statements` — moves a discriminant switched on in several places onto the type/closed DU's cases (Replace Type Code with Subclasses/State-Strategy) — paired with `verifier-switch-statements`.
 - `fixer-temporary-field` — extracts a field only meaningful during one algorithm into its own object (Extract Class, Replace Method with Method Object) — paired with `verifier-temporary-field`.
 - `handoff` — compacts the current conversation into a handoff document for another agent.
-- `issue-close` — closes one issue — sets status: closed in its frontmatter and appends a completion note to the issue file's own body, no central progress file involved.
-- `issue-status` — scans docs/issues/ for frontmatter status fields and prints a grouped status table (blocked / open / closed / …) to chat — read-only, no files written.
 - `refine-prompt` — improves/hardens a draft prompt or task template and returns the rewritten text + a changelog — never executing what the prompt asks.
 - `reflect` — end-of-session experience extraction; persists structured experience files with decay metadata.
 - `run-tests` — runs the project's test suite via the one canonical invocation (plain dotnet test from the repo root) and surfaces the pass/fail result.
@@ -188,7 +181,6 @@ Skills are grouped into the four buckets (see Design Contract below). Current in
 - `verifier-speculative-generality` — reviews a diff for abstractions built "just in case" for an imagined future need with no current caller. Returns BLOCK/APPROVE plus a `Findings: <n>` count.
 - `verifier-switch-statements` — reviews a diff for the same discriminant switched/if-chained on in more than one place instead of using polymorphism/a closed sum type. Returns BLOCK/APPROVE plus a `Findings: <n>` count.
 - `verifier-temporary-field` — reviews a diff for a field only meaningfully set during one algorithm/call and empty otherwise. Returns BLOCK/APPROVE plus a `Findings: <n>` count.
-- `verify-issue-breakdown` — verifies that a `to-issues` breakdown is a sound tracer-bullet decomposition before publish.
 
 **Data enrichment** — pulls external knowledge in:
 
@@ -196,14 +188,12 @@ Skills are grouped into the four buckets (see Design Contract below). Current in
 
 **Orchestration** — chains other skills or steps into a multi-step playbook:
 
-- `audit-to-issues` — audits a repo on a chosen axis (over-engineering / illegal-states / pythonic) and turns each finding into a clean, reviewed, deduped issue — delegates to `ponytail-audit` and `to-issues`.
 - `auto-commit` — groups a working tree's changes into cohesive Conventional-Commits, previews the plan, then commits each group.
 - `done` — end-of-session wrapper: runs `/reflect`, prints summary, updates task state.
 - `issues-to-prs` — implements each selected open issue as an independent, parallel git-worktree agent and ships exactly one PR per issue — disjointness-gated, no shared merge.
 - `multi-agent-thermo-nuclear-review` — manual-only multi-agent fan-out of `thermo-nuclear-code-quality-review` — per configured lens, diverse finders + one adversarial verifier run in parallel, reconciled against the agent's own reading; delegates the rubric and size-pass to thermo-nuclear by path.
 - `prototype` — builds a throwaway prototype to flesh out a design; routes between two branches.
 - `tdd` — test-driven development with red-green-refactor loop.
-- `to-issues` — breaks a plan/PRD into tracer-bullet issues, gates with `verify-issue-breakdown` before publish.
 - `validate-fix-loop` — dispatches the quality validators listed in `config.json` (default: 8 general validators plus the 23 `verifier-<smell>` code-smell checks) in parallel each iteration, then routes each validator's findings — via `config.json`'s `fixer_map` — to its own `fixer-<smell>` skill where one is mapped, or batches unmapped validators' findings into one `apply-validator-findings` call, running fixer dispatches sequentially; repeats until every validator reports zero findings, total findings plateau across an iteration, or `max_iterations` is hit.
 <!-- END GENERATED: sync-skill-index -->
 

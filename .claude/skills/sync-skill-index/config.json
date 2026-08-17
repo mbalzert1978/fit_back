@@ -14,8 +14,6 @@
     "build-verifier": { "bucket": "Utility", "summary": "scaffolds a new Verification-bucket skill from a description; fills a bundled `assets/` template." },
     "clc2-codec": { "bucket": "Utility", "summary": "canonical codec for the CLC2 coaching-ledger format (compress / decompress / validate)." },
     "handoff": { "bucket": "Utility", "summary": "compacts the current conversation into a handoff document for another agent." },
-    "issue-status": { "bucket": "Utility", "summary": "scans docs/issues/ for frontmatter status fields and prints a grouped status table (blocked / open / closed / …) to chat — read-only, no files written." },
-    "issue-close": { "bucket": "Utility", "summary": "closes one issue — sets status: closed in its frontmatter and appends a completion note to the issue file's own body, no central progress file involved." },
     "run-tests": { "bucket": "Utility", "summary": "runs the project's test suite via the one canonical invocation (plain dotnet test from the repo root) and surfaces the pass/fail result." },
     "apply-validator-findings": { "bucket": "Utility", "summary": "takes the findings already produced by a set of quality validators and fixes every one, applying each finding's own located remedy — never re-reviewing or inventing new scope." },
     "fixer-alternative-classes-with-different-interfaces": { "bucket": "Utility", "summary": "aligns two classes doing the same job under different method names/signatures — Rename Method/Extract Superclass — paired with `verifier-alternative-classes-with-different-interfaces`." },
@@ -95,7 +93,6 @@
     "thermo-nuclear-code-quality-review": { "bucket": "Verification", "summary": "extremely strict, language-agnostic, deliberately open-ended maintainability review — abstraction quality, spaghetti conditions, canonical-layer reuse, orchestration atomicity. Standalone/manual use only (\"tear this PR apart\") — its open-ended bar has no fixed point, so it is not part of `validate-fix-loop`'s default validator set; see `solid-principles-check`/`design-pattern-fit-check`/`language-idiom-check`/`illegal-state-check` for the bounded, loop-safe split of its rubric." },
     "token-budget-audit": { "bucket": "Verification", "summary": "audits persistent-context artifacts (CLAUDE.md, SKILL.md files, memory) against token-budget heuristics and returns PASS/FAIL plus a located, itemized report." },
     "verifier-audit": { "bucket": "Verification", "summary": "flags skills that should become verifiers or gain an objective Pass/Fail or grade-out-of-10 check." },
-    "verify-issue-breakdown": { "bucket": "Verification", "summary": "verifies that a `to-issues` breakdown is a sound tracer-bullet decomposition before publish." },
 
     "fetch-cv": { "bucket": "Data enrichment", "summary": "reads one CV / Lebenslauf from a local PDF (Read, page mode), guards against unusable content (missing path / empty / encrypted / no text layer), and extracts the recognised fields + language — the single source `anschreiben` references instead of restating the read logic." },
     "fetch-job-posting": { "bucket": "Data enrichment", "summary": "loads one job posting from a URL (WebFetch) or file (Read), guards against unusable content, and extracts the recognised fields + language — the single source `anschreiben` and `interview-notes` reference instead of restating the fetch logic." },
@@ -107,7 +104,6 @@
     "kotlin-testing": { "bucket": "Data enrichment", "summary": "Kotlin testing with Kotest, MockK, coroutine testing, Kover." },
 
     "anschreiben": { "bucket": "Orchestration", "summary": "drives a strict state-machine pipeline (job posting → fact/direction review → draft → finalize) that fills a LaTeX template and writes `Cover_<firma>.tex`; delegates posting loading to `fetch-job-posting`." },
-    "audit-to-issues": { "bucket": "Orchestration", "summary": "audits a repo on a chosen axis (over-engineering / illegal-states / pythonic) and turns each finding into a clean, reviewed, deduped issue — delegates to `ponytail-audit` and `to-issues`." },
     "auto-commit": { "bucket": "Orchestration", "summary": "groups a working tree's changes into cohesive Conventional-Commits, previews the plan, then commits each group." },
     "coaching": { "bucket": "Orchestration", "summary": "adaptive personal coaching session driven by a structured JSON coaching payload." },
     "done": { "bucket": "Orchestration", "summary": "end-of-session wrapper: runs `/reflect`, prints summary, updates task state." },
@@ -115,7 +111,6 @@
     "issues-to-prs": { "bucket": "Orchestration", "summary": "implements each selected open issue as an independent, parallel git-worktree agent and ships exactly one PR per issue — disjointness-gated, no shared merge." },
     "prototype": { "bucket": "Orchestration", "summary": "builds a throwaway prototype to flesh out a design; routes between two branches." },
     "tdd": { "bucket": "Orchestration", "summary": "test-driven development with red-green-refactor loop." },
-    "to-issues": { "bucket": "Orchestration", "summary": "breaks a plan/PRD into tracer-bullet issues, gates with `verify-issue-breakdown` before publish." },
     "validate-fix-loop": { "bucket": "Orchestration", "summary": "dispatches the quality validators listed in `config.json` (default: 8 general validators plus the 23 `verifier-<smell>` code-smell checks) in parallel each iteration, then routes each validator's findings — via `config.json`'s `fixer_map` — to its own `fixer-<smell>` skill where one is mapped, or batches unmapped validators' findings into one `apply-validator-findings` call, running fixer dispatches sequentially; repeats until every validator reports zero findings, total findings plateau across an iteration, or `max_iterations` is hit." },
     "multi-agent-thermo-nuclear-review": { "bucket": "Orchestration", "summary": "manual-only multi-agent fan-out of `thermo-nuclear-code-quality-review` — per configured lens, diverse finders + one adversarial verifier run in parallel, reconciled against the agent's own reading; delegates the rubric and size-pass to thermo-nuclear by path." }
   }

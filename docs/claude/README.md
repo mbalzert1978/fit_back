@@ -19,7 +19,8 @@ Abhängigkeiten) — der Task-Runner ist nur die Hülle, ohne `pwsh` läuft sie 
 
 ## Der Weg eines Tickets
 
-Ein Ticket aus [`docs/issues/`](../issues/) läuft als Pipeline:
+Ein Ticket unter der Map [#40](https://github.com/mbalzert1978/fit_back/issues/40) läuft als
+Pipeline:
 
 > Issue → Worktree → `Task.md` → Entwickler-Agent → Struktur-Vorabprüfung → QA-Gate →
 > Tiefen-Struktur-Review → Security-Gate → Push + PR → Cleanup
@@ -45,5 +46,6 @@ Wellen, Concurrency-Cap, Fix-Verify-Loop und Eskalationsregeln.
 `prefer-jq-over-grep-json.py` schiebt JSON-Abfragen von `grep` auf `jq`. Warum genau diese zwei und
 warum die anderen gelöscht wurden, steht in [`docs/decisions/`](../decisions/).
 
-**Getrennt davon:** `docs/issues/` (Backend-Bau, Markdown) und die GitHub-Issues (Planung und
-Claude-Setup) sind zwei Systeme — siehe [`docs/agents/issue-tracker.md`](../agents/issue-tracker.md).
+**Ein einziger Tracker:** Backend-Bau, Planung und Claude-Setup liegen alle als GitHub-Issues.
+Der frühere Markdown-Tracker unter `docs/issues/` ist am 2026-08-17 abgeschafft worden — siehe
+[`docs/agents/issue-tracker.md`](../agents/issue-tracker.md) für die Kommandos.

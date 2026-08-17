@@ -18,9 +18,12 @@ orchestrierst alles davor selbst.
 2. [`docs/milestones/01-technical-decisions.md`](../../docs/milestones/01-technical-decisions.md)
    — Tie-Breaker, wann immer die Spezifikation (`docs/Draft/BACKEND.md`) und der
    tatsächliche Stack scheinbar widersprechen.
-3. [`docs/issues/`](../../docs/issues/) — die Tracer-Bullet-Tickets, aus denen
-   implementiert wird (nicht direkt aus dem Draft). Status lebt im Frontmatter jedes
-   Issues, kein zentrales Progress-File.
+3. Die Tracer-Bullet-Tickets, aus denen implementiert wird (nicht direkt aus dem
+   Draft): GitHub-Issues unter der Map
+   [#40](https://github.com/mbalzert1978/fit_back/issues/40). Status und Blocking
+   trägt GitHub selbst — offen/geschlossen plus native Issue-Dependencies, kein
+   zentrales Progress-File und keine gepflegte Statustabelle. Die Kommandos stehen in
+   [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md).
 4. [`docs/decisions/`](../../docs/decisions/) — jede getroffene Entscheidung dieser
    Pipeline, chronologisch, `YYYY-MM-DD-HHMM-<slug>.md`. Lies die jüngsten Einträge,
    bevor du eine neue Welle startest — sie können Policies verändert haben, die hier
@@ -135,8 +138,9 @@ orchestrierst alles davor selbst.
      blind forcen).
    - Lokalen Branch löschen, `git fetch --prune` (Remote-Branch ist i. d. R. schon
      von GitHub gelöscht).
-   - Ticket schließen: `issue-close`-Skill-Prozess (`status: closed` im Frontmatter
-     + datierter `## Abschluss (<Datum>)`-Abschnitt im Issue selbst).
+   - Ticket schließen: `gh issue close <n> --reason completed --comment "..."`. Der
+     Kommentar tritt an die Stelle des früheren `## Abschluss`-Abschnitts und hält
+     fest, was tatsächlich gebaut wurde.
 
 ## Wellen & Concurrency
 

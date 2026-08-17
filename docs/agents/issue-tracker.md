@@ -30,12 +30,15 @@ Note that `gh issue view <n> --comments` has been observed returning empty outpu
 environment; `gh issue view <n> --json number,title,body,labels,state,url,comments` works and is
 the safer call.
 
-### Not the same thing as `docs/issues/`
+### Ein einziger Tracker
 
-This repo also carries [`docs/issues/`](../issues/) — the tracer-bullet issues that implement the
-milestones, tracked as markdown files with their own `issue-status` / `issue-close` skills. Those
-are a **separate** system from GitHub issues and are not affected by anything in this file. GitHub
-issues here carry planning and Claude-setup work; `docs/issues/` carries the backend build.
+Bis zum 2026-08-17 trug dieses Repo daneben `docs/issues/` — die Tracer-Bullet-Tickets des
+Backend-Baus als Markdown-Dateien, mit eigenen `issue-status`/`issue-close`/`to-issues`-Skills.
+Dieser zweite Tracker ist abgeschafft; seine 50 Tickets leben als Sub-Issues der Map
+[#40](https://github.com/mbalzert1978/fit_back/issues/40) weiter, inhaltsgleich migriert. GitHub
+ist damit die einzige Ticket-Quelle dieses Repos, für Backend-Bau wie für Planung und
+Claude-Setup. Begründung:
+[`2026-08-17-…-nur-noch-ein-tracker.md`](../decisions/2026-08-17-1030-nur-noch-ein-tracker-github.md).
 
 ## Pull requests as a triage surface
 
@@ -59,7 +62,9 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - **Map**: a single issue labelled `wayfinder:map`, holding the Destination / Notes /
   Decisions-so-far / Fog body. `gh issue create --label wayfinder:map`.
 - **Child ticket**: a GitHub **sub-issue** of the map. List them with
-  `gh api repos/mbalzert1978/fit_back/issues/<map>/sub_issues`. Labels: `wayfinder:<type>`
+  `gh api --paginate repos/mbalzert1978/fit_back/issues/<map>/sub_issues` — **`--paginate` is not
+  optional**: without it GitHub returns only the first 30 children and says nothing about the rest,
+  so a map with more (like #40, which has 50) silently loses its tail. Labels: `wayfinder:<type>`
   (`research` / `prototype` / `grilling` / `task`). Once claimed, the ticket is assigned to the
   driving dev.
 - **Blocking**: GitHub's **native issue dependencies**. Add an edge with
@@ -70,9 +75,12 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - **Frontier query** — open, unblocked, unclaimed children, first in map order wins:
 
   ```bash
-  gh api repos/mbalzert1978/fit_back/issues/<map>/sub_issues \
+  gh api --paginate repos/mbalzert1978/fit_back/issues/<map>/sub_issues \
     --jq '.[] | select(.state=="open" and .issue_dependencies_summary.blocked_by==0 and (.assignees|length)==0) | "\(.number) \(.title)"'
   ```
+
+  Dropping `--paginate` here is the silent-truncation trap above: on map #40 it reports **one**
+  frontier ticket instead of five, and nothing in the output hints that anything was cut.
 
 - **Claim**: `gh issue edit <n> --add-assignee @me` — the session's first write, before any work.
 - **Resolve**: `gh issue comment <n> --body-file -`, then `gh issue close <n> --reason completed`,
@@ -90,11 +98,14 @@ gh issue list --label wayfinder:map --state all --json number,title,state
 
 ### Live wayfinding efforts
 
-Keine. Die einzige Map ist am 2026-08-14 geschlossen worden:
-
+- [**#40 — Map: Die Tickets des Backend-Baus**](https://github.com/mbalzert1978/fit_back/issues/40)
+  (**offen**) — der Tracker des Backend-Baus. Ein Sonderfall unter den Maps: ihre 50 Kinder sind
+  keine Entscheidungs-Tickets, sondern `wayfinder:task`-Bau-Tickets, die die
+  [Ticket-Pipeline](../../.claude/agents/fit-back-teamlead.md) abarbeitet. `/wayfinder` sollte an
+  ihr **nichts** entscheiden wollen.
 - [**#25 — Wayfinder-Map: Hook-Portfolio und semble-Anbindung des Claude-Setups**](https://github.com/mbalzert1978/fit_back/issues/25)
-  (**geschlossen**) — die Claude-Code-Konfiguration dieses Repos (`.claude/`, `CLAUDE.md`). Trägt ausnahmsweise auch
-  die **Ausführung** ihrer Entscheidungen als `wayfinder:task`-Kinder, statt sie an die
+  (**geschlossen** am 2026-08-14) — die Claude-Code-Konfiguration dieses Repos (`.claude/`, `CLAUDE.md`).
+  Trug ausnahmsweise auch die **Ausführung** ihrer Entscheidungen als `wayfinder:task`-Kinder, statt sie an die
   Ticket-Pipeline abzugeben; die Begründung steht in ihren Notes. Entscheidungen landen als Datei
   unter [`docs/decisions/`](../decisions/), auf Deutsch.
 

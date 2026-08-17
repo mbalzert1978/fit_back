@@ -7,10 +7,10 @@ arguments: Optional. Which issues to work — `all` open (default), a label (e.g
 # Issues to PRs
 
 Take the open issues and ship **one PR per issue**, each built independently and in
-parallel. This is the consumer end of the issue pipeline (`audit-to-issues` →
-`to-issues` → **issues-to-prs**): it only *consumes* existing issues and produces PRs.
-Creating, auditing, and re-verifying the breakdown belong to `to-issues`,
-`audit-to-issues`, and `verify-issue-breakdown` — not here.
+parallel. This skill is the **consumer** end: it only *consumes* existing issues and
+produces PRs. Cutting a plan into issues in the first place is not its job and has no
+skill here — issues are authored on the tracker directly (see
+[`docs/agents/issue-tracker.md`](../../../docs/agents/issue-tracker.md)).
 
 The skill's one job is **coordination**. Everything substantive is delegated:
 implementation to the `tdd` skill + the `ponytail` plugin, per-issue review to

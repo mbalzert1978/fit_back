@@ -1,7 +1,7 @@
 ---
 name: architecture-adr-check
-description: Check code changes against this repo's architecture-decision docs and the issue they implement — both located via `config.json` (`adr_dir`, `issues_dir`), not a hardcoded path — does the diff honor every relevant decision's invariant, and does it satisfy the issue's acceptance criteria — and return PASS/FAIL plus a `Findings: <n>` count. Required config missing ends the run with `Verdict: CONFIG ERROR`, not a silent pass over an empty doc set. Use as one leg of a validator loop, or standalone when checking a change against its architecture decisions/issue — "haelt sich der Code an die ADRs", "erfuellt das die Akzeptanzkriterien vom Issue", "architecture check against the configured decision docs and the issue".
-arguments: Optional. Scope (diff/branch/PR, default current branch vs merge-base with main) and the linked issue — an id (e.g. `0026`) or path. If the issue is omitted, the skill ranks open issues by keyword overlap with the changed paths and either picks an unambiguous top match or asks.
+description: Check code changes against this repo's architecture-decision docs and the issue they implement — both located via `config.json` (`adr_dir`, `issue_map`), not a hardcoded path — does the diff honor every relevant decision's invariant, and does it satisfy the issue's acceptance criteria — and return PASS/FAIL plus a `Findings: <n>` count. Required config missing ends the run with `Verdict: CONFIG ERROR`, not a silent pass over an empty doc set. Use as one leg of a validator loop, or standalone when checking a change against its architecture decisions/issue — "haelt sich der Code an die ADRs", "erfuellt das die Akzeptanzkriterien vom Issue", "architecture check against the configured decision docs and the issue".
+arguments: Optional. Scope (diff/branch/PR, default current branch vs merge-base with main) and the linked issue — an issue number (e.g. `66`). If the issue is omitted, the skill ranks open issues by keyword overlap with the changed paths and either picks an unambiguous top match or asks.
 ---
 
 # Architecture / ADR / Issue Check
@@ -10,13 +10,19 @@ Two things a generic code review won't check: whether the diff honors every arch
 decision whose invariant the changed area actually touches, and whether it satisfies the
 acceptance criteria of the issue it implements. Both require reading this repo's own
 documents, not a general rubric — so unlike most of the other validators, most of the
-work here is judgement; the bundled script only does the mechanical lookup, at the paths
-`config.json` names — nothing here is hardcoded to `docs/adr/`/`docs/issues/`, those are
-just this repo's chosen values for `adr_dir`/`issues_dir`.
+work here is judgement; the bundled script only does the mechanical lookup, at the
+sources `config.json` names — nothing here is hardcoded to `docs/adr/` or to one tracker,
+those are just this repo's chosen values for `adr_dir`/`issue_map`.
+
+`adr_dir` is a directory of files; `issue_map` is the number of the wayfinder map issue
+whose sub-issues are the tickets (see [`docs/agents/issue-tracker.md`](../../../docs/agents/issue-tracker.md)).
+The script reads the latter with `gh`, and the three status values below are derived from
+GitHub rather than stored: a closed issue is `closed`, an open one with open blockers is
+`blocked`, an open one without is `open`.
 
 ## Process
 
-0. **Preflight.** Read `config.json`. Both `adr_dir` and `issues_dir` are required — a
+0. **Preflight.** Read `config.json`. Both `adr_dir` and `issue_map` are required — a
    silent fallback to a hardcoded default like `docs/adr` would look plausible but be
    wrong in a repo that organizes its decision docs differently, and would produce a
    false PASS (empty doc set, nothing to violate) instead of a visible error. If either
@@ -24,9 +30,9 @@ just this repo's chosen values for `adr_dir`/`issues_dir`.
 
    ```
    Verdict: CONFIG ERROR
-   `adr_dir` und/oder `issues_dir` sind in
+   `adr_dir` und/oder `issue_map` sind in
    .claude/skills/architecture-adr-check/config.json nicht gesetzt —
-   architecture-adr-check kann ohne beide Pfade nicht sinnvoll pruefen. Bitte beide
+   architecture-adr-check kann ohne beide Quellen nicht sinnvoll pruefen. Bitte beide
    Schluessel konfigurieren.
    ```
 
@@ -37,8 +43,8 @@ just this repo's chosen values for `adr_dir`/`issues_dir`.
 1. **Resolve scope** — follows `_shared/validator-contract.md` ("Scope resolution
    (diff-scoped validators)").
 
-2. **Resolve the issue.** If `arguments` names one, read it directly (`<issues_dir>/<id>-*.md`
-   or the given path). Otherwise:
+2. **Resolve the issue.** If `arguments` names one, read it directly
+   (`gh issue view <n> --json number,title,body,labels,state,url`). Otherwise:
    ```powershell
    uv run .claude/skills/architecture-adr-check/scripts/find_relevant_docs.py issues \
      --status open --match <changed-path-1> <changed-path-2> ...

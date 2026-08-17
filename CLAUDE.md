@@ -16,8 +16,10 @@ Wächst diese Datei um einen Absatz, der etwas über das Repo behauptet, gehört
   Tie-Breaker, wann immer Spezifikation und Stack sich scheinbar widersprechen.
 - [`docs/milestones/`](docs/milestones/) — Meilenstein-Zerlegung, Einstieg
   [`00-overview.md`](docs/milestones/00-overview.md).
-- [`docs/issues/`](docs/issues/) — die Tickets des Backend-Baus. Implementiert wird aus dem
-  passenden Issue heraus, nie direkt aus dem Draft; der Fortschritt lebt im Frontmatter des Issues.
+- Die Tickets des Backend-Baus liegen als GitHub-Issues unter der Map
+  [#40](https://github.com/mbalzert1978/fit_back/issues/40); wie man sie abfragt, anlegt und
+  schließt, steht in [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). Implementiert
+  wird aus dem passenden Issue heraus, nie direkt aus dem Draft.
 - [`docs/decisions/`](docs/decisions/) — je eine Datei pro Entscheidung, siehe unten.
 - [`docs/reflections/`](docs/reflections/) — destillierte Lektionen früherer Sitzungen. Vor einer
   neuen Welle die `README.md` dort lesen.
