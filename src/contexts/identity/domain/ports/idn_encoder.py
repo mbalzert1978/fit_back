@@ -13,27 +13,36 @@ in setup.cfg), und die Bibliothek ist austauschbar.
 
 Alles, was **ASCII** ist, bleibt bewusst bei den Regeln in `email.py`: Label-
 Laenge, Bindestrich-Position und Zeichenvorrat sind dort ausformuliert, tragen
-je einen eigenen `DomainError`-Fall und sind Fall fuer Fall getestet. Der Port
+je einen eigenen `EmailError`-Fall und sind Fall fuer Fall getestet. Der Port
 wird nur gefragt, wo ohne ihn geraten werden muesste.
 """
 
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
+from src.contexts.identity.domain.email_errors import UnencodableDomainLabel
 from src.contexts.shared_kernel import Result
 
-if TYPE_CHECKING:  # Importzyklus: errors.py haengt ueber email.py an diesem Modul.
-    from src.contexts.identity.domain.errors import DomainError
+__all__ = ["IdnEncoder", "IdnEncoderError"]
 
-__all__ = ["IdnEncoder"]
+
+type IdnEncoderError = UnencodableDomainLabel
+"""Der eine erwartete Ausgang dieses Ports: das Label ist nicht kodierbar.
+
+Frueher stand hier der Sammeltyp `DomainError` des ganzen Contexts - und das war
+unwahr an der Stelle, an der es zaehlt: `email.py` reicht das Ergebnis dieses
+Ports als `Result[str, EmailError]` weiter, also durch eine Union, in der die
+meisten `DomainError`-Faelle gar nicht vorkommen. Die schmale Port-Union sagt,
+was der Adapter wirklich liefert, und der Weiterreicher stimmt wieder.
+"""
 
 
 class IdnEncoder(Protocol):
     """Uebersetzt ein einzelnes Domain-Label in seine ASCII-Form.
 
-    Wie jeder Domain-Port ehrlich fehlbar, und wie jeder Domain-Port mit
-    **demselben** flachen Fehlertyp des Contexts - nicht mit einem `str`.
+    Wie jeder Domain-Port ehrlich fehlbar - und mit seiner **eigenen**
+    Fehler-Union, nicht mit einem `str` und nicht mit dem Sammeltyp des Contexts.
     """
 
-    def to_ascii(self, label: str) -> Result[str, DomainError]:
+    def to_ascii(self, label: str) -> Result[str, IdnEncoderError]:
         """Liefere die Punycode-Form; `Err`, wenn das Label kein gueltiges IDN-Label ist."""
         ...

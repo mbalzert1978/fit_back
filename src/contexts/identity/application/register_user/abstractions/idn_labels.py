@@ -1,7 +1,7 @@
 """Naht zur IDN-Umwandlung - von diesem Use Case formuliert, nicht von der Bibliothek.
 
 Wie jede public Naht dieses Slice: nur Primitive, eine **eigene** Tagged Union
-als Ergebnis, kein `Result[T, DomainError]`. Der Fehlerkanal der Domaene bleibt
+als Ergebnis, kein `Result[T, E]`. Der Fehlerkanal der Domaene bleibt
 domaenenseitig; hierher uebersetzt der Port-Adapter.
 
 Der Vertrag ist bewusst schmaler als das, was eine IDN-Bibliothek anbietet
