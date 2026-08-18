@@ -6,9 +6,11 @@
 >
 > **Referenzimplementierung dieses Repos: `src/contexts/identity`, Use Case `register_user`**
 > (Ticket 0011 / [#51](https://github.com/mbalzert1978/fit_back/issues/51), Stufen 1 bis 4).
-> Jede Regel unten ist dort gebaut zu sehen — im Zweifel gilt der Code
-> als Vorbild, nicht die Prosa. Wer einen neuen Slice anlegt, liest zuerst
-> `src/contexts/identity/application/register_user/` und danach diese Datei.
+> Jede Regel unten ist dort gebaut zu sehen — der Code **illustriert** die Regel, er ersetzt sie
+> nicht. Weichen beide voneinander ab, gilt diese Datei: entweder der Code wird nachgezogen, oder
+> die Regel wird bewusst geaendert und die Aenderung unter `docs/decisions/` festgehalten. Wer einen
+> neuen Slice anlegt, liest zuerst `src/contexts/identity/application/register_user/` und danach
+> diese Datei.
 
 Gilt fuer jede Vertical-Slice-Operation: **`domain → application`**-Abhaengigkeitsrichtung strikt
 einseitig, nie umgekehrt.
@@ -19,7 +21,7 @@ Jedes Feature ist ein eigenes Python-Paket, intern geschichtet:
 
 | Ordner | Inhalt | Erlaubte Abhaengigkeiten |
 |--------|--------|--------------------------|
-| `domain/` | Value Objects (`@dataclass(frozen=True, slots=True)`), Entitaeten, Aggregatwurzel, interne Ports (`Protocol`), interne Domaenen-Regeln (`ResultRule`, fail-fast, ein typisierter Fehler je Invariante) | **nur stdlib** — kein Drittanbieter-Paket, kein DI-Framework |
+| `domain/` | Value Objects (`@dataclass(frozen=True, slots=True)`), Entitaeten, Aggregatwurzel, interne Ports (`Protocol`), interne Domaenen-Regeln (`ResultRule`, fail-fast, ein typisierter Fehler je Invariante) | **nur stdlib + `shared_kernel`** (der selbst nur stdlib nutzt — `Result`, `Rule`/`ResultRule`, Pipeline-Naht) — kein Drittanbieter-Paket, kein DI-Framework |
 | `application/` | public Request-/Response-DTOs, public Ports (Gateway/Datenquelle) + deren Ergebnis-Typen, interner **Command** (VOs, ggf. unter `shared/` geteilt), interne **Handler** (Orchestrator), interne **Port-Adapter** (Domain-Port-Implementierung, Anti-Corruption-Layer), **Mapper** (je Richtung eine Funktion/Klasse), **Eingabe-Validierungsregeln** (`Rule Pattern`, collect-all, unter `validators/`), **Test-API + In-Memory-Fakes** (siehe unten — Teil des Slice, nicht des Testprojekts), Wiring | `domain`, gemeinsames `common`-Paket, minimales DI (z. B. reine Funktionen/`functools.partial`, kein Framework noetig) |
 | `specs/<use_case>/` | Verhaltens-Specs, ausschliesslich ueber die public Test-API des Use Case — **der Regelfall** | nur das Feature-Paket selbst (keine `_private`-Importe quer durchs Paket) |
 | `specs/domain/` | Domain-Unit-Test je Aggregat/Value Object/Union, **nur wenn das Verhalten ueber die Test-API nicht ausdrueckbar ist** | die Domaene direkt |
@@ -171,7 +173,7 @@ Do:
 ```python
 @dataclass(frozen=True, slots=True)
 class ScopeId:
-    value: str  # nur ueber parse(str) -> Result[ScopeId, str] erzeugt
+    value: str  # nur ueber parse(str) -> Result[ScopeId, ScopeIdError] erzeugt
 
 
 class Scope:
@@ -510,7 +512,7 @@ Deklarativer, zeitgemaesser Stil gilt unveraendert auch in Handlern
 
 ## Review-Checkliste
 
-- [ ] `domain/` haengt nur an der stdlib; `application/` bruecke zu geteiltem `common`/minimalem Wiring; `specs/<use_case>/` nur an das Feature-Paket.
+- [ ] `domain/` haengt nur an der stdlib und am stdlib-only `shared_kernel`; `application/` bruecke zu geteiltem `common`/minimalem Wiring; `specs/<use_case>/` nur an das Feature-Paket.
 - [ ] **Ein Bounded Context = eine `domain/`-Schicht + je Use Case ein `application/<use_case>/`**.
 - [ ] **Die Naht gehoert dem Use Case**: eigener, schmaler Vertrag statt geteiltem Gateway; nur die Operationen, die dieser Use Case braucht.
 - [ ] **Ueber die public Naht wandern nur Primitive** — kein VO, keine Entitaet, kein Aggregat.

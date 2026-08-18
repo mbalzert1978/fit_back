@@ -21,6 +21,21 @@ message = "Field %s is invalid" % field_name
 message = "Field {} is invalid".format(field_name)
 ```
 
+**Ausnahme: Logging-Aufrufe.** `logger.<level>("… %s …", wert)` formatiert nicht selbst, sondern
+reicht die Argumente an die Logging-Bibliothek weiter, die den String nur baut, wenn der Level
+ueberhaupt greift. Das ist keine `%`-Formatierung im obigen Sinn, sondern die vorgesehene Form —
+ruff besteht mit `G004` darauf und flaggt umgekehrt den f-String an dieser Stelle.
+
+Do:
+```python
+logger.warning("field %s is invalid", "order.total")
+```
+
+Don't:
+```python
+logger.warning(f"field {field_name} is invalid")  # G004 — formatiert auch, wenn niemand zuhoert
+```
+
 ## Pattern Matching statt verschachtelter `if`/`isinstance`-Ketten
 
 Siehe [python-control-flow.md](./python-control-flow.md) fuer die volle Regel inkl.

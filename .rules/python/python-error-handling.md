@@ -75,6 +75,13 @@ Ausgang mit mehr als zwei, unabhaengig geformten *Erfolgs*faellen (eine echte Do
 das bleibt eine feature-lokale Tagged Union, wie jede andere geschlossene Wertemenge
 ([python-types.md](./python-types.md)).
 
+**Ausgenommen ist die public Naht eines Use Case.** Ihr Ergebnis ist eine eigene, einfache Tagged
+Union aus Primitiven — nie `Result[T, E]`, auch wenn sie genau zwei Faelle hat: der `Result` ist der
+Domaenen-Fehlerkanal und bleibt domaenenseitig
+([python-feature-slices.md](./python-feature-slices.md), „Die Naht gehoert dem Use Case"). Betreten
+wird der `Result` erst im Port-Adapter, der die Naht-Union per `match` nach
+`Result[T, <Port>Error]` uebersetzt (siehe „Verketten oder matchen" weiter unten).
+
 Do:
 ```python
 def parse(raw: str) -> "Result[Mac, MacError]": ...
@@ -271,11 +278,13 @@ erst auseinanderhalten muss. Der Wert steht in beiden Meldungen; damit ist auch 
 Abwaegung an der Schreibstelle.
 
 **Das Subjekt muss ein Name sein.** `assert_never` braucht den gematchten Wert; ein
-`match await pipeline.run(request):` gibt ihn nicht her. Also erst binden, dann matchen:
+`match await pipeline.run(request):` gibt ihn nicht her. Der Name wird deshalb **im Subjekt
+gebunden** — zugewiesen und unmittelbar geprueft ist genau der Fall, in dem `:=` Pflicht ist
+([python-modern-syntax.md](./python-modern-syntax.md)); eine freistehende Zuweisung davor stuende
+nur da, um in der naechsten Zeile geprueft zu werden:
 
 ```python
-outcome = await pipeline.run(request)
-match outcome:
+match outcome := await pipeline.run(request):
     ...
     case _:
         assert_never(outcome)

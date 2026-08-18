@@ -32,12 +32,16 @@ def calculate_discount(customer: Customer) -> float:
 ## Exhaustive Matches ueber geschlossene Unions
 
 Fuer `match` ueber eine geschlossene Menge von Varianten (`Union`/`|` aus `@dataclass`-Typen,
-oder `Enum`) immer einen `case _: raise AssertionError(...)`-Fallback — nie ein `case _: ...`,
-das den unbekannten Fall still ignoriert.
+oder `Enum`) immer einen werfenden Abschlusszweig `case _: assert_never(<subjekt>)` — nie ein
+`case _: ...`, das den unbekannten Fall still ignoriert. Die volle Regel — warum es genau
+`typing.assert_never` ist und kein selbstgebautes `raise`, wie mit fremden Fallmengen umzugehen ist
+und wie das maschinell abgesichert wird — steht in
+[python-error-handling.md](./python-error-handling.md) („Jeder `match` ist vollstaendig") und gilt
+dort wie hier, ohne Ausnahme.
 
 Python hat **keine** Compile-Zeit-Exhaustivitaetspruefung ohne Typchecker (mypy/pyright pruefen
 `match` gegen ein `TypeAlias`/`Union` und melden fehlende Faelle) — dieser Stack nutzt bewusst nur
-**ruff**, das das nicht kann. Der `raise`-Arm ist deshalb der **einzige** Schutz: eine neue
+**ruff**, das das nicht kann. Der werfende Arm ist deshalb der **einzige** Schutz: eine neue
 Variante scheitert **laut zur Laufzeit**, nicht beim Linten. Das ist dieselbe Garantie wie C#s
 `_ => throw new UnreachableException()` unter `TreatWarningsAsErrors` — dort erzwingt der
 Compiler den Arm, hier erzwingt ihn Konvention plus Tests.
@@ -57,7 +61,7 @@ def to_context(state: SyncFileState | None) -> DownloadContext | None:
         case None:
             return None
         case _:
-            raise AssertionError(f"unreachable state: {state!r}")
+            assert_never(state)
 ```
 
 Don't:

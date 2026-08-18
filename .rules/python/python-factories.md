@@ -75,11 +75,14 @@ einzelnes Objekt zusammenbaut. Sie ist die eine Stelle, die bei Aenderung der Ab
 angepasst wird. Eine solche Funktion nicht als "duenner Wrapper ohne Wert" markieren — das
 Zentralisieren der Konstruktion *ist* der Wert.
 
+Hier wird auch das Logging verdrahtet — als Decorator um den Kerntyp, nie als Feld darin
+([python-dependencies.md](./python-dependencies.md), "Logging ist ein Decorator").
+
 Do:
 ```python
-def build_error_log_handler(container: Container) -> ErrorLogHandler:
-    return ErrorLogHandler(
-        writer=container.get(ErrorLogWriter),
+def build_fetch_handler(container: Container) -> FetchHandler:
+    return LoggingFetchHandler(                                     # Logging sitzt aussen
+        inner=PlainFetchHandler(source=container.get(FetchSource)),  # der Kerntyp kennt keinen Logger
         logger=container.get(Logger),
     )
 ```
@@ -87,5 +90,5 @@ def build_error_log_handler(container: Container) -> ErrorLogHandler:
 Don't:
 ```python
 # Konstruktion an jeder Aufrufstelle inline wiederholt
-handler = ErrorLogHandler(writer, logger)  # dupliziert — bricht bei Signaturaenderung ueberall
+handler = LoggingFetchHandler(PlainFetchHandler(source), logger)  # dupliziert — bricht bei Signaturaenderung ueberall
 ```

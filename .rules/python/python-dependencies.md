@@ -116,6 +116,8 @@ Don't:
 from other_package._internal import _OutboxProcessor  # importiert bewusst privates Implementierungsdetail
 ```
 
-Der `_`-Praefix bleibt ausschliesslich fuer Test-Module reserviert, die absichtlich auf interne
-Details zugreifen wollen (Python hat keine harte Zugriffskontrolle — die Konvention *ist* die
-Grenze, also wird sie nicht durch andere Produktionspakete unterlaufen).
+Diese Grenze zu unterlaufen bleibt ausschliesslich Test-Modulen vorbehalten, die absichtlich auf
+interne Details zugreifen (Python hat keine harte Zugriffskontrolle — die Konvention *ist* die
+Grenze, also wird sie nicht durch andere Produktionspakete unterlaufen). Der `_`-Praefix selbst
+bleibt das normale Mittel, im Produktionscode Internes zu markieren: Module (`_internal.py`),
+Funktionen und Felder.

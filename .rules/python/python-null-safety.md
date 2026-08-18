@@ -29,6 +29,19 @@ def _validate_internal(order: Order | None) -> None:
         raise ValueError("order must not be None")
 ```
 
+**Abgrenzung: was ein Guard wirft, ist ein Programmierfehler — keine Nutzereingabe.** Er sichert
+eine *interne* public Grenze gegen einen Aufrufer im selben System ab; sein `raise` sagt „diese
+Vorbedingung ist gebrochen", und die Meldung ist **Diagnose**, die nie zur Antwort an einen Aufrufer
+wird ([python-error-handling.md](./python-error-handling.md), Abschnitt „Abgrenzung").
+
+Ein Wert, der von aussen ueber die **Systemgrenze** kommt (Request-DTO, Datei, fremde API), wird
+**nicht** so behandelt: dort ist ungueltig ein erwarteter Ausgang, kein Bug. Er laeuft ueber die
+Collect-all-`Rule` im Validierungs-Behavior der Pipeline und endet als typisierter Fall im
+Fehlerkanal des Use Case — nie als geworfene Exception und nie als fertiger Satz
+([python-rule-pattern.md](./python-rule-pattern.md),
+[python-feature-slices.md](./python-feature-slices.md), „Die Pipeline ist eine Kette von
+Behaviors"). Ein `raise` an dieser Stelle waere Exception als Kontrollfluss.
+
 ## Fehlermeldungen referenzieren den echten Namen
 
 Python hat kein `nameof()`. Der Parametername in der Fehlermeldung ist ein String-Literal — halte
