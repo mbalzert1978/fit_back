@@ -83,6 +83,10 @@ CACHEABLE_STATUS_CODES = frozenset({200, 201})
 KEY_REUSED_TYPE = "https://api.example/errors/idempotency-key-reused"
 REQUEST_IN_PROGRESS_TYPE = "https://api.example/errors/request-in-progress"
 
+# So viele Zeichen eines abgelehnten Header-Werts kommen ins Log. Eine UUID hat
+# 36 Zeichen; wer sich in einer vertippt hat, sieht seinen Wert damit noch ganz.
+LOGGED_KEY_MAX_LENGTH = 64
+
 # Reservierung und Entscheidung in einem Statement: gibt es die Zeile schon,
 # kommt nichts zurueck - und genau das ist die Auskunft "ein anderer war
 # schneller". Ohne vorgelagertes SELECT gibt es dazwischen kein Zeitfenster.
@@ -155,6 +159,36 @@ def is_idempotent_method(method: str) -> bool:
 
     """
     return method.upper() in IDEMPOTENT_METHODS
+
+
+def format_key_for_log(key_header: str) -> str:
+    """Bereite einen abgelehnten Idempotency-Key so auf, dass er sich gefahrlos loggen laesst.
+
+    Der Wert ist ungeprueft und beliebig lang; ungekuerzt geloggt macht ihn eine
+    einzige Anfrage zu Log-Flooding. Zur Diagnose traegt hinter den ersten
+    Zeichen nichts mehr bei - ausser der Laenge des Originals, die deshalb hinter
+    der Kuerzung steht.
+
+    Der Wert geht durch `repr` und steht damit in Anfuehrungszeichen; die
+    Kuerzungs-Marke steht **ausserhalb** davon. Was vom Aufrufer kommt, endet
+    also am schliessenden Anfuehrungszeichen - ein Wert, der selbst wie eine
+    Marke aussieht, kann keine vortaeuschen, weil `repr` die Anfuehrungszeichen
+    darin maskiert. Dasselbe `repr` haelt Steuerzeichen davon ab, roh ins Log zu
+    geraten.
+
+    Args:
+        key_header: Der abgelehnte Header-Wert
+
+    Returns:
+        Den Wert in Anfuehrungszeichen, solange er `LOGGED_KEY_MAX_LENGTH` nicht
+        ueberschreitet; sonst seinen Anfang in Anfuehrungszeichen, gefolgt von
+        der Kuerzungs-Marke mit der Laenge des Originals.
+
+    """
+    if len(key_header) <= LOGGED_KEY_MAX_LENGTH:
+        return repr(key_header)
+    cut = repr(key_header[:LOGGED_KEY_MAX_LENGTH])
+    return f"{cut} [gekuerzt, Originallaenge {len(key_header)}]"
 
 
 async def claim_key(
@@ -275,7 +309,9 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         try:
             idempotency_key = UUID(idempotency_key_header)
         except ValueError:
-            logger.warning(f"Invalid Idempotency-Key format: {idempotency_key_header}")  # noqa: G004 -- Non-sensitive validation info
+            logger.warning(
+                "Invalid Idempotency-Key format: %s", format_key_for_log(idempotency_key_header)
+            )
             return await call_next(request)
 
         # Die Idempotenz haengt an der Nutzeridentitaet - die setzt die
