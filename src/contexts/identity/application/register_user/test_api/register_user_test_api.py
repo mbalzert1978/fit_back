@@ -5,8 +5,9 @@ fuer alles, was den Use Case verhaltensseitig pruefen will
 (.rules/python/python-feature-slices.md).
 
 Sie verdrahtet ueber `build_register_user_pipeline` **dieselbe** Pipeline wie die
-Produktion - Validierung -> Request-Mapper -> Handler -> Domaene -> Response-Mapper -
-und tauscht ausschliesslich an der aeussersten Naht In-Memory-Fakes ein. Zwischen
+Produktion - dieselbe Behavior-Kette (Validierung) um denselben Kern
+(Request-Mapper -> Handler -> Domaene) und denselben Fold (Response-Mapper) - und
+tauscht ausschliesslich an der aeussersten Naht In-Memory-Fakes ein. Zwischen
 Naht und Response wird nichts gemockt.
 
 Was sie **nicht** ist: eine Integrations- oder End-to-End-Testebene. Postgres via

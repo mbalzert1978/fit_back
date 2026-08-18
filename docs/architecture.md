@@ -41,8 +41,12 @@ src/
       contracts/                 # veröffentlichtes Vokabular für andere Contexts — nur Primitive
       specs/<use_case>/          # Tests ausschließlich über die Test-API des Use Case
     shared_kernel/               # Result[T,E], Timestamp, TimeProvider, EventPublisher/-Registry,
-                                 # CodedError, NotEmptyString, IUserOwned, Rule-Pattern
+                                 # CodedError, NotEmptyString, IUserOwned, Rule-Pattern,
+                                 # pipeline.py (Handler/Behavior/build_pipeline)
                                  # — hängt an nichts außer der stdlib
+      behaviors/                 # je ein konkretes Querschnitts-Behavior der Pipeline
+                                 # (heute validating.py; künftig Transaktionsklammer,
+                                 # Idempotenz, Messung) — die Naht selbst kennt keines
   api/                           # FastAPI-Router, ProblemDetails, Exception-Handler, i18n,
     <context>/                   # Composition Root - je Context ein Unterordner
     resources/                   # i18n-Ressourcen (de-DE.json, en-US.json)

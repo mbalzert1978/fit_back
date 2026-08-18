@@ -1,7 +1,10 @@
 """Die Faelle des `DomainError`, die den Aufbau einer E-Mail-Adresse betreffen.
 
 Physisch getrennt von [`errors.py`](./errors.py), fachlich **nicht**: sie sind
-Teil derselben einen, flachen `DomainError`-Union, die dort zusammengesetzt wird.
+Teil der `DomainError`-**Summe**, die dort zusammengesetzt wird - der Liste,
+gegen die die Fehlercode- und i18n-Drift-Pruefungen zaehlen. Das eine `E`, das
+ein Port spricht, ist sie seit Stufe 4 von Ticket 0011 nicht mehr: die Faelle
+dieses Moduls bilden die eigene, schmale Union der Operation, die sie erzeugt.
 Der Grund fuer die Trennung ist ein Importzyklus - `errors.py` braucht das
 `Email`-Value-Object fuer `EmailAlreadyRegistered`, und `email.py` braucht diese
 Faelle. Da hier ausschliesslich Primitive als Nutzlast vorkommen, haengt dieses

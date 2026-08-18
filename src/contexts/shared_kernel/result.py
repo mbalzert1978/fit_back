@@ -20,6 +20,17 @@ class Ok[T]:
         """Verkette eine Funktion, die selbst Result[U, E] zurückgibt."""
         return f(self.value)
 
+    async def bind_async[U, E](self, f: Callable[[T], Awaitable[Result[U, E]]]) -> Result[U, E]:
+        """Verkette eine **asynchrone** Funktion, die selbst `Result[U, E]` zurueckgibt.
+
+        Das async-Gegenstueck zu `bind` und der Grund, warum eine Kette einen
+        `async` Handler ueberhaupt aufnehmen kann. Ohne sie muesste der Aufrufer
+        den `Result` von Hand aufmachen, um zu entscheiden, ob er das `await`
+        ueberhaupt ausloest - und genau dieses `if` ist das, was die
+        Behavior-Kette loswerden soll.
+        """
+        return await f(self.value)
+
     def map_err[E, F](self, _: Callable[[E], F], /) -> Ok[T]:
         """Ignoriere die Fehler-Transformation (es liegt kein Fehler vor)."""
         return self
@@ -52,6 +63,14 @@ class Err[E]:
 
     def bind[T, U](self, _: Callable[[T], Result[U, E]], /) -> Err[E]:
         """Ignoriere den Fehler (Verkettung nicht möglich)."""
+        return self
+
+    async def bind_async[T, U](self, _: Callable[[T], Awaitable[Result[U, E]]], /) -> Err[E]:
+        """Verkette nichts - die uebergebene Coroutine wird nie erzeugt und nie erwartet.
+
+        Das ist die Abkuerzung, von der die Behavior-Kette lebt: liegt ein Fehler
+        vor, laeuft der naechste Schritt gar nicht erst an.
+        """
         return self
 
     def map_err[F](self, f: Callable[[E], F]) -> Err[F]:

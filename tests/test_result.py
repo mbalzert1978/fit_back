@@ -163,3 +163,42 @@ class TestInspectAsync:
             return "ignoriert"
 
         assert await result.inspect_async(yields_something) == Ok(1)
+
+
+class TestBindAsync:
+    """bind_async verkettet eine asynchrone Fortsetzung - und kuerzt auf Err ab."""
+
+    @pytest.mark.asyncio
+    async def test_ok_verkettet_die_asynchrone_fortsetzung(self) -> None:
+        """Auf Ok laeuft die Fortsetzung und ihr Result ist das Ergebnis."""
+        result: Result[int, str] = Ok(21)
+
+        async def doubled(value: int) -> Result[int, str]:
+            return Ok(value * 2)
+
+        assert await result.bind_async(doubled) == Ok(42)
+
+    @pytest.mark.asyncio
+    async def test_ok_uebernimmt_auch_den_fehlschlag_der_fortsetzung(self) -> None:
+        """Die Fortsetzung darf scheitern - dann ist ihr Err das Ergebnis."""
+        result: Result[int, str] = Ok(21)
+
+        async def rejects(value: int) -> Result[int, str]:
+            return Err("abgelehnt")
+
+        assert await result.bind_async(rejects) == Err("abgelehnt")
+
+    @pytest.mark.asyncio
+    async def test_err_ruft_die_fortsetzung_gar_nicht_erst_auf(self) -> None:
+        """Die Abkuerzung, von der die Behavior-Kette lebt."""
+        laeufe: list[int] = []
+        result: Result[int, str] = Err("schon gescheitert")
+
+        async def remember(value: int) -> Result[int, str]:
+            laeufe.append(value)
+            return Ok(value)
+
+        returned = await result.bind_async(remember)
+
+        assert laeufe == []
+        assert returned is result

@@ -9,9 +9,9 @@ from src.contexts.identity.application.register_user.abstractions import (
     UserStored,
 )
 from src.contexts.identity.domain import (
-    DomainError,
     EmailAlreadyRegistered,
     User,
+    UserRegistryError,
     account_status_tag,
     locale_tag,
 )
@@ -28,7 +28,7 @@ class UserRegistryAdapter:
         """Nimm die Naht-Implementierung entgegen (Fake oder Repository)."""
         self._store = store
 
-    async def add(self, user: User) -> Result[User, DomainError]:
+    async def add(self, user: User) -> Result[User, UserRegistryError]:
         """Nimm den User auf und werte das Urteil des Bestands aus."""
         outcome = await self._store.insert(_record_of(user))
         match outcome:

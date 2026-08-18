@@ -9,8 +9,7 @@ from src.contexts.identity.application.register_user.mappers.register_user_reque
     to_command,
 )
 from src.contexts.identity.application.register_user.mappers.register_user_response_mapper import (
-    to_invalid_response,
     to_response,
 )
 
-__all__ = ["to_command", "to_invalid_response", "to_response"]
+__all__ = ["to_command", "to_response"]

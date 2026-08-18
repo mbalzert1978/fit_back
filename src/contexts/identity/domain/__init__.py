@@ -37,9 +37,9 @@ from src.contexts.identity.domain.events import user_registered
 from src.contexts.identity.domain.locale_errors import LocaleError, LocaleNotSupported
 from src.contexts.identity.domain.password_errors import PasswordError, PasswordTooShort
 from src.contexts.identity.domain.password_hash_errors import PasswordHashError, PasswordHashIsEmpty
-from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
+from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder, IdnEncoderError
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
-from src.contexts.identity.domain.ports.user_registry import UserRegistry
+from src.contexts.identity.domain.ports.user_registry import UserRegistry, UserRegistryError
 from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
 from src.contexts.identity.domain.user_time_zone_errors import (
     UserTimeZoneError,
@@ -101,6 +101,7 @@ __all__ = [
     "English",
     "German",
     "IdnEncoder",
+    "IdnEncoderError",
     "Locale",
     "LocaleError",
     "LocaleNotSupported",
@@ -121,6 +122,7 @@ __all__ = [
     "UserIdError",
     "UserIdMalformed",
     "UserRegistry",
+    "UserRegistryError",
     "UserTimeZone",
     "UserTimeZoneError",
     "UserTimeZoneUnknown",

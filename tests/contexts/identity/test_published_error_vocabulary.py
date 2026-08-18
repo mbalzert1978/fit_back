@@ -22,6 +22,8 @@ import pytest
 
 from src.contexts.identity.domain import (
     DisplayNameError,
+    DomainError,
+    EmailAlreadyRegistered,
     EmailError,
     LocaleError,
     PasswordError,
@@ -36,8 +38,15 @@ from src.contexts.shared_kernel.coded_error import codes_of, error_cases, parame
 # Test spricht nur fuer Identity.
 PUBLISHED = [EmailError, PasswordError, DisplayNameError, LocaleError, UserTimeZoneError]
 
-# Faelle, die den Rand nie erreichen: der Response-Mapper behandelt sie als Programmierfehler.
+# Faelle, die den Rand nie erreichen: sie stammen aus dem Hasher und aus
+# `UserId.generate()`, nicht aus der Anfrage - ein Code wuerde eine Textvorlage
+# einfordern, die niemand liest.
 INTERNAL_ONLY = [UserIdError, PasswordHashError]
+
+# Eigener Ausgang mit eigenem Statuscode, kein Feldfehler. Traegt selbst keinen Code:
+# veroeffentlicht wird `EmailAlreadyTaken`, und ein Code gehoert laut
+# `shared_kernel/coded_error.py` genau einmal an genau einen Fall.
+KOLLISION = [EmailAlreadyRegistered]
 
 _ALLOWED_SCALARS = (str, int, float, bool)
 
@@ -86,3 +95,33 @@ def test_jeder_veroeffentlichte_fall_ist_benennbar() -> None:
     """Die Nutzlast eines Falls ist die Menge, aus der eine Textvorlage schoepfen darf."""
     for case in error_cases(*PUBLISHED):
         assert parameters_of(case) == {field.name for field in fields(case)}
+
+
+def test_kein_fehlerfall_faellt_zwischen_die_mengen() -> None:
+    """`DomainError` ist die Volkszaehlung - jeder Fall gehoert in genau eine Menge.
+
+    Seit Stufe 4 von Ticket 0011 traegt jeder Domain-Port seine **eigene**,
+    schmale Fehler-Union; `DomainError` ist nicht mehr der eine `E`, den alle
+    sprechen, sondern die vollstaendige Aufzaehlung dessen, was es in diesem
+    Context ueberhaupt gibt. Genau dafuer steht sie hier: waechst sie, wird
+    dieser Test rot und verlangt die Entscheidung, ob der neue Fall
+    veroeffentlicht wird, intern bleibt oder ein eigener Ausgang ist - statt dass
+    er stillschweigend nirgends auftaucht.
+    """
+    veroeffentlicht = set(error_cases(*PUBLISHED))
+    intern = set(error_cases(*INTERNAL_ONLY))
+    kollision = set(error_cases(*KOLLISION))
+
+    assert veroeffentlicht | intern | kollision == set(error_cases(DomainError))
+    assert not (veroeffentlicht & intern)
+    assert not (veroeffentlicht & kollision)
+    assert not (intern & kollision)
+
+
+@pytest.mark.parametrize("case", error_cases(*KOLLISION), ids=lambda case: case.__name__)
+def test_der_eigene_ausgang_bleibt_ohne_feldfehler_code(case: type) -> None:
+    """Sein Code sitzt auf der Response-Union, nicht auf der Ursache."""
+    assert not hasattr(case, "code"), (
+        f"{case.__name__} traegt einen Code. Veroeffentlicht wird der Fall der "
+        "Response-Union (EmailAlreadyTaken), nicht die Domaenen-Ursache."
+    )

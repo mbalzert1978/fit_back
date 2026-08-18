@@ -1,19 +1,30 @@
-"""Der eine, flache Fehlertyp des Identity-Context.
+"""Die vollstaendige Aufzaehlung dessen, was im Identity-Context schiefgehen kann.
 
 Ein Fall je Fehlerursache, jeder mit **typisierter Nutzlast statt vorformatiertem
-Text**. Alle Domain-Ports, Domaenen-Regeln und Aggregat-Operationen dieses
-Contexts sprechen `Result[T, DomainError]` mit **diesem** `E` - dadurch braucht
-es an den Port-Grenzen keine Fehleruebersetzung.
+Text**.
+
+`DomainError` ist die **Summe** aller Faelle, nicht mehr der eine `E`, den jeder
+Port spricht. Die frueher hier stehende Zusage ("alle Domain-Ports sprechen
+`Result[T, DomainError]` mit diesem `E`") ist mit Stufe 4 von Ticket 0011
+entfallen: **jeder Port traegt seine eigene, schmale Fehler-Union** (`UserRegistryError`
+in [`ports/user_registry.py`](./ports/user_registry.py), `IdnEncoderError` in
+[`ports/idn_encoder.py`](./ports/idn_encoder.py), `EmailError` fuer `Email.parse`
+und so fort). Der Sammeltyp verlangte an jeder Auswertungsstelle einen `match`
+ueber zwei Dutzend Faelle, von denen einer eintreten konnte - eine Aufzaehlung,
+die nichts mehr aussagte.
+
+Wozu die Summe trotzdem gebraucht wird: sie ist die Liste, gegen die die
+Fehlercode- und i18n-Drift-Pruefungen zaehlen (`shared_kernel/coded_error.py`,
+`tests/test_i18n_drift.py`) - "gibt es zu jedem Fall einen Code und eine
+Textvorlage?" ist eine Frage an *alle* Faelle, nicht an die eines Ports.
 
 Die Faelle liegen teils hier, teils in [`email_errors.py`](./email_errors.py)
-(Importzyklus, dort begruendet) - die Union unten ist die vollstaendige
-Aufzaehlung dessen, was in diesem Context schiefgehen kann, und waechst mit
-jedem weiteren Use Case.
+(Importzyklus, dort begruendet); die Union unten waechst mit jedem weiteren
+Use Case.
 
-Die Formulierung fuer Menschen gehoert **nicht** hierher, sondern in die
-Application-Schicht: die Domaene sagt, *was* der Fall ist, nicht *wie* er heisst.
-Der vollstaendige `match` in `application/shared/domain_error_message.py` meldet
-sofort, wenn zu einem neuen Fall die Meldung fehlt.
+Die Formulierung fuer Menschen gehoert **nicht** hierher, sondern an den Rand:
+die Domaene sagt, *was* der Fall ist, nicht *wie* er heisst. Dass zu jedem neuen
+Fall auch eine Textvorlage existiert, melden die oben genannten Waechter.
 """
 
 from dataclasses import dataclass
