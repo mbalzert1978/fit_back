@@ -78,7 +78,7 @@ das bleibt eine feature-lokale Tagged Union, wie jede andere geschlossene Wertem
 Do:
 ```python
 def parse(raw: str) -> "Result[Mac, MacError]": ...
-def check(server: DhcpServer, ...) -> "Result[Reservation, DomainError]": ...
+def check(server: DhcpServer, ...) -> "Result[Reservation, ReservationError]": ...
 ```
 
 Don't:
@@ -210,7 +210,8 @@ Antwort an einen Aufrufer, ist sie ein typisierter Fall.
 **Verketten oder matchen — die Grenze verlaeuft am Container.** Bleibt der Ausgang ein `Result` und
 aendert sich nur der Fehlertyp, wird **verkettet**: `Email.parse(raw, idn).map_err(to_field_fault)`.
 Wird der `Result` **verlassen** (Fold in eine Response-Union) oder aus einer fremden Union heraus
-**betreten** (Naht-Ergebnis → `Result[T, DomainError]` im Port-Adapter), wird **gematcht** — dort
+**betreten** (Naht-Ergebnis → `Result[T, <Port>Error]` im Port-Adapter, z. B.
+`Result[User, UserRegistryError]`), wird **gematcht** — dort
 gibt es kein `Err`, auf dem eine Kette sitzen koennte, und `map` kaeme nie aus dem Ok-Zweig heraus.
 Der `match` ist an dieser Grenze kein Notbehelf, sondern der Wachposten: kommt ein Fall dazu, bricht
 er laut auf, waehrend eine Kette aus zwei Funktionen ihn still durchreichen wuerde

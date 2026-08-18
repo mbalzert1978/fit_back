@@ -5,7 +5,8 @@
 > `MacSuche` als Vorlage-Feature).
 >
 > **Referenzimplementierung dieses Repos: `src/contexts/identity`, Use Case `register_user`**
-> (Ticket 0011, Stufe 1). Jede Regel unten ist dort gebaut zu sehen — im Zweifel gilt der Code
+> (Ticket 0011 / [#51](https://github.com/mbalzert1978/fit_back/issues/51), Stufen 1 bis 4).
+> Jede Regel unten ist dort gebaut zu sehen — im Zweifel gilt der Code
 > als Vorbild, nicht die Prosa. Wer einen neuen Slice anlegt, liest zuerst
 > `src/contexts/identity/application/register_user/` und danach diese Datei.
 
@@ -22,13 +23,24 @@ Jedes Feature ist ein eigenes Python-Paket, intern geschichtet:
 | `application/` | public Request-/Response-DTOs, public Ports (Gateway/Datenquelle) + deren Ergebnis-Typen, interner **Command** (VOs, ggf. unter `shared/` geteilt), interne **Handler** (Orchestrator), interne **Port-Adapter** (Domain-Port-Implementierung, Anti-Corruption-Layer), **Mapper** (je Richtung eine Funktion/Klasse), **Eingabe-Validierungsregeln** (`Rule Pattern`, collect-all, unter `validators/`), **Test-API + In-Memory-Fakes** (siehe unten — Teil des Slice, nicht des Testprojekts), Wiring | `domain`, gemeinsames `common`-Paket, minimales DI (z. B. reine Funktionen/`functools.partial`, kein Framework noetig) |
 | `specs/<use_case>/` | Verhaltens-Specs, ausschliesslich ueber die public Test-API des Use Case — **der Regelfall** | nur das Feature-Paket selbst (keine `_private`-Importe quer durchs Paket) |
 | `specs/domain/` | Domain-Unit-Test je Aggregat/Value Object/Union, **nur wenn das Verhalten ueber die Test-API nicht ausdrueckbar ist** | die Domaene direkt |
-| `specs/contracts/` | Contract-Tests an Context-Grenzen ([`02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md), Form A) | das eigene Port-`Protocol` |
+| `specs/contracts/` | Contract-Tests an Context-Grenzen ([`02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md), Form A) — **derzeit leer, Form offen**, siehe Hinweis unter der Tabelle | das eigene Port-`Protocol` |
 
 Der Ordner heisst `specs/`, nicht `tests/`: er enthaelt nicht nur Tests im engeren Sinn, sondern
 die **ausfuehrbare Spezifikation** des Verhaltens. `slice-shape-check` prueft nur `specs/<use_case>/`
 gegen die Test-API-Regel; die beiden anderen Unterordner sind davon ausgenommen, weil sie
 per Definition tiefer greifen — und genau deshalb sind sie die Ausnahme, nicht die zweite
 Standardebene.
+
+> **`specs/contracts/` ist derzeit leer, und das ist ein offener Punkt, kein Endzustand.** Dass es
+> Contract-Tests an Context-Grenzen gibt, steht fest; **wie** sie aussehen, nicht. Der frueher hier
+> beschriebene Mechanismus — handgeschriebene Beispiel-Payloads unter
+> `contracts/events/<event>/examples/*.json` samt Roundtrip-Test — ist zurueckgenommen worden.
+> Contract-Testing laeuft in diesem Repo kuenftig ueber **Pact**, consumer-driven vom Frontend nach
+> unten; die Form entscheidet
+> [#94](https://github.com/mbalzert1978/fit_back/issues/94). Bis dahin wird hier **kein** neuer
+> Contract-Test angelegt, und die Feldmenge veroeffentlichter Ereignisse ist nur durch die
+> Slice-Specs gedeckt. Auch `02-test-pyramide.md` beschreibt unter „Form B" noch den alten
+> Mechanismus und wird mit #94 nachgezogen.
 
 ### Ein Spec prueft das Ergebnis, nicht den Weg dorthin
 
@@ -66,12 +78,18 @@ application/<use_case>/
   validators/     Collect-all-Regeln gegen das Request-DTO
   fakes/          In-Memory-Implementierungen der Naht
   test_api/       Test-API
-  command.py handler.py pipeline.py request.py response.py
+  command.py errors.py handler.py pipeline.py request.py response.py
 ```
 
+`errors.py` traegt den **einen** Fehlerkanal des Use Case — die Union, in der Validierungs- und
+Domaenenfehler zusammenfallen (siehe „Die Pipeline ist eine Kette von Behaviors" weiter unten).
+
 Ein **Bounded Context** ist die Feature-Paket-Grenze: **eine** `domain/`-Schicht, darunter **je Use Case
-ein eigener `application/<use_case>/`-Ordner**. Der Fehlertyp (`Result[T, E]`, siehe unten) ist damit
-**context-eigen**, nicht use-case-eigen — alle Use Cases eines Contexts teilen ihn.
+ein eigener `application/<use_case>/`-Ordner**. Der Fehlertyp folgt dieser Grenze **nicht**: das `E`
+in `Result[T, E]` gehoert der **Operation**, nicht dem Context — je Port, je `parse`-Factory, je
+Domaenen-Regel eine eigene Union ihrer erwarteten Ausgaenge (siehe „Die Domaene spricht durchgehend
+`Result[T, E]`" unten). Ein context-weiter Sammeltyp verspricht an jeder Naht alles, was der Context
+kennt, und zwingt jeden Fold, Faelle zu behandeln, die dort nie eintreten.
 
 `domain/` gliedert sich physisch in `entities/`, `value_objects/`, `ports/`, `rules/`; der
 Namespace bleibt flach (Value-Object-Ergebnisse und Entitaeten referenzieren sich gegenseitig —
@@ -79,14 +97,50 @@ Unterpakete erzeugten zirkulaere Importe; die Domaene ist eine kohaerente Grenze
 `application/` heisst kein Ordner `common` — das kollidiert mit einem echten geteilten
 `common`-Paket; ein Ordner mit geteiltem Inhalt heisst `shared/`.
 
-## Die Domaene spricht durchgehend `Result[T, E]` — ein flacher, feature-eigener Fehlertyp
+## Die Domaene spricht durchgehend `Result[T, E]` — mit einer eigenen Fehler-Union **je Port**
 
 Nicht nur Parse-Factories: **jeder** erwartete Fehlschlag innerhalb der Domaene — Ports, Domaenen-
-Regeln, die Aggregatwurzel selbst — gibt `Result[T, E]` zurueck, mit **demselben einen, flachen**
-feature-eigenen Fehlertyp (Tagged Union, ein Fall je Fehlerursache) als `E` durchgehend (siehe
-[python-error-handling.md](./python-error-handling.md)). Der gemeinsame Fehlertyp macht eine
-Uebersetzung an den Port-Grenzen ueberfluessig — Repository, Port und Aggregat reichen ihn
-unveraendert durch.
+Regeln, die Aggregatwurzel selbst — gibt `Result[T, E]` zurueck, mit einer geschlossenen Tagged
+Union (ein Fall je Fehlerursache) als `E` (siehe
+[python-error-handling.md](./python-error-handling.md)).
+
+**Das `E` gehoert der Operation, nicht dem Context.** Jeder Port, jede `parse`-Factory und jede
+Domaenen-Regel traegt die Union ihrer **eigenen erwarteten Ausgaenge** — `UserRegistryError`,
+`IdnEncoderError`, `EmailError` —, nicht einen Sammeltyp ueber alles, was der Context kennt.
+
+Der Grund zeigt sich erst an der Auswertungsstelle. Ein Sammeltyp verspricht an jeder Naht alles,
+was es im Context gibt; wer ihn faltet, muss jeden Fall behandeln, obwohl nur einer eintreten kann.
+Im Referenz-Slice waren das zweiundzwanzig Arme im Response-Mapper fuer **einen** erreichbaren
+Ausgang — die uebrigen einundzwanzig entweder eine zweite Abschrift der Code-und-Parameter-Tabelle
+aus `validators/` oder einundzwanzigmal dasselbe „kann nicht sein". Der abschliessende
+`assert_never` verliert dabei seine Aussage: er kann „neu dazugekommen" nicht mehr von „gibt es
+laengst, hat nur niemand behandelt" unterscheiden.
+
+Eine Port-Union waechst mit den **erwarteten** Ausgaengen ihres Adapters — und dorthin gehoeren
+dann auch erwartete IO-Ausgaenge als Wert im `Result` (`db nicht erreichbar`), nicht als Exception;
+Unerwartetes bubbelt weiter hoch. Sie waechst **nicht auf Verdacht**: ein Fall, den kein Adapter
+liefert, ist ein Arm, den niemand erreicht.
+
+Do:
+```python
+type UserRegistryError = EmailAlreadyRegistered      # die erwarteten Ausgaenge genau dieses Ports
+
+
+class UserRegistry(Protocol):
+    async def add(self, user: User) -> "Result[User, UserRegistryError]": ...
+```
+
+Don't:
+```python
+class UserRegistry(Protocol):
+    # verspricht 22 Faelle, liefert 1 — jeder Fold darueber zaehlt 21 Unerreichbare auf
+    async def add(self, user: User) -> "Result[User, DomainError]": ...
+```
+
+Ein **contextweiter** Summentyp (`DomainError = EmailError | PasswordError | …`) bleibt trotzdem
+nuetzlich, aber fuer eine andere Frage: er ist die Volkszaehlung, gegen die Fehlercode- und
+i18n-Drift-Pruefungen zaehlen („gibt es zu jedem Fall einen Code und eine Textvorlage?"). Er ist
+nicht mehr das `E`, das die Ports sprechen.
 
 ## Die Domaene spricht nur VOs/Entitaeten — nie rohe Primitive
 
@@ -185,14 +239,14 @@ er das per `asyncio.TaskGroup`.
 
 ```python
 class DhcpServerRepository(Protocol):
-    async def load(self, server: ServerName) -> "Result[DhcpServer, DomainError]": ...
+    async def load(self, server: ServerName) -> "Result[DhcpServer, DhcpServerError]": ...
 
 
 class DhcpServerRepositoryAdapter:
     def __init__(self, gateway: MacSearchDhcpGateway) -> None:
         self._gateway = gateway
 
-    async def load(self, server: ServerName) -> "Result[DhcpServer, DomainError]":
+    async def load(self, server: ServerName) -> "Result[DhcpServer, DhcpServerError]":
         match await self._gateway.get_scopes(server.value):
             case ScopesFound(scopes=scopes):
                 async with asyncio.TaskGroup() as tg:
@@ -286,7 +340,7 @@ Dataclasses nebeneinander sind keine Trennung, nur Duplikat.
 
 **Outcome** braucht es nur, wenn die Operation einen Fehlschlag kennt, der *dem Slice* gehoert und
 nicht der Domaene. Ist das Domaenen-`Result` bereits das vollstaendige Ergebnis, gibt der Handler
-es **direkt** zurueck (`Handler = Callable[[Command], Result[Order, DomainError]]`) — ein Wrapper,
+es **direkt** zurueck (`Handler = Callable[[Command], Result[Order, OrderRepositoryError]]`) — ein Wrapper,
 der nur einen Fall umhuellt, ist Zeremonie.
 
 ### Ein Mapper pro Richtung, nicht einer pro Operation
@@ -296,6 +350,78 @@ stehen nur zufaellig am selben Naht-Punkt. Der Response-Mapper waechst mit jedem
 der Request-Mapper bleibt eine Zeile. Kein Mapper bedient mehrere Operationen — auch dann nicht,
 wenn zwei Operationen heute dieselbe Response-Form haben; die Antwort gehoert der Operation, und
 identische Form heisst nicht identische Bedeutung.
+
+## Die Pipeline ist eine Kette von Behaviors, kein Wrapper mit `if`
+
+`pipeline.py` ist die eine Stelle, an der der Slice zusammengesteckt wird — und sie heisst
+Pipeline, weil sie eine ist: der Handler steckt in einer Kette von **Behaviors**, jedes mit
+derselben Signatur, jedes faehig, vorher und nachher zu laufen und mit `Err` abzukuerzen. Die
+Bausteine stehen einmal im Shared Kernel (`shared_kernel/pipeline.py`, nur stdlib) und werden
+nicht je Feature nachgebaut:
+
+`shared_kernel/pipeline.py` traegt **nur die Naht** — `Handler`, `Behavior`, `build_pipeline`. Ein
+**konkretes** Behavior bekommt eine eigene Einheit unter `shared_kernel/behaviors/` (heute
+`validating.py`); dorthin gehoeren kuenftig auch Transaktionsklammer, Idempotenz und Messung. Die
+Naht darf kein einzelnes Behavior kennen, sonst wird sie die Sammelstelle, die die
+Dateiaufteilungs-Regel gerade verhindern soll.
+
+```python
+type Handler[TIn, TOut, E] = Callable[[TIn], Awaitable[Result[TOut, E]]]
+type Behavior[TIn, TOut, E] = Callable[[TIn, Handler[TIn, TOut, E]], Awaitable[Result[TOut, E]]]
+
+
+def build_pipeline[TIn, TOut, E](
+    handler: Handler[TIn, TOut, E], *behaviors: Behavior[TIn, TOut, E]
+) -> Handler[TIn, TOut, E]: ...
+```
+
+Zwei Zusagen, und beide sind zu belegen (`tests/test_pipeline.py`): das **erste** Behavior liegt
+aussen, und ein Behavior, das `Err` liefert, ohne den naechsten Schritt zu rufen, **laesst den
+Handler nicht laufen**.
+
+**Die Eingabe-Validierung ist das erste Behavior**, kein `if` im Slice. Sie hebt die gesammelten
+`FieldError` in den Fehlerkanal der Pipeline und kuerzt ab; damit fallen die beiden frueher
+getrennten Kanaele (Feldfehler hier, Domaenenfehler dort) zu **einem** zusammen, und der Slice hat
+genau **einen** Fold am Ende. Der gemeinsame Typ ist use-case-eigen und ausgeschrieben:
+
+```python
+type RegisterUserError = RequestInvalid | EmailAlreadyRegistered   # RequestInvalid traegt die FieldError
+```
+
+Do:
+```python
+def build_register_user_pipeline(...) -> RegisterUserPipeline:
+    return RegisterUserPipeline(
+        build_pipeline(
+            _dispatch(handler, idn),                                   # Request-Mapper + Handler
+            validating(as_async(build_register_user_rules(idn)), request_invalid),
+        )
+    )
+
+
+async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
+    return to_response(await self._chain(request))                     # ein Fold, kein Zweig
+```
+
+Don't:
+```python
+async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
+    if errors := self._validate(request):
+        return to_invalid_response(errors)          # Fold 1: Feldfehler   -> Response
+    return to_response(await self._handler(to_command(request, self._idn)))  # Fold 2: Domaenenfehler
+```
+
+Der Unterschied ist nicht Kosmetik. Zwei Fehlerkanaele erzwingen zwei Folds in **dieselbe**
+Response-Union; der zweite Fold sieht dadurch nur Faelle, die der erste nicht schon abgefangen hat,
+und muss trotzdem alle behandeln. Und alles Querschnittliche — Transaktionsklammer, Idempotenz,
+Messung, Logging — hat in der `if`-Form keinen Ort ausser „ein Absatz mehr in `run`", waehrend es
+in der Kette ein Behavior ist.
+
+**Eine Regel, die IO braucht, ist trotzdem eine Regel.** Neben `Rule[T]` steht dafuer
+`type AsyncRule[T] = Callable[[T], Awaitable[list[FieldError]]]` mit `all_of_async`; eine synchrone
+Regel wird mit `as_async` gehoben, statt sie ohne Not `async` zu schreiben. Kein
+Cancellation-Token daneben — `asyncio` propagiert den Abbruch ueber `CancelledError` selbst
+([python-async.md](./python-async.md)).
 
 ## Die Test-API ist Teil des Slice, nicht des Testprojekts
 
@@ -385,7 +511,7 @@ Deklarativer, zeitgemaesser Stil gilt unveraendert auch in Handlern
 ## Review-Checkliste
 
 - [ ] `domain/` haengt nur an der stdlib; `application/` bruecke zu geteiltem `common`/minimalem Wiring; `specs/<use_case>/` nur an das Feature-Paket.
-- [ ] **Ein Bounded Context = eine `domain/`-Schicht + je Use Case ein `application/<use_case>/`**; der `Result`-Fehlertyp ist context-eigen, nicht use-case-eigen.
+- [ ] **Ein Bounded Context = eine `domain/`-Schicht + je Use Case ein `application/<use_case>/`**.
 - [ ] **Die Naht gehoert dem Use Case**: eigener, schmaler Vertrag statt geteiltem Gateway; nur die Operationen, die dieser Use Case braucht.
 - [ ] **Ueber die public Naht wandern nur Primitive** — kein VO, keine Entitaet, kein Aggregat.
 - [ ] **Die public Naht liefert eine eigene, einfache Tagged Union**, nie `Result[T, E]` — der bleibt domaenenseitig.
@@ -398,7 +524,9 @@ Deklarativer, zeitgemaesser Stil gilt unveraendert auch in Handlern
 - [ ] Domaene spricht nur VOs/Entitaeten; Primitive ausschliesslich in Request-/Response-DTOs + Gateway.
 - [ ] Entitaeten haben identitaetsbasierte Gleichheit; VOs sind `@dataclass(frozen=True, slots=True)`; Identitaet ist ein validierter Typ, kein freier `str`.
 - [ ] Aggregatwurzel besitzt Operationen und Iteration; der Handler orchestriert nur (~10-15 Zeilen).
-- [ ] Domain-Ports, Domain-Regeln und Aggregatwurzel geben durchgehend `Result[T, E]` mit **demselben einen, flachen** feature-eigenen Fehlertyp zurueck.
+- [ ] Domain-Ports, Domain-Regeln und Aggregatwurzel geben durchgehend `Result[T, E]` zurueck, jeweils mit der **eigenen, schmalen** Fehler-Union ihrer Operation — nicht mit einem Sammeltyp ueber den ganzen Context. Kein Fall in einer Port-Union, den kein Adapter liefert.
+- [ ] **Die Pipeline ist eine Behavior-Kette**, kein Wrapper mit `if`: Validierung als erstes Behavior, **ein** gemeinsamer Fehlertyp je Use Case, **ein** Fold am Ende. Reihenfolge und Abkuerzen sind durch einen Test belegt.
+- [ ] **Jeder Arm des Response-Folds ist erreichbar**; `assert_never` steht hinter erreichbaren Faellen, nicht hinter einer Aufzaehlung von Unmoeglichkeiten.
 - [ ] Repository materialisiert die Wurzel per Identitaet (ehrlich fehlbar); externe Abhaengigkeiten nur hinter der public Naht; Rekonstruktion aus vertrauenswuerdiger Quelle nutzt `hydrate`, nicht `parse`.
 - [ ] **Handler orchestriert nur**, baut keine Ports selbst, bekommt sie per DI/Parameter.
 - [ ] **Kern-Handler kennt weder Request- noch Response-DTO** — Parsen und Mapping stehen in den Mappern.
