@@ -39,6 +39,10 @@ Steht ohne Matcher im Vertrag und ist damit bindend - ein Typ mit genau einem
 bewohnbaren Wert und kein Wert, den irgendwer waehlen koennte. Als Typ und
 nicht als Konstante, weil `Literal[...]` nur echte Literale annimmt: ein Name
 darin ist zur Laufzeit unauffaellig und statisch ungueltig.
+
+Das Feld traegt bewusst **keinen** Default: ein Default nimmt es aus `required`
+des Schemas, und dann behauptet die Dokumentation, ein bindendes Feld duerfe
+fehlen. Der Wert wird an der Aufrufstelle gesetzt.
 """
 
 _SELF_URL = "/api/v1/identity/me"
@@ -97,7 +101,7 @@ class GrantedSession(BaseModel):
     expires_in: int = Field(serialization_alias="expiresIn")
     refresh_token: str = Field(serialization_alias="refreshToken", repr=False)
     refresh_expires_in: int = Field(serialization_alias="refreshExpiresIn")
-    token_type: TokenType = Field(default="Bearer", serialization_alias="tokenType")
+    token_type: TokenType = Field(serialization_alias="tokenType")
 
 
 @final
@@ -157,6 +161,7 @@ async def register_user(
                     expires_in=accepted.expires_in,
                     refresh_token=accepted.refresh_token,
                     refresh_expires_in=accepted.refresh_expires_in,
+                    token_type="Bearer",  # noqa: S106 -- Schema-Name aus RFC 6750, kein Geheimnis
                 ),
             )
 
