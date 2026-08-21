@@ -87,3 +87,16 @@ kündigt den Bruch an; er behandelt ihn nicht — das ist gewollt, solange es ni
 - Keine Wire-Level-Versionierung der Ereignis-Nutzlast, bevor #94 entschieden hat, wo sie hingehört.
 - Kein Pact-Geräst ohne echten Vertrag: #94 verlangt ausdrücklich mindestens einen laufenden
   Vertrag, nicht ein Skelett.
+
+## Nachtrag, 2026-08-21 (#94)
+
+Die oben genannten Punkte sind erledigt, und die Bezeichnung „Form B" ist inzwischen umgedeutet.
+`docs/milestones/02-test-pyramide.md` ist mit #94 nachgezogen und **neu nummeriert**: „Form B" heißt
+dort jetzt die Pact-Verifikation an der HTTP-Grenze, die asynchronen Integration Events sind zu
+„Form C" gewandert und dort als **offen** geführt. Wo dieses Dokument oben „Form B" sagt, meint es
+also die alte Nummerierung — die Beispiel-Payloads unter
+`contexts/<producer>/contracts/events/<event>/examples/*.json`, die ersatzlos gefallen sind.
+
+Das Fertig-Kriterium in #51 trägt den Punkt seit dem 2026-08-21 als aufgelöst; Pact ist **nicht**
+sein Nachfolger, sondern deckt eine andere Grenze. Siehe
+[`2026-08-21-1420-mechanik-der-provider-verifikation.md`](./2026-08-21-1420-mechanik-der-provider-verifikation.md).

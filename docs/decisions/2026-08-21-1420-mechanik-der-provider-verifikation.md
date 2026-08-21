@@ -24,8 +24,7 @@ sagt nur noch, was verifiziert wird:
 
 ```python
 await (
-    ProviderVerifikation.fuer("nutritrack-identity")
-    .mit_vertrag(PACT_DATEI)
+    ProviderVerifikation.fuer("nutritrack-identity", PACT_DATEI)
     .nur_interaktionen(NUR_REGISTRIERUNG)
     .mit_state(KEIN_KONTO, setup=konto.entfernen, teardown=konto.entfernen)
     .mit_state(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
@@ -38,9 +37,10 @@ Builder stünde sie beim siebten Mal in sechs Kopien da. Der erste Anlauf hatte 
 und das Ergebnis war unlesbar.
 
 **Der Ausschluss ungebauter Endpunkte ist ein Regex auf die Beschreibung**
-(`nur_interaktionen(r"^Registrierung ")`), nicht ein Umschreiben der Vertragsdatei. Der Vertrag
-bleibt damit exakt so liegen, wie der Stakeholder ihn abgelegt hat, und das Aufmachen für
-`login`/`refresh`/`logout`/`me` ist später eine Änderung an genau einer Zeile.
+(`nur_interaktionen(r"^Registrierung ")`), nicht ein Umschreiben der Vertragsdatei. Die Pact-Datei
+bleibt damit exakt so liegen, wie der Stakeholder sie abgelegt hat, und das Aufmachen für
+`login`/`refresh`/`logout`/`me` kostet den Ausdruck plus die States, die die neuen Interaktionen
+tragen — keine Änderung am Pact.
 
 Weil der Ausdruck an fremdem Text hängt — die Beschreibungen schreibt der Consumer —, prüft ein
 eigener Test, dass er genau die Interaktionen auf `/api/v1/identity/register` trifft und keine
@@ -61,7 +61,7 @@ der sich auf sein eigenes Prüfobjekt stützt, belegt nichts.
 
 Pact ruft die State-Handler aus dem Thread seines eigenen kleinen HTTP-Servers heraus auf. Die
 Engine des Tests gehört aber dessen Event-Loop; von einem fremden Thread aus benutzt, fällt asyncpg
-um. Die Lösung steht als `Schleifenbruecke` im Builder: `verify()` läuft seinerseits in einem
+um. Die Lösung steht als `_handler_auf(...)` im Builder: `verify()` läuft seinerseits in einem
 Thread (`asyncio.to_thread`), womit die Loop des Tests frei ist, und die Handler reichen ihre Arbeit
 über `run_coroutine_threadsafe` dorthin zurück.
 
@@ -87,6 +87,19 @@ Events aus der Outbox ist damit keine Form entschieden; die Test-Pyramide führt
 offenen Punkt „Form C". Der Verweis auf dieses Ticket in `.rules/python/python-feature-slices.md`
 ist weg, `specs/contracts/` bleibt für „Form A" reserviert (Contract-Tests gegen ein
 aufrufer-eigenes Port-`Protocol`).
+
+## Was der Review noch geradegerückt hat
+
+- **Der Seed lief in Millisekunden.** `registered_at` führt in diesem Repo Unix-**Sekunden**
+  (`2026-08-06-1340-unix-epoch-statt-datetime.md`); der erste Wurf schrieb `1_700_000_000_000` und
+  damit das Jahr 55840. Heute folgenlos — keine der fünf Interaktionen liest den Wert —, aber falsch.
+- **`Testkonto.anlegen()` räumte vorher selbst auf.** Damit war der Teardown-Nachweis nicht tragend:
+  man hätte den Teardown streichen können und der Test wäre grün geblieben. `anlegen()` läuft jetzt
+  ungeschützt in den `uq_users_email` — genau das ist der Fall, den der Nachweis auslösen soll.
+- **Der Nachweis ging an der echten Verdrahtung vorbei.** Er fährt jetzt über den echten `Zustand`,
+  und ein zweiter, winziger Test deckt die Zuordnung `setup`/`teardown` ab, mit der Pact ruft.
+- **„Vertrag" war schon vergeben.** `CONTEXT.md` führt den Begriff für das veröffentlichte Vokabular
+  eines Context. Der Pact ist ein anderes Ding und heißt jetzt im Glossar wie im Code **Pact**.
 
 ## Was ausdrücklich nicht entschieden wurde
 

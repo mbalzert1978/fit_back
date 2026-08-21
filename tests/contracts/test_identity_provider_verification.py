@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.main import app
-from tests.contracts.provider_verification import ProviderVerifikation
+from tests.contracts.provider_verification import ProviderVerifikation, Zustand
 from tests.contracts.testkonto import Testkonto
 
 PROVIDER = "nutritrack-identity"
@@ -34,8 +34,8 @@ PACT_DATEI = (
 NUR_REGISTRIERUNG = r"^Registrierung "
 """Die Interaktionen, die mitlaufen - als Regex auf ihre Beschreibung.
 
-Das Aufmachen fuer einen weiteren Endpunkt ist genau eine Aenderung an dieser
-Zeile.
+Ein weiterer Endpunkt kostet diesen Ausdruck und die States, die seine
+Interaktionen tragen - keine Aenderung an der Pact-Datei.
 """
 
 REGISTER_PFAD = "/api/v1/identity/register"
@@ -56,8 +56,7 @@ async def test_die_registrierung_erfuellt_den_identity_vertrag(
     konto = Testkonto(postgres_engine, email=EMAIL, passwort=PASSWORT)
 
     await (
-        ProviderVerifikation.fuer(PROVIDER)
-        .mit_vertrag(PACT_DATEI)
+        ProviderVerifikation.fuer(PROVIDER, PACT_DATEI)
         .nur_interaktionen(NUR_REGISTRIERUNG)
         .mit_state(KEIN_KONTO, setup=konto.entfernen, teardown=konto.entfernen)
         .mit_state(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
@@ -66,28 +65,41 @@ async def test_die_registrierung_erfuellt_den_identity_vertrag(
 
 
 @pytest.mark.asyncio
-async def test_ein_state_raeumt_hinter_sich_auf(postgres_engine: AsyncEngine) -> None:
-    """Zwei Interaktionen mit demselben State stoeren einander nicht.
+async def test_zwei_interaktionen_mit_demselben_state_stoeren_einander_nicht(
+    postgres_engine: AsyncEngine,
+) -> None:
+    """Derselbe State, zweimal hintereinander - so wie der Vertrag ihn traegt.
 
-    Vier der fuenf Interaktionen tragen denselben State und eine davon legt das
-    Konto tatsaechlich an. Raeumt der Teardown nicht, bekommt die naechste 409
-    statt 201 - hier ausgeloest statt behauptet.
+    Vier der fuenf Interaktionen teilen sich ihren State, und eine davon legt das
+    Konto tatsaechlich an. Raeumt der Teardown nicht, laeuft der zweite `setup`
+    in den `uq_users_email` und der naechste 201-Fall bekaeme 409. Hier
+    ausgeloest statt behauptet: `anlegen()` raeumt nicht selbst vor.
     """
     konto = Testkonto(postgres_engine, email=EMAIL, passwort=PASSWORT)
+    konto_existiert = Zustand(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
 
-    await konto.anlegen()
-    await konto.entfernen()
-    await konto.anlegen()  # scheiterte am uq_users_email, haette der Teardown stehen lassen
-    await konto.entfernen()
+    await konto_existiert.setup()  # Interaktion 1
+    await konto_existiert.teardown()
+    await konto_existiert.setup()  # Interaktion 2
+    await konto_existiert.teardown()
 
     assert not await konto.existiert()
+
+
+def test_ein_zustand_trennt_setup_und_teardown() -> None:
+    """Pact ruft einen Handler zweimal - jeder Ruf trifft seine eigene Haelfte."""
+    konto_existiert = Zustand(KONTO_EXISTIERT, setup=_nichts, teardown=_auch_nichts)
+
+    assert konto_existiert.haelfte("setup") is _nichts
+    assert konto_existiert.haelfte("teardown") is _auch_nichts
 
 
 def test_der_filter_trifft_genau_die_gebauten_interaktionen() -> None:
     """Der Filter laesst die register-Interaktionen durch - und sonst keine.
 
     Der Ausdruck haengt an Beschreibungstexten, die der Consumer schreibt. Ohne
-    diese Pruefung koennte eine Umformulierung ihn ins Leere greifen lassen.
+    diese Pruefung koennte eine Umformulierung ihn ins Leere greifen lassen: der
+    Lauf waere gruen, weil er nichts mehr verifiziert.
     """
     interaktionen = json.loads(PACT_DATEI.read_text(encoding="utf-8"))["interactions"]
     muster = re.compile(NUR_REGISTRIERUNG)
@@ -99,3 +111,11 @@ def test_der_filter_trifft_genau_die_gebauten_interaktionen() -> None:
 
     assert getroffen == gebaut
     assert len(getroffen) == 5
+
+
+async def _nichts() -> None:
+    """Platzhalter-Setup: der Test prueft die Zuordnung, nicht die Arbeit."""
+
+
+async def _auch_nichts() -> None:
+    """Platzhalter-Teardown, aus demselben Grund."""
