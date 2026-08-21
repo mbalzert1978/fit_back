@@ -42,16 +42,32 @@ bleibt damit exakt so liegen, wie der Stakeholder sie abgelegt hat, und das Aufm
 `login`/`refresh`/`logout`/`me` kostet den Ausdruck plus die States, die die neuen Interaktionen
 tragen — keine Änderung am Pact.
 
-Weil der Ausdruck an fremdem Text hängt — die Beschreibungen schreibt der Consumer —, prüft ein
-eigener Test, dass er genau die Interaktionen auf `/api/v1/identity/register` trifft und keine
-andere. Ohne ihn könnte eine Umformulierung im Frontend den Filter ins Leere greifen lassen: der
-Lauf wäre grün, weil er nichts mehr verifiziert. `set_error_on_empty_pact(enabled=True)` fängt den
-Totalausfall zusätzlich ab.
+Weil der Ausdruck an fremdem Text hängt — die Beschreibungen schreibt der Consumer —, verlangt
+`nur_interaktionen(muster, erwartet=n)` die Zahl der Treffer mit und bricht bei Abweichung ab.
+Ohne sie könnte eine Umformulierung im Frontend den Filter ins Leere greifen lassen: der Lauf wäre
+grün, weil er nichts mehr verifiziert. Die Prüfung sitzt im Builder und nicht in einem eigenen
+Test — ein Test, der die Pact-Datei selbst parst und den Filter mit `re.compile` nachbaut, prüft
+seine eigene Kopie der Logik. `set_error_on_empty_pact(enabled=True)` fängt den Totalausfall
+zusätzlich ab.
 
 **Setup und Teardown sind getrennt, und der Teardown räumt wirklich auf.** Vier der fünf
 Interaktionen tragen denselben State, und eine davon legt das Konto tatsächlich an; bliebe es
-stehen, bekäme die nächste 409 statt 201. Ein zweiter Test löst genau das aus, statt es zu
-behaupten.
+stehen, bekäme die nächste 409 statt 201.
+
+Belegt wird das über einen **zweiten, grünen Verifikationslauf** gegen einen kleinen Pact, den das
+Testverzeichnis selbst mitbringt (`tests/contracts/mechanik_pact.json`): zwei Interaktionen, die
+sich den *anlegenden* State teilen, beide 409 erwartend — eine Form, die die App heute schon
+erfüllt. Räumt der Teardown nicht, läuft das zweite Setup in den `uq_users_email` und der Lauf wird
+rot. Nachgeprüft mit ausgehebeltem Teardown: er wird es.
+
+Der Umweg über einen eigenen Pact ist der Punkt. Der Lauf gegen den echten Vertrag ist rot und kann
+deshalb **nichts** belegen; ein Nachweis, der die Handler von Hand aufruft, prüft die Mechanik am
+Prüfobjekt vorbei. Der Mechanik-Pact prüft denselben Weg mit derselben Verdrahtung, nur grün — und
+liest sich im Testmodul genau wie der echte Lauf.
+
+Der State ist mit Absicht der anlegende: bei `Keine Registrierung mit a@b.de vorhanden` räumt schon
+das Setup auf, dort wäre der Teardown folgenlos und der Nachweis wertlos. Ein erster Anlauf hatte
+genau diesen Fehler und fiel bei der Gegenprobe auf.
 
 **Die State-Handler seeden direkt gegen `identity.users`**, über die vorhandene
 `postgres_engine`-Fixture — nicht über den Endpunkt, den die Verifikation gerade prüft. Ein State,

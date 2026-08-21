@@ -18,6 +18,8 @@ sind - jeder bekommt seinen eigenen Lauf unter seinem eigenen Provider-Namen.
 
 import asyncio
 import contextlib
+import json
+import re
 import threading
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
@@ -79,15 +81,32 @@ class ProviderVerifikation:
         """
         return cls(provider, pact)
 
-    def nur_interaktionen(self, beschreibungsmuster: str) -> Self:
+    def nur_interaktionen(self, beschreibungsmuster: str, *, erwartet: int) -> Self:
         """Beschraenke den Lauf auf Interaktionen, deren Beschreibung passt.
 
         So bleiben noch ungebaute Endpunkte draussen, ohne dass jemand die
         Pact-Datei anfassen muesste - sie bleibt genau so liegen, wie der
         Stakeholder sie abgelegt hat.
+
+        `erwartet` ist keine Zierde: das Muster haengt an Beschreibungstexten,
+        die der Consumer schreibt, und eine Umformulierung dort koennte es still
+        danebengreifen lassen. Ein Lauf, der weniger verifiziert als angesagt,
+        waere sonst gruen.
         """
+        getroffen = self._passende_beschreibungen(beschreibungsmuster)
+        if len(getroffen) != erwartet:
+            msg = (
+                f"Das Muster {beschreibungsmuster!r} trifft {len(getroffen)} Interaktionen, "
+                f"angesagt waren {erwartet}: {sorted(getroffen)}"
+            )
+            raise AssertionError(msg)
         self._filter = beschreibungsmuster
         return self
+
+    def _passende_beschreibungen(self, beschreibungsmuster: str) -> list[str]:
+        interaktionen = json.loads(self._pact.read_text(encoding="utf-8"))["interactions"]
+        muster = re.compile(beschreibungsmuster)
+        return [i["description"] for i in interaktionen if muster.search(i["description"])]
 
     def mit_state(self, name: str, *, setup: Arbeit, teardown: Arbeit) -> Self:
         """Hinterlege den Handler fuer einen Provider-State des Vertrags."""
