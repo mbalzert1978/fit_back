@@ -41,14 +41,23 @@ nicht über ein Umschreiben der Pact-Datei. Sie bleibt exakt so liegen, wie der 
 abgelegt hat, und das Aufmachen für `login`/`refresh`/`logout`/`me` kostet eine Zeile plus die
 States, die die neuen Interaktionen tragen.
 
-Pact selbst filtert nur über die **Beschreibung**. Das Muster dafür entsteht deshalb im Builder,
-aus dem Pact: die Beschreibungen der Interaktionen auf den genannten Pfaden, wörtlich und
-vollständig (`^(?:…|…)$`). Der Umweg ist der Punkt — ein von Hand gepflegter Ausdruck wie
-`^Registrierung ` hängt an Texten, die der Consumer jederzeit umformuliert, und greift dann still
-daneben.
+Pact selbst filtert nur über die **Beschreibung**. Statt daraus ein Muster zu bauen, spielt der
+Builder einen **reduzierten Pact** ab: eine Kopie im Temp-Ordner, die nur die gewählten
+Interaktionen trägt. Damit gibt es keinen Regex mehr, der danebengreifen könnte, und die Datei des
+Stakeholders bleibt unberührt.
 
-Ein Zwischenschritt hatte das Muster von Hand gepflegt und die Zahl der Treffer als
-`erwartet=5` danebengestellt. Das war schwächer, als es aussah: benennt der Consumer eine
+Die Form eines Pacts wird an genau einer Stelle gelesen (`Pact.aus`). `Interaktion` trägt
+`beschreibung`, `pfad` und die rohe Nutzlast und entscheidet über `zeigt_auf(pfade)` selbst, ob sie
+dazugehört; `Pact.nur_auf(pfade)` gibt den reduzierten Pact zurück. `Any` kommt in keiner Signatur
+und keinem Feld vor.
+
+`pfad` ist ein `PurePosixPath` — kein String, weil der Typ `/a//b` und `/a/b` gleich vergleicht;
+kein `Path`, damit unter Windows keine Backslash-Semantik hereinrutscht; und kein URL-Typ, weil im
+Pact ein Pfad steht und sonst nichts. Schema, Host und Query blieben leer und würfen die Frage auf,
+gegen welchen Host verglichen wird.
+
+Zwei Zwischenschritte hatten es anders versucht. Der erste pflegte ein Muster (`^Registrierung `)
+von Hand und stellte die Zahl der Treffer als `erwartet=5` daneben. Das war schwächer, als es aussah: benennt der Consumer eine
 `login`-Interaktion in „Registrierung …" um und eine `register`-Interaktion weg, sind es weiterhin
 fünf — und ein ungebauter Endpunkt liefe mit. Die Zahl prüfte ein Symptom, der Pfad prüft die
 Sache. Findet ein Pfad keine Interaktion, bricht der Aufbau ab;
@@ -120,6 +129,26 @@ aufrufer-eigenes Port-`Protocol`).
   und ein zweiter, winziger Test deckt die Zuordnung `setup`/`teardown` ab, mit der Pact ruft.
 - **„Vertrag" war schon vergeben.** `CONTEXT.md` führt den Begriff für das veröffentlichte Vokabular
   eines Context. Der Pact ist ein anderes Ding und heißt jetzt im Glossar wie im Code **Pact**.
+
+## Komposition, nicht Vererbung
+
+Der Builder ist für alle sechs Verträge gedacht. Die naheliegende Frage war, ob die Wiederverwendung
+nicht als abstrakte Test-Basisklasse gehört, von der jeder Context erbt. **Nein**, und das Kriterium
+ist:
+
+Eine geerbte Test-Basis ist richtig, wenn **N Implementierungen dieselbe Suite erfüllen** müssen —
+eine Suite, mehrere Prüflinge (der Fall, den `02-test-pyramide.md` unter „Form A" beschreibt: eine
+Contract-Suite gegen ein Port-`Protocol`, ausgeführt gegen jeden Adapter).
+
+Hier ist es umgekehrt: sechs Contexts, sechs verschiedene Pacts, verschiedene Endpunkte,
+verschiedene States. Es gibt **keine gemeinsame Zusicherung** zu erben. Geteilt ist allein die
+Maschinerie — App hochfahren, States verdrahten, Pact abspielen —, und dafür ist Komposition der
+Weg. Eine Basisklasse zwänge jedes Testmodul in eine Unterklasse, mit Hooks und fremdem
+Lebenszyklus, für null geteiltes Verhalten.
+
+Kippen würde das, sobald *jeder* Context-Lauf zusätzlich etwas belegen muss — etwa
+State-Unabhängigkeit. Dann gäbe es genau einen geerbten Test und die Basisklasse wäre richtig.
+Heute existiert nur Identity; das jetzt zu bauen wäre Vorrat auf Verdacht.
 
 ## Was ausdrücklich nicht entschieden wurde
 
