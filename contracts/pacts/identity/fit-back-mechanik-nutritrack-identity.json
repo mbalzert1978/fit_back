@@ -1,0 +1,65 @@
+{
+  "consumer": {
+    "name": "fit-back-mechanik"
+  },
+  "provider": {
+    "name": "nutritrack-identity"
+  },
+  "interactions": [
+    {
+      "description": "Erste Interaktion auf dem gemeinsamen State",
+      "providerStates": [
+        {
+          "name": "Nutzer a@b.de existiert mit Passwort geheim123"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/identity/register",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "email": "a@b.de",
+          "password": "ein-langes-passwort",
+          "displayName": "Anna",
+          "locale": "de",
+          "timeZoneId": "Europe/Berlin"
+        }
+      },
+      "response": {
+        "status": 409
+      }
+    },
+    {
+      "description": "Zweite Interaktion auf demselben State",
+      "providerStates": [
+        {
+          "name": "Nutzer a@b.de existiert mit Passwort geheim123"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/identity/register",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "email": "a@b.de",
+          "password": "ein-langes-passwort",
+          "displayName": "Anna",
+          "locale": "de",
+          "timeZoneId": "Europe/Berlin"
+        }
+      },
+      "response": {
+        "status": 409
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  }
+}

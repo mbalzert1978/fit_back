@@ -58,6 +58,15 @@ _Avoid_: DTO, Transport-DTO, Schema, öffentliche API
 → [Die Outbox ist ein Mechanismus, keine Naht](docs/decisions/2026-08-06-1120-outbox-mechanismus-statt-naht.md),
 [Registrierung über den Vertragstyp](docs/reflections/exp_registrierung-ueber-den-vertragstyp.md)
 
+**Pact-Vertrag**:
+Der vom Frontend erzeugte, hier abgelegte Pact — die Vorgabe der HTTP-Grenze eines Context. Ein
+anderes Ding als der **Vertrag** oben: der gehört diesem Repo und bindet Context an Context, der
+Pact-Vertrag gehört dem Konsumenten und bindet die Außengrenze. Kurzform „Pact" ist in Ordnung,
+das nackte Wort „Vertrag" für eine `.json`-Datei unter `contracts/pacts/` nicht.
+_Avoid_: Contract, API-Contract, Schema
+→ [Pacts sind die Vorgabe der HTTP-Grenze](docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md),
+[Die Mechanik der Provider-Verifikation](docs/decisions/2026-08-21-1420-mechanik-der-provider-verifikation.md)
+
 **Ereignis**:
 Eine Tatsache, die ein Context veröffentlicht, nachdem sie eingetreten ist. Es existiert genau
 einmal, als Vertrag — nicht als Paar aus Domänen-Ereignis und Transport-DTO.

@@ -25,7 +25,7 @@ Jedes Feature ist ein eigenes Python-Paket, intern geschichtet:
 | `application/` | public Request-/Response-DTOs, public Ports (Gateway/Datenquelle) + deren Ergebnis-Typen, interner **Command** (VOs, ggf. unter `shared/` geteilt), interne **Handler** (Orchestrator), interne **Port-Adapter** (Domain-Port-Implementierung, Anti-Corruption-Layer), **Mapper** (je Richtung eine Funktion/Klasse), **Eingabe-Validierungsregeln** (`Rule Pattern`, collect-all, unter `validators/`), **Test-API + In-Memory-Fakes** (siehe unten — Teil des Slice, nicht des Testprojekts), Wiring | `domain`, gemeinsames `common`-Paket, minimales DI (z. B. reine Funktionen/`functools.partial`, kein Framework noetig) |
 | `specs/<use_case>/` | Verhaltens-Specs, ausschliesslich ueber die public Test-API des Use Case — **der Regelfall** | nur das Feature-Paket selbst (keine `_private`-Importe quer durchs Paket) |
 | `specs/domain/` | Domain-Unit-Test je Aggregat/Value Object/Union, **nur wenn das Verhalten ueber die Test-API nicht ausdrueckbar ist** | die Domaene direkt |
-| `specs/contracts/` | Contract-Tests an Context-Grenzen ([`02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md), Form A) — **derzeit leer, Form offen**, siehe Hinweis unter der Tabelle | das eigene Port-`Protocol` |
+| `specs/contracts/` | Contract-Tests gegen ein aufrufer-eigenes Port-`Protocol` ([`02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md), Form A) — **derzeit leer**, siehe Hinweis unter der Tabelle | das eigene Port-`Protocol` |
 
 Der Ordner heisst `specs/`, nicht `tests/`: er enthaelt nicht nur Tests im engeren Sinn, sondern
 die **ausfuehrbare Spezifikation** des Verhaltens. `slice-shape-check` prueft nur `specs/<use_case>/`
@@ -33,16 +33,18 @@ gegen die Test-API-Regel; die beiden anderen Unterordner sind davon ausgenommen,
 per Definition tiefer greifen — und genau deshalb sind sie die Ausnahme, nicht die zweite
 Standardebene.
 
-> **`specs/contracts/` ist derzeit leer, und das ist ein offener Punkt, kein Endzustand.** Dass es
-> Contract-Tests an Context-Grenzen gibt, steht fest; **wie** sie aussehen, nicht. Der frueher hier
-> beschriebene Mechanismus — handgeschriebene Beispiel-Payloads unter
-> `contracts/events/<event>/examples/*.json` samt Roundtrip-Test — ist zurueckgenommen worden.
-> Contract-Testing laeuft in diesem Repo kuenftig ueber **Pact**, consumer-driven vom Frontend nach
-> unten; die Form entscheidet
-> [#94](https://github.com/mbalzert1978/fit_back/issues/94). Bis dahin wird hier **kein** neuer
-> Contract-Test angelegt, und die Feldmenge veroeffentlichter Ereignisse ist nur durch die
-> Slice-Specs gedeckt. Auch `02-test-pyramide.md` beschreibt unter „Form B" noch den alten
-> Mechanismus und wird mit #94 nachgezogen.
+> **Contract-Tests gibt es in diesem Repo in zwei Formen, und nur eine davon liegt hier.** Die
+> HTTP-Grenze ist durch die Pact-Vertraege des Frontends gedeckt: die Vertragsdateien liegen unter
+> `contracts/pacts/<context>/`, die Provider-Verifikation unter `tests/contracts/` — sie faehrt die
+> App hoch und ist damit kein Slice-Spec (siehe
+> [`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`](../../docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md)).
+> `specs/contracts/` bleibt fuer Form A reserviert — Contract-Tests gegen ein aufrufer-eigenes
+> Port-`Protocol` — und ist leer, solange es kein zweites Port zwischen zwei Contexts gibt. Fuer
+> Integration Events aus der Outbox ist **keine** Form entschieden; der frueher hier beschriebene
+> Mechanismus (handgeschriebene Beispiel-Payloads unter
+> `contracts/events/<event>/examples/*.json` samt Roundtrip-Test) ist zurueckgenommen und hat
+> keinen Nachfolger. Bis dahin ist die Feldmenge veroeffentlichter Ereignisse nur durch die
+> Slice-Specs gedeckt.
 
 ### Ein Spec prueft das Ergebnis, nicht den Weg dorthin
 

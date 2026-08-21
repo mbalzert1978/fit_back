@@ -1,0 +1,3 @@
+# Pact files stay byte-for-byte what the consumer produced -- no line-ending
+# normalisation (see docs/decisions/2026-08-21-1330-*).
+contracts/** -text
