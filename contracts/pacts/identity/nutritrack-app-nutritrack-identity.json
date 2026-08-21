@@ -1,0 +1,1376 @@
+{
+  "consumer": {
+    "name": "nutritrack-app"
+  },
+  "interactions": [
+    {
+      "description": "Abmelden",
+      "providerStates": [
+        {
+          "name": "Nutzer hat einen gültigen Refresh-Token"
+        }
+      ],
+      "request": {
+        "body": {
+          "refreshToken": "rt_..."
+        },
+        "headers": {
+          "Accept-Language": "de",
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/logout"
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "description": "Anmeldung mit falschem Passwort",
+      "providerStates": [
+        {
+          "name": "Nutzer a@b.de existiert mit Passwort geheim123"
+        }
+      ],
+      "request": {
+        "body": {
+          "email": "a@b.de",
+          "password": "falsch"
+        },
+        "headers": {
+          "Accept-Language": "de",
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/login"
+      },
+      "response": {
+        "body": {
+          "detail": "Anmeldung fehlgeschlagen",
+          "instance": "/api/v1/example",
+          "status": 401,
+          "title": "Anmeldung fehlgeschlagen",
+          "type": "tag:nutritrack.app,2026:problems/invalid-credentials"
+        },
+        "headers": {
+          "Content-Language": "de-DE",
+          "Content-Type": "application/problem+json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.detail": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.instance": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^/api/v1/.+"
+                }
+              ]
+            },
+            "$.title": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 401
+      }
+    },
+    {
+      "description": "Anmeldung mit gültigen Daten",
+      "providerStates": [
+        {
+          "name": "Nutzer a@b.de existiert mit Passwort geheim123"
+        }
+      ],
+      "request": {
+        "body": {
+          "email": "a@b.de",
+          "password": "geheim123"
+        },
+        "headers": {
+          "Accept-Language": "de",
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/login"
+      },
+      "response": {
+        "body": {
+          "data": {
+            "session": {
+              "accessToken": "eyJhbGciOi...",
+              "expiresIn": 900,
+              "refreshExpiresIn": 5184000,
+              "refreshToken": "rt_...",
+              "tokenType": "Bearer"
+            },
+            "user": {
+              "displayName": "Markus",
+              "email": "a@b.de",
+              "id": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
+              "locale": "de",
+              "timeZoneId": "Europe/Berlin"
+            }
+          },
+          "meta": {
+            "apiVersion": "1",
+            "requestId": "01JQ8Z3K7V9XW2P4M6N8R0T5YB",
+            "timestamp": "2026-08-18T09:14:22Z"
+          }
+        },
+        "generators": {
+          "body": {
+            "$.data.user.id": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "X-Request-Id": "01JQ8Z3K7V9XW2P4M6N8R0T5YB"
+        },
+        "matchingRules": {
+          "body": {
+            "$.data.session.accessToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.session.expiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.data.session.refreshExpiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.data.session.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.displayName": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.email": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            },
+            "$.data.user.locale": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^(de|en)$"
+                }
+              ]
+            },
+            "$.data.user.timeZoneId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.apiVersion": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.requestId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {
+            "X-Request-Id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "Eigenes Konto laden",
+      "providerStates": [
+        {
+          "name": "Nutzer a@b.de ist angemeldet"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept-Language": "de",
+          "Authorization": "Bearer eyJ..."
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "Bearer .+"
+                }
+              ]
+            }
+          }
+        },
+        "method": "GET",
+        "path": "/api/v1/identity/me"
+      },
+      "response": {
+        "body": {
+          "data": {
+            "displayName": "Markus",
+            "email": "a@b.de",
+            "id": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
+            "locale": "de",
+            "timeZoneId": "Europe/Berlin"
+          },
+          "meta": {
+            "apiVersion": "1",
+            "requestId": "01JQ8Z3K7V9XW2P4M6N8R0T5YB",
+            "timestamp": "2026-08-18T09:14:22Z"
+          }
+        },
+        "generators": {
+          "body": {
+            "$.data.id": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.data.displayName": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.email": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            },
+            "$.data.locale": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^(de|en)$"
+                }
+              ]
+            },
+            "$.data.timeZoneId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.apiVersion": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.requestId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "Eigenes Konto mit abgelaufenem Token laden",
+      "providerStates": [
+        {
+          "name": "Access-Token ist abgelaufen"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept-Language": "de",
+          "Authorization": "Bearer eyJ..."
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "Bearer .+"
+                }
+              ]
+            }
+          }
+        },
+        "method": "GET",
+        "path": "/api/v1/identity/me"
+      },
+      "response": {
+        "body": {
+          "detail": "Anmeldung abgelaufen",
+          "instance": "/api/v1/example",
+          "status": 401,
+          "title": "Anmeldung abgelaufen",
+          "type": "tag:nutritrack.app,2026:problems/token-expired"
+        },
+        "headers": {
+          "Content-Language": "de-DE",
+          "Content-Type": "application/problem+json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.detail": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.instance": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^/api/v1/.+"
+                }
+              ]
+            },
+            "$.title": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 401
+      }
+    },
+    {
+      "description": "Registrierung mit einer Versatz-Zone",
+      "providerStates": [
+        {
+          "name": "Keine Registrierung mit a@b.de vorhanden"
+        }
+      ],
+      "request": {
+        "body": {
+          "displayName": "Markus",
+          "email": "a@b.de",
+          "locale": "de",
+          "password": "geheim123!",
+          "timeZoneId": "GMT+01:00"
+        },
+        "generators": {
+          "header": {
+            "Idempotency-Key": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Accept-Language": "de",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "e2490de5-5bd3-43d5-b7c4-526e33f71304"
+        },
+        "matchingRules": {
+          "header": {
+            "Idempotency-Key": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/register"
+      },
+      "response": {
+        "body": {
+          "data": {
+            "session": {
+              "accessToken": "eyJhbGciOi...",
+              "expiresIn": 900,
+              "refreshExpiresIn": 5184000,
+              "refreshToken": "rt_...",
+              "tokenType": "Bearer"
+            },
+            "user": {
+              "displayName": "Markus",
+              "email": "a@b.de",
+              "id": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
+              "locale": "de",
+              "timeZoneId": "+01:00"
+            }
+          },
+          "meta": {
+            "apiVersion": "1",
+            "requestId": "01JQ8Z3K7V9XW2P4M6N8R0T5YB",
+            "timestamp": "2026-08-18T09:14:22Z"
+          }
+        },
+        "generators": {
+          "body": {
+            "$.data.user.id": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Location": "/api/v1/identity/me",
+          "X-Request-Id": "01JQ8Z3K7V9XW2P4M6N8R0T5YB"
+        },
+        "matchingRules": {
+          "body": {
+            "$.data.session.accessToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.session.expiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.data.session.refreshExpiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.data.session.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.displayName": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.email": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            },
+            "$.data.user.locale": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^(de|en)$"
+                }
+              ]
+            },
+            "$.meta.apiVersion": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.requestId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {
+            "X-Request-Id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      }
+    },
+    {
+      "description": "Registrierung mit freier E-Mail",
+      "providerStates": [
+        {
+          "name": "Keine Registrierung mit a@b.de vorhanden"
+        }
+      ],
+      "request": {
+        "body": {
+          "displayName": "Markus",
+          "email": "a@b.de",
+          "locale": "de",
+          "password": "geheim123!",
+          "timeZoneId": "Europe/Berlin"
+        },
+        "generators": {
+          "header": {
+            "Idempotency-Key": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Accept-Language": "de",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "e2490de5-5bd3-43d5-b7c4-526e33f71304"
+        },
+        "matchingRules": {
+          "body": {
+            "$.timeZoneId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_+:/-]+$"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Idempotency-Key": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/register"
+      },
+      "response": {
+        "body": {
+          "data": {
+            "session": {
+              "accessToken": "eyJhbGciOi...",
+              "expiresIn": 900,
+              "refreshExpiresIn": 5184000,
+              "refreshToken": "rt_...",
+              "tokenType": "Bearer"
+            },
+            "user": {
+              "displayName": "Markus",
+              "email": "a@b.de",
+              "id": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
+              "locale": "de",
+              "timeZoneId": "Europe/Berlin"
+            }
+          },
+          "meta": {
+            "apiVersion": "1",
+            "requestId": "01JQ8Z3K7V9XW2P4M6N8R0T5YB",
+            "timestamp": "2026-08-18T09:14:22Z"
+          }
+        },
+        "generators": {
+          "body": {
+            "$.data.user.id": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Location": "/api/v1/identity/me",
+          "X-Request-Id": "01JQ8Z3K7V9XW2P4M6N8R0T5YB"
+        },
+        "matchingRules": {
+          "body": {
+            "$.data.session.accessToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.session.expiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.data.session.refreshExpiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.data.session.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.displayName": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.email": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.user.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            },
+            "$.data.user.locale": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^(de|en)$"
+                }
+              ]
+            },
+            "$.data.user.timeZoneId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.apiVersion": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.requestId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {
+            "X-Request-Id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      }
+    },
+    {
+      "description": "Registrierung mit ungültigen Angaben, auf Englisch gefragt",
+      "providerStates": [
+        {
+          "name": "Keine Registrierung mit a@b.de vorhanden"
+        }
+      ],
+      "request": {
+        "body": {
+          "displayName": "a",
+          "email": "kein-at-zeichen",
+          "locale": "en",
+          "password": "kurz",
+          "timeZoneId": "Europe/Berlin"
+        },
+        "generators": {
+          "header": {
+            "Idempotency-Key": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Accept-Language": "en",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "e2490de5-5bd3-43d5-b7c4-526e33f71304"
+        },
+        "matchingRules": {
+          "body": {
+            "$.timeZoneId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_+:/-]+$"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Idempotency-Key": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/register"
+      },
+      "response": {
+        "body": {
+          "detail": "Please check the fields marked with errors",
+          "errors": {
+            "displayName": [
+              "The name must be at least 2 characters long (current: 1)"
+            ],
+            "email": [
+              "The email address requires exactly one @ sign (found: 0)"
+            ],
+            "password": [
+              "The password must be at least 10 characters long (current: 4)"
+            ]
+          },
+          "instance": "/api/v1/example",
+          "status": 422,
+          "title": "The input is invalid",
+          "type": "tag:nutritrack.app,2026:problems/validation-failed"
+        },
+        "headers": {
+          "Content-Language": "en-US",
+          "Content-Type": "application/problem+json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.detail": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.errors.displayName": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.errors.email": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.errors.password": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.instance": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^/api/v1/.+"
+                }
+              ]
+            },
+            "$.title": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 422
+      }
+    },
+    {
+      "description": "Registrierung mit ungültiger E-Mail, zu kurzem Passwort und zu kurzem Namen",
+      "providerStates": [
+        {
+          "name": "Keine Registrierung mit a@b.de vorhanden"
+        }
+      ],
+      "request": {
+        "body": {
+          "displayName": "a",
+          "email": "kein-at-zeichen",
+          "locale": "de",
+          "password": "kurz",
+          "timeZoneId": "Europe/Berlin"
+        },
+        "generators": {
+          "header": {
+            "Idempotency-Key": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Accept-Language": "de",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "e2490de5-5bd3-43d5-b7c4-526e33f71304"
+        },
+        "matchingRules": {
+          "body": {
+            "$.timeZoneId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_+:/-]+$"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Idempotency-Key": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/register"
+      },
+      "response": {
+        "body": {
+          "detail": "Bitte überprüfen Sie die mit Fehlern markierten Felder",
+          "errors": {
+            "displayName": [
+              "Der Name muss mindestens 2 Zeichen lang sein (aktuell: 1)"
+            ],
+            "email": [
+              "Die E-Mail-Adresse benötigt genau ein @-Zeichen (gefunden: 0)"
+            ],
+            "password": [
+              "Das Passwort muss mindestens 10 Zeichen lang sein (aktuell: 4)"
+            ]
+          },
+          "instance": "/api/v1/example",
+          "status": 422,
+          "title": "Die Eingabe ist ungültig",
+          "type": "tag:nutritrack.app,2026:problems/validation-failed"
+        },
+        "headers": {
+          "Content-Language": "de-DE",
+          "Content-Type": "application/problem+json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.detail": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.errors.displayName": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.errors.email": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.errors.password": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.instance": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^/api/v1/.+"
+                }
+              ]
+            },
+            "$.title": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 422
+      }
+    },
+    {
+      "description": "Registrierung mit vergebener E-Mail",
+      "providerStates": [
+        {
+          "name": "Nutzer a@b.de existiert mit Passwort geheim123"
+        }
+      ],
+      "request": {
+        "body": {
+          "displayName": "Markus",
+          "email": "a@b.de",
+          "locale": "de",
+          "password": "geheim123!",
+          "timeZoneId": "Europe/Berlin"
+        },
+        "generators": {
+          "header": {
+            "Idempotency-Key": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Accept-Language": "de",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "e2490de5-5bd3-43d5-b7c4-526e33f71304"
+        },
+        "matchingRules": {
+          "body": {
+            "$.timeZoneId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_+:/-]+$"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Idempotency-Key": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/register"
+      },
+      "response": {
+        "body": {
+          "detail": "Die E-Mail-Adresse a@b.de ist bereits mit einem anderen Konto verknüpft",
+          "instance": "/api/v1/example",
+          "status": 409,
+          "title": "Diese E-Mail-Adresse ist bereits registriert",
+          "type": "tag:nutritrack.app,2026:problems/email-already-registered"
+        },
+        "headers": {
+          "Content-Language": "de-DE",
+          "Content-Type": "application/problem+json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.detail": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.instance": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^/api/v1/.+"
+                }
+              ]
+            },
+            "$.title": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 409
+      }
+    },
+    {
+      "description": "Sitzung erneuern",
+      "providerStates": [
+        {
+          "name": "Nutzer hat einen gültigen Refresh-Token"
+        }
+      ],
+      "request": {
+        "body": {
+          "refreshToken": "rt_..."
+        },
+        "headers": {
+          "Accept-Language": "de",
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/v1/identity/refresh"
+      },
+      "response": {
+        "body": {
+          "data": {
+            "session": {
+              "accessToken": "eyJhbGciOi...",
+              "expiresIn": 900,
+              "refreshExpiresIn": 5184000,
+              "refreshToken": "rt_neu",
+              "tokenType": "Bearer"
+            }
+          },
+          "meta": {
+            "apiVersion": "1",
+            "requestId": "01JQ8Z3K7V9XW2P4M6N8R0T5YB",
+            "timestamp": "2026-08-18T09:14:22Z"
+          }
+        },
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "X-Request-Id": "01JQ8Z3K7V9XW2P4M6N8R0T5YB"
+        },
+        "matchingRules": {
+          "body": {
+            "$.data.session.accessToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.data.session.expiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.data.session.refreshExpiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.data.session.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.apiVersion": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.requestId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.meta.timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {
+            "X-Request-Id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "17.1.2"
+    },
+    "pactRust": {
+      "ffi": "0.5.6",
+      "models": "1.3.14"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "nutritrack-identity"
+  }
+}
