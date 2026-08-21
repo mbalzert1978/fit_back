@@ -12,7 +12,7 @@ präsentativ und beeinflußt das fachliche Ergebnis nicht.
 
 from typing import assert_never, final
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -76,11 +76,43 @@ class RegisterUserBody(BaseModel):
         )
 
 
+@final
+class RegisteredUser(BaseModel):
+    """Das angelegte Konto, in der camelCase-Schreibweise der Schnittstelle."""
+
+    id: str
+    email: str
+    display_name: str = Field(serialization_alias="displayName")
+    locale: str
+    time_zone_id: str = Field(serialization_alias="timeZoneId")
+
+
+@final
+class IssuedSession(BaseModel):
+    """Die mit der Registrierung ausgegebene Sitzung."""
+
+    access_token: str = Field(serialization_alias="accessToken", repr=False)
+    expires_in: int = Field(serialization_alias="expiresIn")
+    refresh_token: str = Field(serialization_alias="refreshToken", repr=False)
+    refresh_expires_in: int = Field(serialization_alias="refreshExpiresIn")
+    token_type: str = Field(default=_TOKEN_TYPE, serialization_alias="tokenType")
+
+
+@final
+class RegisterUserResponse(BaseModel):
+    """Der 201-Koerper: der nackte `data`-Teil, ohne den Umschlag der Middleware."""
+
+    user: RegisteredUser
+    session: IssuedSession
+
+
 @router.post(
     "/register",
     status_code=status.HTTP_201_CREATED,
     summary="Registriert ein neues Konto",
+    response_model=RegisterUserResponse,
     responses={
+        status.HTTP_201_CREATED: {"model": RegisterUserResponse},
         status.HTTP_409_CONFLICT: {"model": ProblemDetails},
         status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ProblemDetails},
     },
@@ -89,7 +121,8 @@ async def register_user(
     body: RegisterUserBody,
     pipeline: RegisterUser,
     request: Request,
-) -> JSONResponse:
+    response: Response,
+) -> RegisterUserResponse | JSONResponse:
     """Lege ein Konto an.
 
     Vollstaendiges Matching mit `assert_never` als Abschluss: waechst die
@@ -108,28 +141,23 @@ async def register_user(
             # Der `{data, meta}`-Umschlag kommt aus `ResponseEnvelopeMiddleware`,
             # ebenso `X-Request-Id` und `Cache-Control`. Hier steht nur, was
             # dieser Endpunkt zu sagen hat.
-            response = JSONResponse(
-                status_code=status.HTTP_201_CREATED,
-                content={
-                    "user": {
-                        "id": accepted.user_id,
-                        "email": accepted.email,
-                        "displayName": accepted.display_name,
-                        "locale": accepted.locale,
-                        "timeZoneId": accepted.time_zone_id,
-                    },
-                    "session": {
-                        "accessToken": accepted.access_token,
-                        "expiresIn": accepted.expires_in,
-                        "refreshToken": accepted.refresh_token,
-                        "refreshExpiresIn": accepted.refresh_expires_in,
-                        "tokenType": _TOKEN_TYPE,
-                    },
-                },
-            )
             response.headers["Content-Language"] = language
             response.headers["Location"] = _SELF_URL
-            return response
+            return RegisterUserResponse(
+                user=RegisteredUser(
+                    id=accepted.user_id,
+                    email=accepted.email,
+                    display_name=accepted.display_name,
+                    locale=accepted.locale,
+                    time_zone_id=accepted.time_zone_id,
+                ),
+                session=IssuedSession(
+                    access_token=accepted.access_token,
+                    expires_in=accepted.expires_in,
+                    refresh_token=accepted.refresh_token,
+                    refresh_expires_in=accepted.refresh_expires_in,
+                ),
+            )
 
         case EmailAlreadyTaken(email=email):
             title = translate(resources, "email-already-registered", language=language)
