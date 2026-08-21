@@ -15,6 +15,7 @@
   "email-unencodable-domain-label": "Ein internationalisiertes Domain-Label lässt sich nicht nach Punycode umwandeln: {reason}",
   "password-too-short": "Das Passwort muss mindestens {minimum} Zeichen lang sein (aktuell: {actual_length})",
   "display-name-is-empty": "Der Anzeigename darf nicht leer sein",
+  "display-name-too-short": "Der Name muss mindestens {minimum} Zeichen lang sein (aktuell: {actual_length})",
   "display-name-too-long": "Der Anzeigename überschreitet die maximale Länge von {maximum} Zeichen (aktuell: {actual_length})",
   "locale-not-supported": "Die Sprache wird nicht unterstützt: {candidate}",
   "user-time-zone-unknown": "Die Zeitzone ist nicht bekannt: {candidate}",

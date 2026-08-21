@@ -18,20 +18,33 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.identity.dependencies import RegisterUser
-from src.api.problem_details import ProblemDetails
+from src.api.problem_details import ProblemDetails, problem_type
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
     RegisterUserRequest,
     RegistrationAccepted,
     RegistrationInvalid,
 )
-from src.contexts.shared_kernel.timestamp import Timestamp
 
 __all__ = ["router"]
 
 router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
 
 _PROBLEM_JSON = "application/problem+json"
+
+_TOKEN_TYPE = "Bearer"  # noqa: S105 -- ein Schema-Name aus RFC 6750, kein Geheimnis
+"""Das Schema, in dem der Access-Token vorzulegen ist (RFC 6750).
+
+Steht ohne Matcher im Vertrag und ist damit bindend - eine Konstante und kein
+Wert, den irgendwer waehlen koennte.
+"""
+
+_SELF_URL = "/api/v1/identity/me"
+"""Wohin die 201 zeigt: auf das angelegte Konto.
+
+Der Endpunkt selbst entsteht mit #55; der Header zeigt schon dorthin, weil er
+Teil des Vertrags dieser Antwort ist und nicht Teil jenes Endpunkts.
+"""
 
 
 @final
@@ -68,8 +81,8 @@ class RegisterUserBody(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Registriert ein neues Konto",
     responses={
-        status.HTTP_400_BAD_REQUEST: {"model": ProblemDetails},
         status.HTTP_409_CONFLICT: {"model": ProblemDetails},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ProblemDetails},
     },
 )
 async def register_user(
@@ -92,22 +105,30 @@ async def register_user(
     outcome = await pipeline.run(body.to_request())
     match outcome:
         case RegistrationAccepted() as accepted:
+            # Der `{data, meta}`-Umschlag kommt aus `ResponseEnvelopeMiddleware`,
+            # ebenso `X-Request-Id` und `Cache-Control`. Hier steht nur, was
+            # dieser Endpunkt zu sagen hat.
             response = JSONResponse(
                 status_code=status.HTTP_201_CREATED,
                 content={
-                    "userId": accepted.user_id,
-                    "email": accepted.email,
-                    "displayName": accepted.display_name,
-                    "locale": accepted.locale,
-                    "timeZoneId": accepted.time_zone_id,
-                    # Nach aussen ISO-8601, intern Unix-Sekunden
-                    # (docs/decisions/2026-08-06-1340-unix-epoch-statt-datetime.md).
-                    "registeredAt": Timestamp(accepted.registered_at_unix)
-                    .to_datetime()
-                    .isoformat(),
+                    "user": {
+                        "id": accepted.user_id,
+                        "email": accepted.email,
+                        "displayName": accepted.display_name,
+                        "locale": accepted.locale,
+                        "timeZoneId": accepted.time_zone_id,
+                    },
+                    "session": {
+                        "accessToken": accepted.access_token,
+                        "expiresIn": accepted.expires_in,
+                        "refreshToken": accepted.refresh_token,
+                        "refreshExpiresIn": accepted.refresh_expires_in,
+                        "tokenType": _TOKEN_TYPE,
+                    },
                 },
             )
             response.headers["Content-Language"] = language
+            response.headers["Location"] = _SELF_URL
             return response
 
         case EmailAlreadyTaken(email=email):
@@ -138,7 +159,7 @@ async def register_user(
             detail = translate(resources, "validation-failed-detail", language=language)
             return _problem(
                 request,
-                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
                 "validation-failed",
                 title,
                 detail,
@@ -161,7 +182,7 @@ def _problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, s
 ) -> JSONResponse:
     """Baue eine RFC-7807-Antwort im Format des Shared Kernel."""
     problem = ProblemDetails(
-        type=f"https://api.example/errors/{error_type}",
+        type=problem_type(error_type),
         title=title,
         status=http_status,
         detail=detail,

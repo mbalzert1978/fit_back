@@ -14,6 +14,7 @@ __all__ = [
     "DisplayNameError",
     "DisplayNameIsEmpty",
     "DisplayNameTooLong",
+    "DisplayNameTooShort",
 ]
 
 
@@ -28,9 +29,25 @@ class DisplayNameIsEmpty:
     Fall je nach Feld einen anderen Code liefern - und der Code gehoert laut
     `shared_kernel/coded_error.py` genau einmal an genau einen Fall. `DisplayName.parse`
     uebersetzt darum an der Grenze.
+
+    Eigener Fall auch neben `DisplayNameTooShort`, obwohl die Mindestlaenge den
+    leeren Namen mit abdeckt: "gar nichts eingegeben" und "zu wenig eingegeben"
+    sind fuer den Aufrufer zwei verschiedene Auskuenfte, und nur die zweite kann
+    eine Laenge nennen.
     """
 
     code: ClassVar[str] = "display-name-is-empty"
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class DisplayNameTooShort:
+    """Der Anzeigename unterschreitet die zulaessige Mindestlaenge."""
+
+    code: ClassVar[str] = "display-name-too-short"
+
+    actual_length: int
+    minimum: int
 
 
 @final
@@ -44,5 +61,5 @@ class DisplayNameTooLong:
     maximum: int
 
 
-type DisplayNameError = DisplayNameIsEmpty | DisplayNameTooLong
+type DisplayNameError = DisplayNameIsEmpty | DisplayNameTooShort | DisplayNameTooLong
 """Teil-Union - zusammengefuehrt zum einen `DomainError` in `errors.py`."""

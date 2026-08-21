@@ -27,6 +27,13 @@ dependencies = [
     # Labels und bei der Normalisierung anders.
     "idna>=3.18",
     "argon2-cffi>=25.1.0",
+    # JWT-Signatur und -Pruefung fuer die Access-Token (BACKEND.md Abschnitt 8).
+    # Die Bibliothek war laut docs/milestones/01-technical-decisions.md bis M1
+    # offen; sie steht hinter der Naht `RegisterUserSessionTokens`, so wie
+    # argon2-cffi hinter `RegisterUserPasswordHasher` - selbst gebaute
+    # Signatur- und Ablauf-Pruefung ist am Sicherheitspfad nichts, was man sich
+    # spart.
+    "pyjwt>=2.10.1",
 ]
 
 [project.optional-dependencies]

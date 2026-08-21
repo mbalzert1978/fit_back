@@ -27,11 +27,11 @@ from src.api.i18n import create_resources
 
 
 class TestValidationErrorHandler:
-    """RequestValidationError wird zu RFC-7807 mit Status 400."""
+    """RequestValidationError wird zu RFC-7807 mit Status 422."""
 
     @pytest.mark.asyncio
     async def test_ungueltiger_body_wird_zu_problem_json(self) -> None:
-        """400 statt FastAPIs 422 - der Aufrufer sieht ueberall dasselbe Format."""
+        """422 wie FastAPI, aber im Format des Hauses - der Aufrufer sieht ueberall dasselbe."""
         app = FastAPI()
         app.state.resources = create_resources()
         register_exception_handlers(app)
@@ -58,11 +58,11 @@ class TestValidationErrorHandler:
                 json={"email": "test", "password": "short"},
             )
 
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.headers["content-type"] == "application/problem+json"
         data = response.json()
-        assert data["type"] == "https://api.example/errors/validation-failed"
-        assert data["status"] == 400
+        assert data["type"] == "tag:nutritrack.app,2026:problems/validation-failed"
+        assert data["status"] == 422
         assert data["instance"] == "/api/v1/register"
         assert data["errors"]
 

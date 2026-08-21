@@ -29,6 +29,7 @@ from src.contexts.identity.domain import (
     DisplayName,
     DisplayNameIsEmpty,
     DisplayNameTooLong,
+    DisplayNameTooShort,
     Email,
     EmailAddressLiteralInvalid,
     EmailDomainHasEmptyLabel,
@@ -151,13 +152,21 @@ def password_must_be_long_enough(request: RegisterUserRequest) -> list[FieldErro
 
 
 def display_name_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:
-    """Der Anzeigename muss nicht leer und nicht zu lang sein."""
+    """Der Anzeigename muss nicht leer, nicht zu kurz und nicht zu lang sein."""
     outcome = DisplayName.parse(request.display_name)
     match outcome:
         case Ok():
             return []
         case Err(error=DisplayNameIsEmpty()):
             return [FieldError("displayName", DisplayNameIsEmpty.code, {})]
+        case Err(error=DisplayNameTooShort(actual_length=actual, minimum=minimum)):
+            return [
+                FieldError(
+                    "displayName",
+                    DisplayNameTooShort.code,
+                    {"actual_length": actual, "minimum": minimum},
+                )
+            ]
         case Err(error=DisplayNameTooLong(actual_length=actual, maximum=maximum)):
             return [
                 FieldError(
@@ -183,7 +192,7 @@ def locale_must_be_supported(request: RegisterUserRequest) -> list[FieldError]:
 
 
 def time_zone_must_be_known(request: RegisterUserRequest) -> list[FieldError]:
-    """Die Zeitzone muss eine bekannte IANA-Id sein."""
+    """Die Zeitzone muss eine bekannte IANA-Id oder ein fester UTC-Versatz sein."""
     outcome = UserTimeZone.parse(request.time_zone_id)
     match outcome:
         case Ok():

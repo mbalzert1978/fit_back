@@ -7,20 +7,60 @@ Zugriff umzufallen.
 
 import pytest
 
-from src.settings import Settings, validate_settings
+from src.settings import JWT_SECRET_MINIMUM_LENGTH, Settings, validate_settings
+
+GUELTIGES_GEHEIMNIS = "g" * JWT_SECRET_MINIMUM_LENGTH
+"""Ein Signaturgeheimnis, das lang genug ist - die Tests hier pruefen anderes."""
 
 
 def test_ohne_passwort_startet_nichts(monkeypatch: pytest.MonkeyPatch) -> None:
     """`DB_PASSWORD` hat bewusst keinen Standardwert."""
+    monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
     monkeypatch.delenv("DB_PASSWORD", raising=False)
 
     with pytest.raises(RuntimeError):
         validate_settings()
 
 
+def test_ohne_signaturgeheimnis_startet_nichts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`JWT_SECRET` hat bewusst keinen Standardwert.
+
+    Ein Default waere hier eine Hintertuer: wer ihn kennt, signiert sich einen
+    Access-Token fuer jedes Konto.
+    """
+    monkeypatch.setenv("DB_PASSWORD", "geheim")
+    monkeypatch.delenv("JWT_SECRET", raising=False)
+
+    with pytest.raises(RuntimeError):
+        validate_settings()
+
+
+def test_ein_zu_kurzes_signaturgeheimnis_faellt_beim_start_auf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RFC 7518 Abschnitt 3.2: der HMAC-Schluessel ist mindestens so lang wie der Hash.
+
+    `pyjwt` nimmt ein kuerzeres an und warnt nur - eine Warnung im Log haelt
+    niemanden auf.
+    """
+    monkeypatch.setenv("DB_PASSWORD", "geheim")
+    monkeypatch.setenv("JWT_SECRET", "g" * (JWT_SECRET_MINIMUM_LENGTH - 1))
+
+    with pytest.raises(RuntimeError):
+        validate_settings()
+
+
+def test_das_signaturgeheimnis_taucht_in_keiner_darstellung_auf() -> None:
+    """`repr(settings)` landet in Logs und Tracebacks - das Geheimnis darf nicht mit."""
+    settings = Settings(db_password="geheim", jwt_secret="s" * JWT_SECRET_MINIMUM_LENGTH)
+
+    assert "s" * JWT_SECRET_MINIMUM_LENGTH not in repr(settings)
+
+
 def test_ein_unbrauchbarer_port_faellt_beim_start_auf(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ein Port, der keine Zahl ist, ist ein Konfigurationsfehler, kein Laufzeitfehler."""
     monkeypatch.setenv("DB_PASSWORD", "geheim")
+    monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
     monkeypatch.setenv("DB_PORT", "achtundzwanzig")
 
     with pytest.raises(RuntimeError):
@@ -30,6 +70,7 @@ def test_ein_unbrauchbarer_port_faellt_beim_start_auf(monkeypatch: pytest.Monkey
 def test_ein_port_ausserhalb_des_bereichs_faellt_auf(monkeypatch: pytest.MonkeyPatch) -> None:
     """65536 ist keine gueltige Portnummer."""
     monkeypatch.setenv("DB_PASSWORD", "geheim")
+    monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
     monkeypatch.setenv("DB_PORT", "65536")
 
     with pytest.raises(RuntimeError):
@@ -39,6 +80,7 @@ def test_ein_port_ausserhalb_des_bereichs_faellt_auf(monkeypatch: pytest.MonkeyP
 def test_die_fehlermeldung_nennt_keinen_wert(monkeypatch: pytest.MonkeyPatch) -> None:
     """Startfehler landen im Log - ein Passwort darf da nicht mitkommen."""
     monkeypatch.setenv("DB_PASSWORD", "streng-geheim")
+    monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
     monkeypatch.setenv("DB_PORT", "0")
 
     with pytest.raises(RuntimeError) as raised:
@@ -54,6 +96,7 @@ def test_die_werte_kommen_aus_der_umgebung(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("DB_NAME", "eigene_db")
     monkeypatch.setenv("DB_USER", "eigener_nutzer")
     monkeypatch.setenv("DB_PASSWORD", "geheim")
+    monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
 
     settings = validate_settings()
 
@@ -71,6 +114,7 @@ def test_die_url_faehrt_asyncpg_ueber_sqlalchemy() -> None:
         db_name="eigene_db",
         db_user="eigener_nutzer",
         db_password="geheim",
+        jwt_secret=GUELTIGES_GEHEIMNIS,
     )
 
     assert settings.database_url.render_as_string(hide_password=False) == (
@@ -94,6 +138,7 @@ def test_sonderzeichen_im_passwort_verschieben_die_url_nicht() -> None:
         db_name="eigene_db",
         db_user="nutzer@firma",
         db_password=boesartig,
+        jwt_secret=GUELTIGES_GEHEIMNIS,
     )
 
     url = settings.database_url
@@ -113,6 +158,7 @@ def test_die_url_zeigt_das_passwort_nicht(capsys: pytest.CaptureFixture[str]) ->
         db_name="eigene_db",
         db_user="nutzer",
         db_password="streng-geheim",
+        jwt_secret=GUELTIGES_GEHEIMNIS,
     )
 
     print(settings.database_url)

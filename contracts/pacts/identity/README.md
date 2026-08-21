@@ -45,9 +45,10 @@ folgenlos, über alle Verträge hinweg der Unterschied zwischen einer Handvoll H
 **Keine Vorgabe, sondern ein Nachweis.** Zwei Interaktionen auf
 `POST /api/v1/identity/register`, die sich einen Provider-State teilen und beide 409 erwarten — eine
 Form, die die App heute schon erfüllt. Räumt der Teardown des States nicht auf, läuft das zweite
-Setup in den `uq_users_email` und der Lauf wird rot; genau das belegt er. Er läuft deshalb **grün**,
-während der Vertrag des Frontends noch rot ist, und ist der einzige Weg, die Mechanik zu prüfen,
-solange sie nichts Erfülltes zu prüfen hat.
+Setup in den `uq_users_email` und der Lauf wird rot; genau das belegt er. Angelegt wurde er, als
+der Vertrag des Frontends noch rot war und die Mechanik nichts Erfülltes zu prüfen hatte; seit
+[#95](https://github.com/mbalzert1978/fit_back/issues/95) sind beide Läufe grün, und er bleibt der
+Nachweis für das Aufräumen zwischen zwei Interaktionen desselben States.
 
 Wer ihn ändert, ändert einen Nachweis. Sein Wert hängt daran, dass der geteilte State das Konto
 wirklich **anlegt** — bei einem aufräumenden State wäre er wertlos, siehe

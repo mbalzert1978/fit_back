@@ -91,3 +91,4 @@ async def app_uses_test_database(
     monkeypatch.setenv("DB_NAME", "test")
     monkeypatch.setenv("DB_USER", "test")
     monkeypatch.setenv("DB_PASSWORD", "test")
+    monkeypatch.setenv("JWT_SECRET", "test-geheimnis-mit-mindestens-32-zeichen")

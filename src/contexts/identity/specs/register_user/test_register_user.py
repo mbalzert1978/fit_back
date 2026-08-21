@@ -244,3 +244,61 @@ async def test_email_already_taken_code_in_response() -> None:
     assert isinstance(result, EmailAlreadyTaken)
     assert result.code == "email-already-registered"
     assert result.email == "markus@example.de"
+
+
+@pytest.mark.asyncio
+async def test_wer_sich_registriert_bekommt_eine_sitzung() -> None:
+    """Die Registrierung meldet gleich an - beide Token kommen mit der Antwort."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request())
+
+    assert isinstance(result, RegistrationAccepted)
+    assert result.access_token
+    assert result.refresh_token
+    assert result.expires_in > 0
+    assert result.refresh_expires_in > result.expires_in
+
+
+@pytest.mark.asyncio
+async def test_der_ausgegebene_refresh_token_ist_abgelegt() -> None:
+    """Ein Refresh-Token, den niemand einloesen kann, waere eine Luege."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request())
+
+    assert isinstance(result, RegistrationAccepted)
+    assert api.issued_refresh_tokens == ((result.user_id, result.refresh_token),)
+
+
+@pytest.mark.asyncio
+async def test_eine_abgelehnte_registrierung_stellt_keine_sitzung_aus() -> None:
+    """Kein Token fuer ein Konto, das nicht entstanden ist."""
+    api = RegisterUserTestApi().with_registered_user("markus@example.de")
+
+    result = await api.run(_request())
+
+    assert isinstance(result, EmailAlreadyTaken)
+    assert api.issued_refresh_tokens == ()
+
+
+@pytest.mark.asyncio
+async def test_ein_einzelnes_zeichen_ist_kein_anzeigename() -> None:
+    """Zwei Zeichen mindestens - der Vertrag schickt `"a"` und erwartet einen Feldfehler."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(display_name="a"))
+
+    assert isinstance(result, RegistrationInvalid)
+    assert "displayName" in result.errors
+
+
+@pytest.mark.asyncio
+async def test_nimmt_einen_festen_utc_versatz_als_zeitzone_an() -> None:
+    """`GMT+01:00` ist keine IANA-Zone, steht aber im Vertrag - und wird normalisiert."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(time_zone_id="GMT+01:00"))
+
+    assert isinstance(result, RegistrationAccepted)
+    assert result.time_zone_id == "+01:00"

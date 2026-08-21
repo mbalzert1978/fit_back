@@ -12,7 +12,14 @@ from typing import final
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import URL
 
-__all__ = ["Settings", "validate_settings"]
+__all__ = ["JWT_SECRET_MINIMUM_LENGTH", "Settings", "validate_settings"]
+
+JWT_SECRET_MINIMUM_LENGTH = 32
+"""RFC 7518 Abschnitt 3.2: der HMAC-Schluessel ist mindestens so lang wie der Hash.
+
+Kuerzer nimmt `pyjwt` zwar an, warnt aber - und eine Warnung im Log ist kein
+Schutz. Der Prozess soll mit einem zu kurzen Geheimnis gar nicht erst starten.
+"""
 
 
 @final
@@ -24,6 +31,14 @@ class Settings(BaseModel):
     db_name: str = Field(default="fit_back")
     db_user: str = Field(default="fit_user")
     db_password: str = Field(...)  # Pflichtangabe, kein Standardwert
+    jwt_secret: str = Field(..., min_length=JWT_SECRET_MINIMUM_LENGTH, repr=False)
+    """Das Signaturgeheimnis der Access-Token - Pflichtangabe, kein Standardwert.
+
+    Ein Default waere hier keine Bequemlichkeit, sondern eine Hintertuer: wer
+    ihn kennt, kann sich als jeder Nutzer ausgeben. Genau dieser Fall steht
+    schon einmal in
+    `docs/decisions/2026-08-05-1130-security-gate-triage-ticket-0002-und-agent-integritaets-incident.md`.
+    """
 
     @property
     def database_url(self) -> URL:
@@ -70,6 +85,7 @@ def validate_settings() -> Settings:
             db_name=os.getenv("DB_NAME", "fit_back"),
             db_user=os.getenv("DB_USER", "fit_user"),
             db_password=os.getenv("DB_PASSWORD"),
+            jwt_secret=os.getenv("JWT_SECRET"),
         )
     except (ValidationError, ValueError) as e:
         msg = "Configuration validation failed: invalid environment variables"

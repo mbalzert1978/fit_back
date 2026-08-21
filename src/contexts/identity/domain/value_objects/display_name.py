@@ -1,4 +1,4 @@
-"""Value Object DisplayName - der Anzeigename des Users, 1-60 Zeichen."""
+"""Value Object DisplayName - der Anzeigename des Users, 2-60 Zeichen."""
 
 from dataclasses import dataclass
 from typing import final
@@ -7,13 +7,35 @@ from src.contexts.identity.domain.display_name_errors import (
     DisplayNameError,
     DisplayNameIsEmpty,
     DisplayNameTooLong,
+    DisplayNameTooShort,
 )
 from src.contexts.shared_kernel import Err, NotEmptyString, Ok, Result
 
-__all__ = ["MAXIMUM_LENGTH", "DisplayName"]
+__all__ = ["MAXIMUM_LENGTH", "MINIMUM_LENGTH", "DisplayName"]
+
+MINIMUM_LENGTH = 2
+"""Zwei Zeichen, nicht eines.
+
+Der Vertrag des Frontends schickt `"a"` und erwartet dafuer einen Eintrag unter
+`errors.displayName`
+(`docs/decisions/2026-08-21-2200-vertrag-zieht-anzeigename-und-zeitzone-nach.md`).
+Wo Vertrag und Invariante kollidieren, gewinnt der Vertrag - `BACKEND.md`
+Abschnitt 1 ist entsprechend nachgezogen.
+"""
 
 MAXIMUM_LENGTH = 60
-"""BACKEND.md Abschnitt 1: 1-60 Zeichen. Die untere Grenze traegt `NotEmptyString`."""
+"""BACKEND.md Abschnitt 1: 2-60 Zeichen."""
+
+
+def is_long_enough(name: NotEmptyString) -> Result[NotEmptyString, DisplayNameError]:
+    """Fail-fast-Regel: der Anzeigename erreicht die Mindestlaenge.
+
+    Steht vor `fits_maximum_length`, damit ein Name, der beides verletzen
+    koennte, die Grenze meldet, die er tatsaechlich reisst.
+    """
+    if len(name.value) < MINIMUM_LENGTH:
+        return Err(DisplayNameTooShort(len(name.value), MINIMUM_LENGTH))
+    return Ok(name)
 
 
 def fits_maximum_length(name: NotEmptyString) -> Result[NotEmptyString, DisplayNameError]:
@@ -50,9 +72,10 @@ class DisplayName:
     def parse(cls, raw: str) -> Result[DisplayName, DisplayNameError]:
         """Pruefe eine moeglicherweise ungueltige Eingabe.
 
-        Ein Fluss statt einer Kette: `NotEmptyString.parse` trimmt und sichert
-        die untere Grenze, `fits_maximum_length` prueft die obere, `map` wickelt
-        das Ergebnis ein. Jede Frage wird genau einmal gestellt.
+        Ein Fluss statt einer Kette: `NotEmptyString.parse` trimmt und faengt
+        den leeren Namen, `is_long_enough` sichert die untere Grenze,
+        `fits_maximum_length` die obere, `map` wickelt das Ergebnis ein. Jede
+        Frage wird genau einmal gestellt.
 
         Das `map_err` ist die Uebersetzung an der Grenze: `NotEmptyString` meldet
         den technischen Fall `TextIsEmpty` ohne Feldbezug, nach aussen gehoert der
@@ -63,6 +86,7 @@ class DisplayName:
         return (
             NotEmptyString.parse(raw)
             .map_err(lambda _: DisplayNameIsEmpty())
+            .bind(is_long_enough)
             .bind(fits_maximum_length)
             .map(cls)
         )

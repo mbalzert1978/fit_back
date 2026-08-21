@@ -79,6 +79,7 @@ async def gestartete_app(
     monkeypatch.setenv("DB_NAME", "test")
     monkeypatch.setenv("DB_USER", "test")
     monkeypatch.setenv("DB_PASSWORD", "test")
+    monkeypatch.setenv("JWT_SECRET", "test-geheimnis-mit-mindestens-32-zeichen")
 
     from src import main
 
@@ -110,4 +111,7 @@ async def test_der_health_endpunkt_antwortet_gegen_die_echte_datenbank(
         response = await client.get("/api/v1/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
+    # Der `{data, meta}`-Umschlag gilt fuer den ganzen Host, nicht nur fuer
+    # Identity (`src/middleware/response_envelope.py`) - auch der Health-Check
+    # antwortet darin.
+    assert response.json()["data"] == {"status": "healthy"}

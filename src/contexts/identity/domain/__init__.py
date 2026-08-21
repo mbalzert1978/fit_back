@@ -13,6 +13,7 @@ from src.contexts.identity.domain.display_name_errors import (
     DisplayNameError,
     DisplayNameIsEmpty,
     DisplayNameTooLong,
+    DisplayNameTooShort,
 )
 from src.contexts.identity.domain.email_errors import (
     EmailAddressLiteralInvalid,
@@ -81,6 +82,7 @@ __all__ = [
     "DisplayNameError",
     "DisplayNameIsEmpty",
     "DisplayNameTooLong",
+    "DisplayNameTooShort",
     "DomainError",
     "Email",
     "EmailAddressLiteralInvalid",

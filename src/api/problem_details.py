@@ -4,6 +4,30 @@ from typing import final
 
 from pydantic import BaseModel, Field
 
+__all__ = ["PROBLEM_TYPE_PREFIX", "ProblemDetails", "problem_type"]
+
+PROBLEM_TYPE_PREFIX = "tag:nutritrack.app,2026:problems/"
+"""Das Schema, unter dem jeder Fehlertyp dieser API benannt ist.
+
+Ein `tag:`-URI nach RFC 4151 und keine `https:`-Adresse: der Typ ist ein
+**Bezeichner**, nichts, was man abrufen koennte. Eine `https:`-Form verspricht
+eine Seite, die es nicht gibt, und bindet die Bezeichner an einen Hostnamen, der
+sich aendern kann.
+
+Der Wert steht ohne Matcher im Vertrag des Frontends und ist damit bindend
+(`contracts/pacts/identity/`, Ticket #95).
+"""
+
+
+def problem_type(slug: str) -> str:
+    """Baue den Fehlertyp zu einem Fehlercode.
+
+    An **einer** Stelle und nicht je Route: der Praefix gehoert zur API als
+    Ganzes, und ein Endpunkt, der ihn selbst zusammensetzt, kann ihn als
+    einziger falsch schreiben.
+    """
+    return f"{PROBLEM_TYPE_PREFIX}{slug}"
+
 
 @final
 class ProblemDetails(BaseModel):
@@ -31,7 +55,7 @@ class ProblemDetails(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "type": "https://api.example/errors/product-not-found",
+                    "type": "tag:nutritrack.app,2026:problems/product-not-found",
                     "title": "Produkt nicht gefunden",
                     "status": 404,
                     "detail": "Zu EAN 4008400401027 existiert kein Produkt.",
@@ -39,9 +63,9 @@ class ProblemDetails(BaseModel):
                     "errors": None,
                 },
                 {
-                    "type": "https://api.example/errors/validation-failed",
+                    "type": "tag:nutritrack.app,2026:problems/validation-failed",
                     "title": "Validierung fehlgeschlagen",
-                    "status": 400,
+                    "status": 422,
                     "detail": "Die Eingabe erfüllt nicht die erforderlichen Bedingungen.",
                     "instance": "/api/v1/identity/register",
                     "errors": {

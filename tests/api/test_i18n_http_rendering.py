@@ -21,6 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from src.api.exception_handlers import register_exception_handlers
 from src.api.i18n import create_resources
 from src.api.identity import register_user_router
+from src.contexts.shared_kernel.time_provider import SystemTimeProvider
+from src.middleware.response_envelope import ResponseEnvelopeMiddleware
+from src.settings import Settings
 
 pytestmark = pytest.mark.asyncio
 
@@ -37,11 +40,17 @@ _VALID_BODY = {
 async def client(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncClient]:
     """Baue die App um den Router und leere die betroffenen Tabellen."""
     async with postgres_engine.begin() as connection:
-        await connection.execute(text("TRUNCATE identity.users"))
+        await connection.execute(text("TRUNCATE identity.users CASCADE"))
         await connection.execute(text("TRUNCATE shared_kernel.outbox"))
 
     app = FastAPI()
     app.state.resources = create_resources()
+    # Dieselbe Konfiguration, die der Lifespan sonst legt: der Slice signiert
+    # seine Access-Token damit.
+    app.state.settings = Settings(db_password="test", jwt_secret="t" * 32)
+    # Der Umschlag gehoert zum Host und nicht zum Router - wer den Rand misst,
+    # misst ihn mit.
+    app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
     register_exception_handlers(app)
     app.include_router(register_user_router)
     app.state.engine = postgres_engine
@@ -51,7 +60,7 @@ async def client(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncClient]:
         yield http
 
     async with postgres_engine.begin() as connection:
-        await connection.execute(text("TRUNCATE identity.users"))
+        await connection.execute(text("TRUNCATE identity.users CASCADE"))
         await connection.execute(text("TRUNCATE shared_kernel.outbox"))
 
 
@@ -122,7 +131,7 @@ class TestAcceptLanguageInfluencesResponse:
             headers={"Accept-Language": "de-DE"},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.headers["Content-Language"] == "de-DE"
         problem = response.json()
         assert "ungültig" in problem["title"]
@@ -135,7 +144,7 @@ class TestAcceptLanguageInfluencesResponse:
             headers={"Accept-Language": "en-US"},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.headers["Content-Language"] == "en-US"
         problem = response.json()
         assert "invalid" in problem["title"]
@@ -250,7 +259,7 @@ class TestStrukturelleRequestFehler:
             "/api/v1/identity/register", json=body, headers={"Accept-Language": "en-US"}
         )
 
-        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.status_code == 422
         assert auf_deutsch.json()["errors"]["email"] == ["Das Feld 'email' ist erforderlich"]
         assert auf_englisch.json()["errors"]["email"] == ["The field 'email' is required"]
 
@@ -264,7 +273,7 @@ class TestStrukturelleRequestFehler:
             "/api/v1/identity/register", json=body, headers={"Accept-Language": "en-US"}
         )
 
-        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.status_code == 422
         assert "schmuggelware" in auf_deutsch.json()["errors"]["schmuggelware"][0]
         assert (
             auf_deutsch.json()["errors"]["schmuggelware"]
@@ -281,7 +290,7 @@ class TestStrukturelleRequestFehler:
             "/api/v1/identity/register", json=body, headers={"Accept-Language": "en-US"}
         )
 
-        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.status_code == 422
         assert auf_deutsch.json()["errors"]["displayName"] == [
             "Das Feld 'displayName' muss ein Text sein"
         ]
@@ -303,7 +312,7 @@ class TestStrukturelleRequestFehler:
             headers={"Accept-Language": "en-US", "Content-Type": "application/json"},
         )
 
-        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.status_code == 422
         assert auf_deutsch.json()["errors"]["body"] == ["Die Anfrage enthält ungültiges JSON"]
         assert auf_englisch.json()["errors"]["body"] == ["The request contains invalid JSON"]
 
@@ -343,7 +352,7 @@ class TestStrukturelleRequestFehler:
             headers={"Accept-Language": "en-US", "Content-Type": "application/json"},
         )
 
-        assert auf_deutsch.status_code == 400
+        assert auf_deutsch.status_code == 422
         assert auf_deutsch.json()["errors"]["body"] == [
             "Der Anfrage-Inhalt muss ein JSON-Objekt sein"
         ]

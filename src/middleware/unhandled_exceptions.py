@@ -33,11 +33,11 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import ProblemDetails
+from src.api.problem_details import ProblemDetails, problem_type
 
 logger = logging.getLogger(__name__)
 
-UNHANDLED_ERROR_TYPE = "https://api.example/errors/internal-server-error"
+UNHANDLED_ERROR_TYPE = problem_type("internal-server-error")
 
 __all__ = ["UNHANDLED_ERROR_TYPE", "UnhandledExceptionMiddleware"]
 

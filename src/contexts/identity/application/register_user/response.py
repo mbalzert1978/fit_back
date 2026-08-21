@@ -9,7 +9,7 @@ waehlt `Accept-Language` und rendert daraus.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, final
 
 from src.contexts.shared_kernel.validation import FieldErrorDetail
@@ -26,7 +26,13 @@ __all__ = [
 @final
 @dataclass(frozen=True, slots=True)
 class RegistrationAccepted:
-    """Das Konto wurde angelegt (HTTP 201)."""
+    """Das Konto wurde angelegt (HTTP 201), samt der Sitzung dazu.
+
+    Die vier Sitzungsfelder liegen flach und nicht als verschachteltes Objekt:
+    der Vertrag des Frontends gibt sie unter `data.session` heraus, aber diese
+    Gliederung ist Sache des HTTP-Randes. Wie die beiden Token heissen, mit denen
+    der Aufrufer weiterarbeitet, ist eine Auskunft des Use Case.
+    """
 
     user_id: str
     email: str
@@ -35,6 +41,11 @@ class RegistrationAccepted:
     time_zone_id: str
     registered_at_unix: int
     """Unix-Sekunden. Die ISO-8601-Formatierung fuer den Transport macht die HTTP-Schicht."""
+
+    access_token: str = field(repr=False)
+    expires_in: int
+    refresh_token: str = field(repr=False)
+    refresh_expires_in: int
 
 
 @final
@@ -49,7 +60,7 @@ class EmailAlreadyTaken:
 @final
 @dataclass(frozen=True, slots=True)
 class RegistrationInvalid:
-    """Die Eingabe ist formal ungueltig (HTTP 400, gefuelltes `errors`-Objekt).
+    """Die Eingabe ist formal ungueltig (HTTP 422, gefuelltes `errors`-Objekt).
 
     `errors` traegt eine Abbildung von Feldnamen zu Tupeln von (error_code, parameters).
     Der HTTP-Rand waehlt nach `Accept-Language` die Sprache und rendert die Codes.

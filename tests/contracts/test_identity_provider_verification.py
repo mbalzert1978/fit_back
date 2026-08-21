@@ -3,15 +3,15 @@
 The pact under `contracts/pacts/identity/` is the HTTP boundary's specification
 (`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`).
 
-**The run against it is red as expected**, for as long as
-`POST /api/v1/identity/register` doesn't satisfy it. A pact from the consumer
-is a specification, not proof - red here means "not built yet", not "tested
-wrong". It goes green with the ticket that builds the endpoint.
+**The run is green since #95** built `POST /api/v1/identity/register` in the
+shape the pact demands. It was red before that, and deliberately so: a pact from
+the consumer is a specification, not proof - red meant "not built yet", not
+"tested wrong".
 
-Because a red run can't prove anything, the **mechanics** also run against a
-second, small pact whose consumer is this repo itself: same path, same wiring,
-but green. It proves what the ticket requires - two interactions on the same
-state don't interfere with each other.
+The **mechanics** also run against a second, small pact whose consumer is this
+repo itself: same path, same wiring. It was the only green run while the
+specification was still red, and it stays the proof of what the ticket requires -
+two interactions on the same state don't interfere with each other.
 
 Only the five `register` interactions run; `login`, `refresh`, `logout`, and
 `me` aren't built yet and stay excluded via `REGISTER_PATH` until their

@@ -40,6 +40,7 @@ from src.contexts.identity.domain import (
 )
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
+from src.middleware.response_envelope import ResponseEnvelopeMiddleware
 from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
 from src.settings import validate_settings
 
@@ -128,6 +129,11 @@ app = FastAPI(title="Fit-back API", lifespan=lifespan)
 # Ausnahmen muss aussen liegen - sonst sieht er nicht, was weiter innen
 # hochkommt, auch nicht aus der Idempotenz-Pruefung selbst.
 app.add_middleware(IdempotencyKeyMiddleware, time_provider=SystemTimeProvider())
+# Der Umschlag liegt **ausserhalb** der Idempotenz und innerhalb des
+# Auffangpunkts: was die Idempotenz-Middleware ablegt, ist damit der nackte
+# Koerper, und eine wiederholte Anfrage bekommt ihn mit ihrer *eigenen*
+# `requestId` neu eingepackt statt mit der von gestern.
+app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
 app.add_middleware(UnhandledExceptionMiddleware)
 
 # Rate-Limit- und CSRF-Middleware sind hier bewusst nicht verdrahtet: beide kamen

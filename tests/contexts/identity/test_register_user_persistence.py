@@ -33,6 +33,7 @@ from src.contexts.identity.contracts import UserRegistered
 from src.contexts.identity.infrastructure.hashing import Argon2PasswordHasher
 from src.contexts.identity.infrastructure.idn import IdnaLabels
 from src.contexts.identity.infrastructure.persistence import PostgresUserStore
+from src.contexts.identity.infrastructure.tokens import JwtAccessTokens, PostgresSessionTokens
 from src.contexts.shared_kernel.events import DeliveredEvent, EventRegistry
 from src.contexts.shared_kernel.time_provider import FakeTimeProvider, SystemTimeProvider
 from src.contexts.shared_kernel.timestamp import Timestamp
@@ -48,11 +49,11 @@ _REGISTERED_AT = 1798221600
 async def clean_identity(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncEngine]:
     """Leere Nutzer und Outbox vor und nach jedem Test."""
     async with postgres_engine.begin() as connection:
-        await connection.execute(text("TRUNCATE identity.users"))
+        await connection.execute(text("TRUNCATE identity.users CASCADE"))
         await connection.execute(text("TRUNCATE shared_kernel.outbox"))
     yield postgres_engine
     async with postgres_engine.begin() as connection:
-        await connection.execute(text("TRUNCATE identity.users"))
+        await connection.execute(text("TRUNCATE identity.users CASCADE"))
         await connection.execute(text("TRUNCATE shared_kernel.outbox"))
 
 
@@ -83,6 +84,7 @@ async def _register(connection: AsyncConnection, request: RegisterUserRequest) -
         hasher=Argon2PasswordHasher(),
         labels=IdnaLabels(),
         events=RegisterUserOutbox(connection),
+        sessions=PostgresSessionTokens(connection, JwtAccessTokens("t" * 32)),
         clock=FakeTimeProvider(Timestamp(_REGISTERED_AT).to_datetime()),
     )
     return await pipeline.run(request)

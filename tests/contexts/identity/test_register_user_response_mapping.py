@@ -1,4 +1,4 @@
-"""Der eine Fold des Slice RegisterUser: `Result[User, RegisterUserError]` -> Response.
+"""Der eine Fold des Slice RegisterUser: `Result[Registration, RegisterUserError]` -> Response.
 
 Bis Stufe 3 stand hier ein Test ueber die **Struktur** einer Zuordnung, weil
 `to_response` zweiundzwanzig Arme hatte, von denen einer erreichbar war: die
@@ -18,7 +18,9 @@ Regel: `.rules/python/python-error-handling.md`, "Jeder `match` ist vollstaendig
 
 from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
 from src.contexts.identity.application.register_user.errors import request_invalid
+from src.contexts.identity.application.register_user.abstractions import IssuedSession
 from src.contexts.identity.application.register_user.fakes import PassthroughIdnLabels
+from src.contexts.identity.application.register_user.registration import Registration
 from src.contexts.identity.application.register_user.mappers.register_user_response_mapper import (
     to_response,
 )
@@ -49,7 +51,7 @@ def _email(raw: str) -> Email:
 
 
 def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
-    """Der Erfolgsfall traegt die Stammdaten als Primitive nach aussen."""
+    """Der Erfolgsfall traegt Stammdaten und Sitzung als Primitive nach aussen."""
     user = register(
         user_id=UserId.generate(),
         email=_email("markus@example.de"),
@@ -60,7 +62,14 @@ def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
         registered_at=Timestamp(REGISTRIERT_AM),
     )
 
-    antwort = to_response(Ok(user))
+    session = IssuedSession(
+        access_token="ein-access-token",
+        expires_in=900,
+        refresh_token="ein-refresh-token",
+        refresh_expires_in=5_184_000,
+    )
+
+    antwort = to_response(Ok(Registration(user, session)))
 
     assert antwort == RegistrationAccepted(
         user_id=str(user.id),
@@ -69,6 +78,10 @@ def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
         locale="de",
         time_zone_id="Europe/Berlin",
         registered_at_unix=REGISTRIERT_AM,
+        access_token="ein-access-token",
+        expires_in=900,
+        refresh_token="ein-refresh-token",
+        refresh_expires_in=5_184_000,
     )
 
 

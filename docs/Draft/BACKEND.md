@@ -113,13 +113,13 @@ Zielsystem: **ASP.NET Core 8 Web API, C#, DDD-Schnitt nach Bounded Contexts.**
 | `Id` | `UserId` | |
 | `Email` | `EmailAddress` | eindeutig, case-insensitive normalisiert |
 | `PasswordHash` | `PasswordHash` | Argon2id, kapselt Algorithmus und Verifikation |
-| `DisplayName` | `DisplayName` | 1–60 Zeichen |
-| `TimeZone` | `UserTimeZone` | IANA-Id, gegen `TimeZoneInfo` geprüft, Default `Europe/Berlin` |
+| `DisplayName` | `DisplayName` | 2–60 Zeichen (nachgezogen: [2026-08-21-2200](../decisions/2026-08-21-2200-vertrag-zieht-anzeigename-und-zeitzone-nach.md)) |
+| `TimeZone` | `UserTimeZone` | IANA-Id **oder** fester UTC-Versatz (`+01:00`), Default `Europe/Berlin` (nachgezogen: [2026-08-21-2200](../decisions/2026-08-21-2200-vertrag-zieht-anzeigename-und-zeitzone-nach.md)) |
 | `Locale` | `Locale` (Union: `German`, `English`) | Default `German` |
 | `Status` | `AccountStatus` (Union: `Active`, `Suspended`, `PendingDeletion(DateTimeOffset EffectiveAt)`) | der Fall trägt sein Datum selbst |
 | `CreatedAt` | `DateTimeOffset` | |
 
-Invarianten: E-Mail eindeutig; ein `PendingDeletion`-Konto kann sich nicht mehr anmelden; `DisplayName` nicht leer.
+Invarianten: E-Mail eindeutig; ein `PendingDeletion`-Konto kann sich nicht mehr anmelden; `DisplayName` mindestens 2 Zeichen.
 
 **`RefreshToken` (eigenes Aggregate)** — `Id`, `UserId`, `TokenHash`, `ExpiresUtc`, `RevokedUtc?`, `ReplacedById?`. Rotation: Bei Verwendung wird der alte Token revoked und ein neuer ausgegeben. Wiederverwendung eines revoked Tokens ⇒ alle Tokens des Nutzers revoken (`401`).
 

@@ -70,7 +70,7 @@ from starlette.status import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_CONTENT
 from starlette.types import ASGIApp
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import ProblemDetails
+from src.api.problem_details import ProblemDetails, problem_type
 from src.contexts.shared_kernel.time_provider import TimeProvider
 
 logger = logging.getLogger(__name__)
@@ -80,8 +80,8 @@ IDEMPOTENCY_KEYS_TABLE = "shared_kernel.idempotency_keys"
 IDEMPOTENT_METHODS = frozenset({"POST", "PUT"})
 CACHEABLE_STATUS_CODES = frozenset({200, 201})
 
-KEY_REUSED_TYPE = "https://api.example/errors/idempotency-key-reused"
-REQUEST_IN_PROGRESS_TYPE = "https://api.example/errors/request-in-progress"
+KEY_REUSED_TYPE = problem_type("idempotency-key-reused")
+REQUEST_IN_PROGRESS_TYPE = problem_type("request-in-progress")
 
 # So viele Zeichen eines abgelehnten Header-Werts kommen ins Log. Eine UUID hat
 # 36 Zeichen; wer sich in einer vertippt hat, sieht seinen Wert damit noch ganz.
