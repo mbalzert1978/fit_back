@@ -59,7 +59,7 @@ src/
 tests/                           # Integrationstests über Schichtgrenzen (API, Persistenz, Outbox)
   contracts/                     # Provider-Verifikation gegen die Pact-Verträge unter contracts/
 alembic/<schema>/                # ein versions/-Strang je DB-Schema
-contracts/pacts/<context>/       # Pact-Verträge des Frontends — Vorgabe der HTTP-Grenze
+contracts/pacts/<context>/       # alle Pacts, <consumer>-<provider>.json — Vorgabe der HTTP-Grenze
 setup.cfg                        # import-linter-Contracts
 pyproject.toml                   # Projekt, Abhängigkeiten, ruff
 docker-compose.yml / Dockerfile  # lokale Infrastruktur: postgres, minio, app

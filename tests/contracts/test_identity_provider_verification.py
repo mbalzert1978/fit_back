@@ -9,7 +9,7 @@ Vorgabe, nicht Nachweis - rot heisst hier "noch nicht gebaut", nicht "falsch
 getestet". Gruen wird er mit dem Ticket, das den Endpunkt heranbaut.
 
 Weil ein roter Lauf nichts belegen kann, laeuft die **Mechanik** gegen einen
-eigenen kleinen Pact, den dieses Testverzeichnis selbst mitbringt: derselbe Weg,
+zweiten, kleinen Pact, dessen Konsument dieses Repo selbst ist: derselbe Weg,
 dieselbe Verdrahtung, aber gruen. Er belegt, was das Ticket verlangt - zwei
 Interaktionen mit demselben State stoeren einander nicht.
 
@@ -29,21 +29,18 @@ from tests.contracts.provider_verification import ProviderVerifikation
 from tests.contracts.testkonto import Testkonto
 
 PROVIDER = "nutritrack-identity"
-IDENTITY_PACT = (
-    Path(__file__).parents[2] / "contracts/pacts/identity/nutritrack-app-nutritrack-identity.json"
-)
+PACTS = Path(__file__).parents[2] / "contracts/pacts/identity"
 
-MECHANIK_PACT = Path(__file__).parent / "mechanik_pact.json"
-"""Kein Vertrag, sondern eine Vorrichtung.
+IDENTITY_PACT = PACTS / "nutritrack-app-nutritrack-identity.json"
+
+MECHANIK_PACT = PACTS / "fit-back-mechanik-nutritrack-identity.json"
+"""Ein Pact, den wir selbst schreiben - Konsument ist dieses Repo.
 
 Zwei Interaktionen, die sich den State `KONTO_EXISTIERT` teilen und beide 409
 erwarten - eine Form, die die App heute schon erfuellt. Der State ist mit Absicht
 der anlegende: raeumt sein Teardown nicht, laeuft das zweite Setup in den
 `uq_users_email` und der Lauf wird rot. Bei `KEIN_KONTO` waere der Nachweis wertlos,
 weil dort schon das Setup aufraeumt.
-
-Er liegt hier und **nicht** unter `contracts/pacts/`: dort stehen nur Pacts, die
-vom Konsumenten kommen.
 """
 
 REGISTER_PFAD = PurePosixPath("/api/v1/identity/register")

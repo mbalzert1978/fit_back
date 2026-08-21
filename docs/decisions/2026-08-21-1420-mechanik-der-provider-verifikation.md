@@ -67,8 +67,9 @@ Sache. Findet ein Pfad keine Interaktion, bricht der Aufbau ab;
 Interaktionen tragen denselben State, und eine davon legt das Konto tatsächlich an; bliebe es
 stehen, bekäme die nächste 409 statt 201.
 
-Belegt wird das über einen **zweiten, grünen Verifikationslauf** gegen einen kleinen Pact, den das
-Testverzeichnis selbst mitbringt (`tests/contracts/mechanik_pact.json`): zwei Interaktionen, die
+Belegt wird das über einen **zweiten, grünen Verifikationslauf** gegen einen kleinen Pact, dessen
+Konsument dieses Repo selbst ist
+(`contracts/pacts/identity/fit-back-mechanik-nutritrack-identity.json`): zwei Interaktionen, die
 sich den *anlegenden* State teilen, beide 409 erwartend — eine Form, die die App heute schon
 erfüllt. Räumt der Teardown nicht, läuft das zweite Setup in den `uq_users_email` und der Lauf wird
 rot. Nachgeprüft mit ausgehebeltem Teardown: er wird es.

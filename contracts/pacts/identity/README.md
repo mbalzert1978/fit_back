@@ -1,4 +1,4 @@
-# Identity — Herkunft des Vertrags
+# Identity — Herkunft der Pacts
 
 ## `nutritrack-app-nutritrack-identity.json`
 
@@ -22,3 +22,23 @@ draußen, bis ihr jeweiliges Ticket kommt.
 erzwingt einen Handler je Datensatz statt einen je Zustandsart — für die zwei Register-States
 folgenlos, über alle Verträge hinweg der Unterschied zwischen einer Handvoll Handlern und dreißig.
 Ändern kann das nur der Consumer.
+
+## `fit-back-mechanik-nutritrack-identity.json`
+
+| | |
+|---|---|
+| Consumer | `fit-back-mechanik` — **dieses Repo**, kein Stakeholder |
+| Provider | `nutritrack-identity` |
+| Pact-Spezifikation | V3, von Hand geschrieben |
+| Angelegt mit | [#94](https://github.com/mbalzert1978/fit_back/issues/94) |
+
+**Keine Vorgabe, sondern ein Nachweis.** Zwei Interaktionen auf
+`POST /api/v1/identity/register`, die sich einen Provider-State teilen und beide 409 erwarten — eine
+Form, die die App heute schon erfüllt. Räumt der Teardown des States nicht auf, läuft das zweite
+Setup in den `uq_users_email` und der Lauf wird rot; genau das belegt er. Er läuft deshalb **grün**,
+während der Vertrag des Frontends noch rot ist, und ist der einzige Weg, die Mechanik zu prüfen,
+solange sie nichts Erfülltes zu prüfen hat.
+
+Wer ihn ändert, ändert einen Nachweis. Sein Wert hängt daran, dass der geteilte State das Konto
+wirklich **anlegt** — bei einem aufräumenden State wäre er wertlos, siehe
+[`docs/decisions/2026-08-21-1420-mechanik-der-provider-verifikation.md`](../../../docs/decisions/2026-08-21-1420-mechanik-der-provider-verifikation.md).
