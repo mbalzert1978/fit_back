@@ -36,9 +36,9 @@ def _register_user(
     Refresh-Token und Ereignis gemeinsam sichtbar werden. Zwei Verbindungen
     waeren hier ein stiller Bruch der Zusage.
 
-    Das Signaturgeheimnis kommt als `Settings` herein (`request_settings`) und
-    damit aus der Umgebung - der Lifespan hat es beim Start gegen
-    `src/settings.py` geprueft. Die Fabrik kennt dafuer kein HTTP.
+    Das Signaturgeheimnis kommt als `Settings` herein und damit aus der
+    Umgebung - der Lifespan hat es beim Start ueber `get_settings` geprueft.
+    Die Fabrik kennt dafuer weder HTTP noch `app.state`.
 
     Dieselbe Fabrik wie in der Test-API; getauscht wird nur, was hinter der Naht
     steckt.

@@ -4,12 +4,30 @@ import asyncio
 import os
 import subprocess
 import sys
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
+import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from testcontainers.community.postgres import PostgresContainer
+
+from src.settings import get_settings
+
+
+@pytest.fixture(autouse=True)
+def _frische_settings() -> Generator[None]:
+    """Leere den `get_settings`-Cache um jeden Test herum.
+
+    `get_settings` ist gecacht, der Cache lebt aber so lange wie der Prozess -
+    also ueber Tests hinweg. Ein Test, der die Umgebung per `monkeypatch` setzt
+    und dann die echte App hochfaehrt, bekaeme sonst die Konfiguration des
+    Tests davor. Geleert wird vorher *und* nachher: der letzte Test soll seine
+    Umgebung ebenso wenig hinterlassen.
+    """
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest_asyncio.fixture(scope="session")

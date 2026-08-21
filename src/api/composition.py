@@ -24,13 +24,12 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 from src.contexts.shared_kernel.events import EventRegistry
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.infrastructure.outbox import OutboxRelay, OutboxWorker
-from src.settings import Settings
+from src.settings import Settings, get_settings
 
 __all__ = [
     "SettingsDep",
     "build_engine",
     "build_event_registry",
-    "request_settings",
     "request_transaction",
     "run_outbox_worker",
 ]
@@ -77,19 +76,15 @@ async def request_transaction(request: Request) -> AsyncGenerator[AsyncConnectio
         await connection.commit()
 
 
-def request_settings(request: Request) -> Settings:
-    """Reiche die beim Start geprueften Einstellungen an eine Anfrage weiter.
+type SettingsDep = Annotated[Settings, Depends(get_settings)]
+"""Die gepruefte Konfiguration des Prozesses, als Dependency.
 
-    Der eine Ort, an dem `app.state.settings` gelesen wird - gesetzt wird es
-    genau einmal, im Lifespan von `src/main.py` gegen `validate_settings`. Wer
-    Konfiguration braucht, nimmt `SettingsDep` und kennt weder `Request` noch
-    `app.state`.
-    """
-    settings: Settings = request.app.state.settings
-    return settings
-
-
-type SettingsDep = Annotated[Settings, Depends(request_settings)]
+`get_settings` ist gecacht, kostet also nichts je Anfrage und liefert dasselbe
+Objekt, das der Lifespan beim Start geprueft hat. Wer sie so nimmt, kennt weder
+`Request` noch `app.state` - und der Test tauscht sie ueber
+`app.dependency_overrides[get_settings]`, ohne die Umgebung anzufassen
+(https://fastapi.tiangolo.com/advanced/settings/).
+"""
 
 
 @contextlib.asynccontextmanager

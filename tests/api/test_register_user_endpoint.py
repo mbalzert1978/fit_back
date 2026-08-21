@@ -31,7 +31,7 @@ from src.api.i18n import create_resources
 from src.api.identity import register_user_router
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.response_envelope import ResponseEnvelopeMiddleware
-from src.settings import Settings
+from src.settings import Settings, get_settings
 
 pytestmark = pytest.mark.asyncio
 
@@ -53,9 +53,11 @@ async def client(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncClient]:
 
     app = FastAPI()
     app.state.resources = create_resources()
-    # Dieselbe Konfiguration, die der Lifespan sonst legt: der Slice signiert
-    # seine Access-Token damit.
-    app.state.settings = Settings(db_password="test", jwt_secret="t" * 32)
+    # Dieselbe Konfiguration, die der Lifespan sonst prueft: der Slice signiert
+    # seine Access-Token damit. Ueberschrieben statt in die Umgebung gelegt -
+    # der dokumentierte Weg, eine Settings-Dependency im Test zu tauschen.
+    settings = Settings(db_password="test", jwt_secret="t" * 32)
+    app.dependency_overrides[get_settings] = lambda: settings
     # Der Umschlag gehoert zum Host und nicht zum Router - wer den Rand misst,
     # misst ihn mit.
     app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())

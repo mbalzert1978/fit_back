@@ -42,7 +42,7 @@ from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
 from src.middleware.response_envelope import ResponseEnvelopeMiddleware
 from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
-from src.settings import validate_settings
+from src.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +91,11 @@ Middleware-Codes warten auf separate Tickets (Idempotency als Union, usw.).
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Lege die Ressourcen des Prozesses an und raeume sie wieder weg."""
-    settings = validate_settings()
-    app.state.settings = settings
+    # Der erste Aufruf liest die Umgebung und prueft sie; ab hier ist
+    # `get_settings` gecacht und liefert genau dieses Objekt weiter - auch der
+    # Dependency `SettingsDep`. Eine unbrauchbare Umgebung stoppt damit den
+    # Start und nicht erst die erste Anfrage.
+    settings = get_settings()
 
     # Lade und validiere i18n Resource-Files beim Start
     app.state.resources = create_resources()
