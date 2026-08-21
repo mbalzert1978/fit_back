@@ -1,7 +1,7 @@
 """Value Object UserTimeZone - IANA-Zone oder fester UTC-Versatz."""
 
-import re
 from dataclasses import dataclass
+from datetime import datetime
 from functools import cache
 from typing import final
 from zoneinfo import available_timezones
@@ -17,20 +17,14 @@ __all__ = ["DEFAULT_TIME_ZONE_ID", "UserTimeZone"]
 DEFAULT_TIME_ZONE_ID = "Europe/Berlin"
 """Default laut BACKEND.md Abschnitt 1."""
 
-_OFFSET = re.compile(r"^(?:UTC|GMT)?(?P<sign>[+-])(?P<hours>\d{1,2}):?(?P<minutes>\d{2})$")
-"""Ein fester Versatz gegen UTC, in den Schreibweisen, die der Vertrag schickt.
+_OFFSET_PREFIXES = ("UTC", "GMT")
+"""Praefixe, die derselben Zone vorangestellt sein duerfen.
 
 `GMT+01:00` kommt aus einer der beiden 201-Interaktionen des Frontend-Vertrags
 und ist **keine** IANA-Zone - gemessen gegen `zoneinfo.available_timezones()`.
 Der Vertrag gewinnt, die Invariante wird nachgezogen
 (`docs/decisions/2026-08-21-2200-vertrag-zieht-anzeigename-und-zeitzone-nach.md`).
-
-Das Praefix ist optional, weil `+01:00` und `GMT+01:00` dieselbe Zone meinen;
-der Doppelpunkt ist es, weil `+0100` dieselbe ISO-8601-Schreibweise ist.
 """
-
-_MAXIMUM_HOURS = 23
-_MAXIMUM_MINUTES = 59
 
 
 @cache
@@ -45,13 +39,19 @@ def _normalized_offset(raw: str) -> str | None:
     Genau eine Schreibweise geht in den Bestand: sonst waeren `GMT+01:00`,
     `+0100` und `+01:00` drei Werte fuer dieselbe Zone, und jeder Vergleich
     darauf muesste sie erst wieder zusammenfuehren.
+
+    Geparst wird mit `strptime("%z")` statt mit einer eigenen Regex: das ist
+    dieselbe ISO-8601-Auslegung, die CPython auch fuer `datetime` benutzt, und
+    sie weist einen Versatz jenseits von ±24 Stunden von sich aus zurueck.
     """
-    if (found := _OFFSET.match(raw)) is None:
+    for prefix in _OFFSET_PREFIXES:
+        raw = raw.removeprefix(prefix)
+    try:
+        parsed = datetime.strptime(raw, "%z")
+    except ValueError:
         return None
-    hours, minutes = int(found["hours"]), int(found["minutes"])
-    if hours > _MAXIMUM_HOURS or minutes > _MAXIMUM_MINUTES:
-        return None
-    return f"{found['sign']}{hours:02d}:{minutes:02d}"
+    compact = parsed.strftime("%z")
+    return f"{compact[:3]}:{compact[3:5]}"
 
 
 @final
