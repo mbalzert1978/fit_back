@@ -42,7 +42,7 @@ genau diese beiden Seemarken ab — und zahlen sich doppelt aus: heute verhinder
 Context die Erwartungen eines anderen unbemerkt bricht; am Tag einer Extraktion sind sie bereits
 die Tests, die (nur mit einem echten statt einem In-Process-Adapter) unverändert weiterlaufen.
 
-## Zwei Schnittstellenarten, zwei Contract-Test-Formen
+## Drei Schnittstellenarten, drei Contract-Test-Formen
 
 ### A) Synchrone Aufrufe über ein aufrufer-eigenes Port (`Protocol`)
 
@@ -57,25 +57,37 @@ Konsumenten, führt aber dessen Erwartungen kontinuierlich in seiner eigenen Tes
 einer späteren Extraktion ersetzt nur der Adapter (In-Process → HTTP/gRPC-Client) das
 Prüfobjekt; die Contract-Suite selbst bleibt unverändert.
 
-### B) Asynchrone Integration Events über die Postgres-Outbox
+### B) Die HTTP-Grenze — Pact, consumer-driven vom Frontend
+
+Der Rand nach außen ist durch die Pact-Verträge des Frontends gedeckt, nicht durch selbst
+geschriebene Erwartungen: die Vertragsdateien liegen unter `contracts/pacts/<context>/`, die
+Provider-Verifikation als Test unter `tests/contracts/`. Sie fährt die App unter `uvicorn` hoch und
+spielt die Interaktionen des jeweiligen Vertrags dagegen ab; jeder Vertrag bekommt einen eigenen
+Lauf unter seinem Provider-Namen. Ein Endpunkt, der noch nicht gebaut ist, bleibt über einen
+sichtbaren Filter draußen, bis sein Ticket kommt. Begründung und Reichweite:
+[`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`](../decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md).
+
+Weil der Vertrag vom Konsumenten kommt, ist er **Vorgabe**, nicht Nachweis: was dort steht, ist die
+Zielform der Schnittstelle, und ein roter Lauf heißt „noch nicht gebaut", nicht „falsch getestet".
+
+### C) Asynchrone Integration Events über die Postgres-Outbox — offen
 
 Betrifft z. B. `UserRegistered` (Ticket 0011), `UserDeletionRequested`/`UserDeleted` (Ticket
 0017), sowie deren Konsumenten (`Goals`-Default-Profil Ticket 0018, `Diary`-Standard-Slots Ticket
-0026). Der **Anbieter** (Context, der das Event definiert) pflegt eine Menge kanonischer
-Beispiel-Payloads je Event-Fall (`contexts/<producer>/contracts/events/<event>/examples/*.json`)
-plus einen Roundtrip-Test, der sicherstellt, dass jedes tatsächlich emittierte Event einem dieser
-Beispiele entspricht (Schema-Stabilität, wie in Abschnitt 9 bereits für Unions gefordert — hier
-zusätzlich über die Context-Grenze hinweg geprüft). Jeder **Konsument** importiert dieselben
-Beispiel-Payloads und prüft, dass sein Handler mit jedem davon umgehen kann. Ändert der Anbieter
-das Schema, bricht der Konsumenten-Contract-Test sofort — nicht erst ein Integrationstest, der
-beide Contexts gemeinsam hochfährt.
+0026). **Hier ist keine Form entschieden.** Der früher an dieser Stelle beschriebene Mechanismus —
+kanonische Beispiel-Payloads je Event-Fall unter
+`contexts/<producer>/contracts/events/<event>/examples/*.json` plus Roundtrip-Test beim Anbieter
+und beim Konsumenten — ist zurückgenommen worden und hat keinen Nachfolger. Pact deckt ihn nicht
+ab: dessen Umfang ist ausdrücklich die HTTP-Grenze, und Context-zu-Context-Ereignisse laufen heute
+in einem Prozess. Bis eine Form entschieden ist, ist die Feldmenge veröffentlichter Ereignisse nur
+durch die Slice-Specs des Anbieters gedeckt.
 
 ## Abgrenzung zu den bestehenden Ebenen
 
 | Ebene | Prüft | Braucht echte Infrastruktur? | Kennt die andere Seite? |
 |---|---|---|---|
 | Domain-Unit-Test (Abschnitt 9) | Eine Invariante eines Aggregats/VOs/Unions | Nein | Nein — kein Context-übergreifender Bezug |
-| **Contract-Test (neu)** | Eine Schnittstelle zwischen zwei Contexts (Port oder Event) | Nein (In-Memory-Fakes/Beispiel-Payloads) | Ja, aber nur über das Port/Event-Schema, nie über Domain-/ORM-Interna |
+| **Contract-Test (neu)** | Eine Schnittstelle nach außen (Pact) oder zwischen zwei Contexts (Port/Event) | Nur für Form B (Pact fährt die App hoch); A und C nein | Ja, aber nur über den Vertrag bzw. das Port/Event-Schema, nie über Domain-/ORM-Interna |
 | Integrationstest (Abschnitt 9) | Ein Context Ende-zu-Ende inkl. echter Postgres/Blob/Queue | Ja (Testcontainers) | Nein — ein Context pro Testlauf |
 | Manuell/Smoke | Das Gesamtsystem über HTTP | Ja (Docker Compose) | Ja, aber ungeprüft/explorativ, kein automatisiertes Gate |
 
@@ -83,7 +95,7 @@ Ein Integrationstest, der zwei Contexts gemeinsam hochfährt, um ihre Kommunikat
 nach dieser Einordnung ein **Antipattern** hier: langsamer, brüchiger, und er verschiebt den
 Fehlerort vom eigentlichen Schnittstellenbruch weg. Wo bisher ein Milestone-Dokument
 „Integrationstest End-to-End über Context A + B" als Testanforderung nennt (z. B. M2, M4, M6,
-M7), gilt ab sofort: der Schnittstellenanteil davon ist ein Contract-Test (Ebene B), der
+M7), gilt ab sofort: der Schnittstellenanteil davon ist ein Contract-Test (Ebene A bzw. C), der
 verbleibende Rest bleibt ein normaler Integrationstest **innerhalb eines** Context.
 
 ## Nicht betroffen: Sync-Batch (M8)
