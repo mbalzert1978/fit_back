@@ -36,19 +36,23 @@ Der Grund ist nicht Ästhetik: die Mechanik ist für alle sechs Verträge diesel
 Builder stünde sie beim siebten Mal in sechs Kopien da. Der erste Anlauf hatte sie im Testmodul,
 und das Ergebnis war unlesbar.
 
-**Der Ausschluss ungebauter Endpunkte ist ein Regex auf die Beschreibung**
-(`nur_interaktionen(r"^Registrierung ")`), nicht ein Umschreiben der Vertragsdatei. Die Pact-Datei
-bleibt damit exakt so liegen, wie der Stakeholder sie abgelegt hat, und das Aufmachen für
-`login`/`refresh`/`logout`/`me` kostet den Ausdruck plus die States, die die neuen Interaktionen
-tragen — keine Änderung am Pact.
+**Der Ausschluss ungebauter Endpunkte läuft über den Pfad** (`nur_pfade("/api/v1/identity/register")`),
+nicht über ein Umschreiben der Pact-Datei. Sie bleibt exakt so liegen, wie der Stakeholder sie
+abgelegt hat, und das Aufmachen für `login`/`refresh`/`logout`/`me` kostet eine Zeile plus die
+States, die die neuen Interaktionen tragen.
 
-Weil der Ausdruck an fremdem Text hängt — die Beschreibungen schreibt der Consumer —, verlangt
-`nur_interaktionen(muster, erwartet=n)` die Zahl der Treffer mit und bricht bei Abweichung ab.
-Ohne sie könnte eine Umformulierung im Frontend den Filter ins Leere greifen lassen: der Lauf wäre
-grün, weil er nichts mehr verifiziert. Die Prüfung sitzt im Builder und nicht in einem eigenen
-Test — ein Test, der die Pact-Datei selbst parst und den Filter mit `re.compile` nachbaut, prüft
-seine eigene Kopie der Logik. `set_error_on_empty_pact(enabled=True)` fängt den Totalausfall
-zusätzlich ab.
+Pact selbst filtert nur über die **Beschreibung**. Das Muster dafür entsteht deshalb im Builder,
+aus dem Pact: die Beschreibungen der Interaktionen auf den genannten Pfaden, wörtlich und
+vollständig (`^(?:…|…)$`). Der Umweg ist der Punkt — ein von Hand gepflegter Ausdruck wie
+`^Registrierung ` hängt an Texten, die der Consumer jederzeit umformuliert, und greift dann still
+daneben.
+
+Ein Zwischenschritt hatte das Muster von Hand gepflegt und die Zahl der Treffer als
+`erwartet=5` danebengestellt. Das war schwächer, als es aussah: benennt der Consumer eine
+`login`-Interaktion in „Registrierung …" um und eine `register`-Interaktion weg, sind es weiterhin
+fünf — und ein ungebauter Endpunkt liefe mit. Die Zahl prüfte ein Symptom, der Pfad prüft die
+Sache. Findet ein Pfad keine Interaktion, bricht der Aufbau ab;
+`set_error_on_empty_pact(enabled=True)` fängt den Totalausfall zusätzlich.
 
 **Setup und Teardown sind getrennt, und der Teardown räumt wirklich auf.** Vier der fünf
 Interaktionen tragen denselben State, und eine davon legt das Konto tatsächlich an; bliebe es

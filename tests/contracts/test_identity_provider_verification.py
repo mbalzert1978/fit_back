@@ -14,8 +14,8 @@ dieselbe Verdrahtung, aber gruen. Er belegt, was das Ticket verlangt - zwei
 Interaktionen mit demselben State stoeren einander nicht.
 
 Nur die fuenf `register`-Interaktionen laufen mit; `login`, `refresh`, `logout`
-und `me` sind noch nicht gebaut und bleiben ueber `NUR_REGISTRIERUNG` draussen,
-bis ihr jeweiliges Ticket kommt. Die Mechanik dahinter steht in
+und `me` sind noch nicht gebaut und bleiben ueber `REGISTER_PFAD` draussen, bis
+ihr jeweiliges Ticket kommt. Die Mechanik dahinter steht in
 `provider_verification.py`.
 """
 
@@ -46,11 +46,11 @@ Er liegt hier und **nicht** unter `contracts/pacts/`: dort stehen nur Pacts, die
 vom Konsumenten kommen.
 """
 
-NUR_REGISTRIERUNG = r"^Registrierung "
-"""Die Interaktionen des Identity-Pacts, die mitlaufen.
+REGISTER_PFAD = "/api/v1/identity/register"
+"""Der eine Endpunkt, der heute gebaut ist - und damit der einzige, der mitlaeuft.
 
-Ein weiterer Endpunkt kostet diesen Ausdruck, seine Zahl und die States, die
-seine Interaktionen tragen - keine Aenderung am Pact.
+Ein weiterer kostet eine Zeile hier und die States, die seine Interaktionen
+tragen; welche Interaktionen das sind, liest der Builder aus dem Pact.
 """
 
 # Die States benennen ihr Konto im Klartext, statt es als V3-`parameters` zu
@@ -71,7 +71,7 @@ async def test_die_registrierung_erfuellt_den_identity_vertrag(
 
     await (
         ProviderVerifikation.fuer(PROVIDER, IDENTITY_PACT)
-        .nur_interaktionen(NUR_REGISTRIERUNG, erwartet=5)
+        .nur_pfade(REGISTER_PFAD)
         .mit_state(KEIN_KONTO, setup=konto.entfernen, teardown=konto.entfernen)
         .mit_state(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
         .verifiziere(app)
