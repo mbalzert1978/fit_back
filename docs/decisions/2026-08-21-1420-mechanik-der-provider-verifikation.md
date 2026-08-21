@@ -72,8 +72,17 @@ Sache. Findet ein Pfad keine Interaktion, bricht der Aufbau ab;
 `set_error_on_empty_pact(enabled=True)` fängt den Totalausfall zusätzlich.
 
 **Setup und Teardown sind getrennt, und der Teardown räumt wirklich auf.** Vier der fünf
-Interaktionen tragen denselben State, und eine davon legt das Konto tatsächlich an; bliebe es
-stehen, bekäme die nächste 409 statt 201.
+Register-Interaktionen tragen denselben State `Keine Registrierung mit a@b.de vorhanden`. **Zwei
+davon erwarten 201 und legen `a@b.de` dabei selbst an — über den Endpunkt, nicht über den
+State-Handler.** Der Handler dieses States legt nichts an; er stellt eine *Abwesenheit* her und
+räumt in beiden Hälften ab. Bliebe das Konto der ersten 201 stehen, bekäme die zweite 409 statt
+201. Die fünfte Interaktion trägt `Nutzer a@b.de existiert mit Passwort geheim123`, erwartet 409,
+und erst dort legt der Setup-Handler das Konto an, während der Teardown es wieder entfernt.
+
+Daran hängt die Trennung: die beiden Hälften tun je nach State verschiedene Arbeit —
+`entfernen`/`entfernen` beim einen, `anlegen`/`entfernen` beim anderen. Ein einziger Handler je
+State könnte das nicht ausdrücken, und ein aufräumender Teardown ist auch dort nötig, wo der
+Zustand über den geprüften Endpunkt entstanden ist statt über den Handler.
 
 Belegt wird das über einen **zweiten, grünen Verifikationslauf** gegen einen kleinen Pact, dessen
 Konsument dieses Repo selbst ist
@@ -114,6 +123,90 @@ Register-Interaktionen als das, was noch nicht erfüllt ist — abweichende `typ
 422, fehlende `data`/`meta`-Hüllen, fehlende `Location`- und `X-Request-Id`-Header. Kein
 Aufsetzfehler; grün wird der Lauf mit dem Ticket, das `POST /api/v1/identity/register` an den
 Vertrag heranbaut.
+
+Damit das nicht bloß behauptet ist, hier der Beleg — Ausgabe von `./make.ps1 test`, gekürzt auf
+das, was das Kriterium trägt; Laufzeiten, Pfade und Wiederholungen sind heraus, der Rest steht
+wörtlich. Nur die **Reihenfolge** ist hier alphabetisch geordnet statt abgeschrieben: Pact gibt
+Header und Body-Abweichungen je Lauf in wechselnder Folge aus — zwei Läufe desselben Standes
+unterscheiden sich darin, sonst in nichts. Eine feste Ordnung macht den Auszug vergleichbar:
+
+```text
+Verifying a pact between nutritrack-app and nutritrack-identity
+
+  Registrierung mit einer Versatz-Zone
+     Given Keine Registrierung mit a@b.de vorhanden
+    returns a response which
+      has status code 201 (FAILED)
+      includes headers
+        "Cache-Control" with value "no-store" (FAILED)
+        "Content-Type" with value "application/json" (FAILED)
+        "Location" with value "/api/v1/identity/me" (FAILED)
+        "X-Request-Id" with value "01JQ8Z3K7V9XW2P4M6N8R0T5YB" (FAILED)
+      has a matching body (FAILED)
+
+  Registrierung mit freier E-Mail
+     Given Keine Registrierung mit a@b.de vorhanden
+    returns a response which
+      has status code 201 (OK)
+      includes headers
+        ... (drei der vier Header weichen ab, gekürzt)
+      has a matching body (FAILED)
+
+  Registrierung mit ungültigen Angaben, auf Englisch gefragt
+     Given Keine Registrierung mit a@b.de vorhanden
+    returns a response which
+      has status code 422 (FAILED)
+      ...
+      has a matching body (FAILED)
+
+  Registrierung mit ungültiger E-Mail, zu kurzem Passwort und zu kurzem Namen
+     Given Keine Registrierung mit a@b.de vorhanden
+    returns a response which
+      has status code 422 (FAILED)
+      ...
+      has a matching body (FAILED)
+
+  Registrierung mit vergebener E-Mail
+     Given Nutzer a@b.de existiert mit Passwort geheim123
+    returns a response which
+      has status code 409 (OK)
+      ...
+      has a matching body (FAILED)
+
+Failures:
+
+1) ... Registrierung mit einer Versatz-Zone
+    1.1) has a matching body
+           $ -> Actual map is missing the following keys: data, meta
+    1.2) has status code 201
+           expected 201 but was 400
+2) ... Registrierung mit freier E-Mail
+    2.1) has a matching body
+           $ -> Actual map is missing the following keys: data, meta
+3) ... Registrierung mit ungültigen Angaben, auf Englisch gefragt
+    3.1) has a matching body
+           $.status -> Expected 400 (Integer) to be equal to 422 (Integer)
+           $.type -> Expected 'https://api.example/errors/validation-failed' (String) to be equal
+                     to 'tag:nutritrack.app,2026:problems/validation-failed' (String)
+4) ... Registrierung mit ungültiger E-Mail, zu kurzem Passwort und zu kurzem Namen
+    4.1) has a matching body
+           $.errors -> Actual map is missing the following keys: displayName
+5) ... Registrierung mit vergebener E-Mail
+    5.1) has a matching body
+           $.type -> Expected 'https://api.example/errors/email-already-registered' (String) to be
+                     equal to 'tag:nutritrack.app,2026:problems/email-already-registered' (String)
+
+There were 5 pact failures
+
+FAILED tests/contracts/test_identity_provider_verification.py::test_die_registrierung_erfuellt_den_identity_vertrag
+1 failed, 282 passed
+```
+
+Abzulesen ist daran genau das Kriterium: **fünf** Register-Interaktionen, jede unter ihrem
+`Given …` — die State-Handler sind also gelaufen, sonst gäbe es die Zeile nicht —, und jede
+scheitert an einer Zusicherung des Vertrags (Status, Header, Body), nicht am Aufbau des Laufs.
+Ein Aufsetzfehler sähe anders aus: er bräche vor der ersten Interaktion ab, und keine der fünf
+stünde da. Die übrigen 282 Tests bleiben grün, der Mechanik-Lauf darunter.
 
 ## Was dadurch ersetzt wird
 

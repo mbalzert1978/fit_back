@@ -9,7 +9,17 @@
 | Pact-Spezifikation | V3 (erzeugt mit `pact-js` 17.1.2) |
 | „go" des Stakeholders | 2026-08-21 |
 | Abgelegt mit | `3ec8a8f` — *feat(contracts): Identity-Pact des Frontends ablegen* |
-| Quell-Commit im Frontend | nicht mitgeliefert; die Datei kam von Hand, ohne Broker |
+| Quell-Commit im Frontend | **entfällt bewusst** — siehe unten |
+
+**Zum entfallenden Quell-Commit.** Die Zeile ist keine offene Aufgabe. Der Pact wurde von Hand
+übergeben, ohne Broker und ohne Zugriff auf das Frontend-Repository — beides ist so entschieden
+([`docs/decisions/2026-08-21-1420-mechanik-der-provider-verifikation.md`](../../../docs/decisions/2026-08-21-1420-mechanik-der-provider-verifikation.md),
+„Ein Pact Broker" unter *Was ausdrücklich nicht entschieden wurde*). Damit gibt es keinen
+Commit-Zeiger, den dieses Repo aufschreiben könnte, und keinen, den jemand später nachtragen
+kann. Was die Herkunft trägt, sind die beiden Zeilen darüber: das „go" des Stakeholders vom
+2026-08-21 und der Commit, mit dem die Datei hier landete. Erst wenn ein Broker dazukommt, gibt
+es überhaupt eine Quelle, auf die zu verweisen wäre; bis dahin ist die Zeile beantwortet, nicht
+leer.
 
 Elf Interaktionen. Verifiziert werden davon zurzeit nur die fünf für
 `POST /api/v1/identity/register` (201 ×2, 422 ×2, 409); `login`, `refresh`, `logout` und `me` sind
