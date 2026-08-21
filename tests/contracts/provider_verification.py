@@ -1,23 +1,23 @@
-"""Ein Provider-Verifikationslauf, fluent zusammengesteckt.
+"""A provider-verification run, assembled fluently.
 
-Hier liegt die Mechanik, die kein Test lesen will: die App unter `uvicorn` in
-einem Thread, der Verifier von `pact-python`, und die Bruecke, die die
-State-Handler aus Pacts eigenem Thread zurueck auf die Event-Loop des Tests
-holt. Ein Test sagt damit nur noch, **was** verifiziert wird:
+This is the mechanics no test wants to read: the app under `uvicorn` in a
+thread, the `pact-python` verifier, and the bridge that pulls state handlers
+from Pact's own thread back onto the test's event loop. A test only states
+**what** gets verified:
 
     await (
-        ProviderVerifikation.fuer("nutritrack-identity", identity_pact)
-        .nur_pfade(PurePosixPath("/api/v1/identity/register"))
-        .mit_zustand("Konto existiert", setup=konto.anlegen, teardown=konto.entfernen)
-        .verifiziere(app, pact_ablage)
+        ProviderVerification.for_provider("nutritrack-identity", identity_pact)
+        .only_paths(PurePosixPath("/api/v1/identity/register"))
+        .with_state("Konto existiert", setup=account.create, teardown=account.remove)
+        .verify(app, pact_store)
     )
 
-Weder hier noch im Test wird eine Datei geoeffnet: den fertigen `Pact` und die
-`Ablage`, die der Verifier zum Lesen braucht, reicht die `conftest.py` herein.
-Sie ist die einzige Stelle, die `json` importiert und das Dateisystem anfasst.
+Neither here nor in the test does a file get opened: `conftest.py` hands in
+the finished `Pact` and the `Store` the verifier needs to read - it is the
+only place that imports `json` and touches the filesystem.
 
-Wiederverwendbar fuer die uebrigen fuenf Vertraege, sobald ihre Contexts gebaut
-sind - jeder bekommt seinen eigenen Lauf unter seinem eigenen Provider-Namen.
+Reusable for the remaining five contracts once their contexts are built - each
+gets its own run under its own provider name.
 """
 
 import asyncio
@@ -33,252 +33,236 @@ import uvicorn
 from fastapi import FastAPI
 from pact.verifier import Verifier
 
-__all__ = ["Ablage", "Interaktion", "Pact", "ProviderVerifikation", "Zustand"]
+__all__ = ["Interaction", "Pact", "ProviderVerification", "State", "Store"]
 
-type Arbeit = Callable[[], Awaitable[None]]
-"""Was ein State-Handler zu tun hat - als Coroutine-Funktion, ohne Argumente."""
+type Hook = Callable[[], Awaitable[None]]
 
-type Ablage = Callable[[Mapping[str, object]], Path]
-"""Legt den abzuspielenden Pact ab und nennt die Datei.
+type Store = Callable[[Mapping[str, object]], Path]
+"""Writes the pact to replay and names the file.
 
-`pact-python` liest seine Quelle vom Dateisystem - irgendwo muss der reduzierte
-Pact also landen. Wo, entscheidet der Test ueber seine Fixture, nicht dieser
-Baukasten.
+`pact-python` reads its source from the filesystem - the reduced pact has to
+land somewhere. Where is up to the test's fixture, not this toolkit.
 """
 
 
-class Haelfte(str, Enum):
-    """Die beiden Haelften, mit denen Pact einen State-Handler ruft."""
+class Phase(str, Enum):
+    """The two halves Pact calls a state handler with."""
 
     setup = "setup"
     teardown = "teardown"
 
 
 _START_FRIST = 30.0
-"""Sekunden, die die App zum Hochfahren hat, bevor der Lauf abbricht."""
+"""Seconds the app has to start up before the run aborts."""
 
 _STOPP_FRIST = 10.0
-"""Sekunden, die der uvicorn-Thread zum Beenden hat.
+"""Seconds the uvicorn thread has to shut down.
 
-Laeuft sie ab, geht der Test trotzdem weiter: der Thread ist ein Daemon und
-stirbt mit dem Prozess. Warten heisst hier nur, den Port freizugeben, bevor der
-naechste Lauf ihn braucht.
+If it runs out the test proceeds anyway: the thread is a daemon and dies with
+the process. Waiting here only frees the port before the next run needs it.
 """
 
 
-def _als[T](wert: object, art: type[T], wo: str) -> T:
-    """Nimm einen Wert aus einem Pact als das, was dort stehen muss.
+def _as[T](value: object, expected: type[T], where: str) -> T:
+    """Take a value out of a pact as the type it must be.
 
-    Was aus einer JSON-Datei kommt, ist zunaechst nur `object`. Statt das mit
-    `Any` zu verwischen, faellt hier auf, wenn eine Pact-Datei anders gebaut ist
-    als angenommen - mit dem Feldnamen im Fehlertext.
+    Anything from a JSON file starts out as plain `object`. Instead of blurring
+    that with `Any`, this surfaces a pact built differently than assumed - with
+    the field name in the error text.
     """
-    if not isinstance(wert, art):
-        msg = f"Der Pact fuehrt unter {wo} kein {art.__name__}, sondern {type(wert).__name__}."
+    if not isinstance(value, expected):
+        msg = f"The pact carries no {expected.__name__} under {where}, but {type(value).__name__}."
         raise TypeError(msg)
-    return wert
+    return value
 
 
 @final
 @dataclass(frozen=True, slots=True)
-class Interaktion:
-    """Eine Interaktion des Pacts - sie weiss selbst, wohin sie zeigt.
+class Interaction:
+    """One interaction of the pact - it knows itself which endpoint it targets.
 
-    `pfad` ist ein `PurePosixPath`, kein String und kein URL-Typ. Kein String,
-    weil der Typ `/api/v1/x` und `/api/v1//x` gleich vergleicht, wo ein String
-    zwei verschiedene Dinge saehe. `PurePosixPath` statt `Path`, damit unter
-    Windows nicht die Backslash-Semantik hereinrutscht. Und kein URL-Typ, weil im
-    Pact genau das steht, was der Name sagt - ein Pfad. Schema, Host und Query
-    gibt es dort nicht; ein URL-Typ wuerde drei Felder modellieren, die leer
-    bleiben, und die Frage aufwerfen, gegen welchen Host verglichen wird.
+    `path` is a `PurePosixPath`, not a string or a URL type. Not a string,
+    because that type compares `/api/v1/x` and `/api/v1//x` as equal, where a
+    string would see two different things. `PurePosixPath` instead of `Path`,
+    so Windows backslash semantics can't slip in. And not a URL type, because
+    the pact holds exactly what the field name says - a path. Scheme, host and
+    query don't exist there; a URL type would model three fields that stay
+    empty and raise the question of which host to compare against.
 
-    `roh` bleibt mit, weil ein abgespielter Pact wieder eine Pact-Datei sein muss:
-    was der Builder nicht liest, gibt er unveraendert zurueck.
+    `raw` stays attached because a replayed pact has to be a valid pact file
+    again: whatever the builder doesn't read, it hands back unchanged.
     """
 
-    pfad: PurePosixPath
-    roh: Mapping[str, object]
+    path: PurePosixPath
+    raw: Mapping[str, object]
 
     @classmethod
-    def von(cls, roh: Mapping[str, object]) -> "Interaktion":
-        """Deute eine Interaktion aus dem Inhalt einer Pact-Datei."""
-        anfrage = _als(roh["request"], Mapping, "request")
-        return cls(PurePosixPath(_als(anfrage["path"], str, "request.path")), roh)
+    def from_raw(cls, raw: Mapping[str, object]) -> "Interaction":
+        request = _as(raw["request"], Mapping, "request")
+        return cls(PurePosixPath(_as(request["path"], str, "request.path")), raw)
 
-    def zeigt_auf(self, pfade: Collection[PurePosixPath]) -> bool:
-        """Gehoert diese Interaktion zu einem dieser Endpunkte?"""
-        return self.pfad in pfade
+    def targets(self, paths: Collection[PurePosixPath]) -> bool:
+        return self.path in paths
 
 
 @final
 @dataclass(frozen=True, slots=True)
 class Pact:
-    """Eine Pact-Datei, aufgeteilt in ihre Interaktionen und alles Uebrige."""
+    """A pact file, split into its interactions and everything else."""
 
-    kopf: Mapping[str, object]
-    interaktionen: tuple[Interaktion, ...]
+    head: Mapping[str, object]
+    interactions: tuple[Interaction, ...]
 
     @classmethod
-    def von(cls, roh: Mapping[str, object]) -> "Pact":
-        """Deute den eingelesenen Inhalt einer Pact-Datei.
+    def from_raw(cls, raw: Mapping[str, object]) -> "Pact":
+        """Interpret the parsed contents of a pact file.
 
-        Die einzige Stelle, die die Form eines Pacts kennt - ab hier haengt alles
-        an Namen statt an Schluessel-Ketten. Gelesen wird die Datei in der
-        `conftest.py`; was hier ankommt, ist schon geparst.
+        The single place that knows a pact's shape - from here on everything
+        hangs off names instead of key chains. The file itself is read in
+        `conftest.py`; what arrives here is already parsed.
         """
         return cls(
-            kopf={name: wert for name, wert in roh.items() if name != "interactions"},
-            interaktionen=tuple(
-                map(Interaktion.von, _als(roh["interactions"], list, "interactions"))
+            head={name: value for name, value in raw.items() if name != "interactions"},
+            interactions=tuple(
+                map(Interaction.from_raw, _as(raw["interactions"], list, "interactions"))
             ),
         )
 
-    def nur_auf(self, pfade: Collection[PurePosixPath]) -> "Pact":
-        """Derselbe Pact, beschraenkt auf die Interaktionen dieser Endpunkte."""
-        return Pact(self.kopf, tuple(i for i in self.interaktionen if i.zeigt_auf(pfade)))
+    def only_on(self, paths: Collection[PurePosixPath]) -> "Pact":
+        return Pact(self.head, tuple(i for i in self.interactions if i.targets(paths)))
 
     @property
-    def inhalt(self) -> Mapping[str, object]:
-        """Derselbe Pact wieder als das, was in einer Pact-Datei stuende."""
-        return {**self.kopf, "interactions": [i.roh for i in self.interaktionen]}
+    def content(self) -> Mapping[str, object]:
+        return {**self.head, "interactions": [i.raw for i in self.interactions]}
 
 
 @final
 @dataclass(frozen=True, slots=True)
-class Zustand:
-    """Ein Provider-State: was ihn herstellt, und was ihn wieder aufraeumt.
+class State:
+    """A provider state: what sets it up, and what tears it back down.
 
-    Beide Haelften getrennt gehalten, weil Pact sie getrennt ruft und der
-    Teardown der wichtigere Teil ist: er entscheidet, ob zwei Interaktionen mit
-    demselben State einander stoeren.
+    Kept as two separate halves because Pact calls them separately, and the
+    teardown is the more important part: it decides whether two interactions
+    on the same state interfere with each other.
     """
 
     name: str
-    setup: Arbeit
-    teardown: Arbeit
+    setup: Hook
+    teardown: Hook
 
-    def haelfte(self, gerufene: Haelfte) -> Arbeit:
-        """Die Haelfte, die Pact mit diesem Aufruf meint."""
-        match gerufene:
-            case Haelfte.setup:
+    def pick(self, phase: Phase) -> Hook:
+        match phase:
+            case Phase.setup:
                 return self.setup
-            case Haelfte.teardown:
+            case Phase.teardown:
                 return self.teardown
             case _:
-                assert_never(gerufene)
+                assert_never(phase)
 
 
 @final
-class ProviderVerifikation:
-    """Der schrittweise Aufbau eines Verifikationslaufs."""
+class ProviderVerification:
+    """A verification run, built up step by step."""
 
     def __init__(self, provider: str, pact: Pact) -> None:
-        """Beginne einen Lauf dieses Providers gegen diesen Pact."""
         self._provider = provider
-        self._abzuspielen = pact
-        self._zustaende: list[Zustand] = []
+        self._to_replay = pact
+        self._states: list[State] = []
 
     @classmethod
-    def fuer(cls, provider: str, pact: Pact) -> Self:
-        """Beginne einen Lauf dieses Providers gegen diesen Pact.
+    def for_provider(cls, provider: str, pact: Pact) -> Self:
+        """Start a run of this provider against this pact.
 
-        Beides zusammen, weil ein Lauf ohne Pact nichts ist, was man
-        versehentlich starten koennen sollte.
+        Both together, because a run without a pact is nothing that should be
+        startable by accident.
         """
         return cls(provider, pact)
 
-    def nur_pfade(self, *pfade: PurePosixPath) -> Self:
-        """Beschraenke den Lauf auf die Interaktionen dieser Endpunkte.
+    def only_paths(self, *paths: PurePosixPath) -> Self:
+        """Restrict the run to the interactions of these endpoints.
 
-        Abgespielt wird dann ein reduzierter Pact - eine Kopie, die nur die
-        gewaehlten Interaktionen traegt. Die Datei des Stakeholders bleibt
-        unberuehrt, und der Ausschluss haengt an dem, was das Ticket meint: dem
-        Endpunkt. Nicht an Beschreibungstexten, die der Consumer jederzeit
-        umformuliert.
+        What gets replayed is then a reduced pact - a copy carrying only the
+        chosen interactions. The stakeholder's file stays untouched, and the
+        exclusion hangs off what the ticket means: the endpoint. Not off
+        description text the consumer can reword at any time.
         """
-        gewaehlt = self._abzuspielen.nur_auf(pfade)
-        if not gewaehlt.interaktionen:
-            msg = f"Der Pact hat keine Interaktion auf {[str(p) for p in pfade]}."
+        chosen = self._to_replay.only_on(paths)
+        if not chosen.interactions:
+            msg = f"The pact has no interaction on {[str(p) for p in paths]}."
             raise LookupError(msg)
-        self._abzuspielen = gewaehlt
+        self._to_replay = chosen
         return self
 
-    def mit_zustand(self, name: str, *, setup: Arbeit, teardown: Arbeit) -> Self:
-        """Hinterlege den Handler fuer einen Provider-State des Pacts."""
-        self._zustaende.append(Zustand(name, setup, teardown))
+    def with_state(self, name: str, *, setup: Hook, teardown: Hook) -> Self:
+        self._states.append(State(name, setup, teardown))
         return self
 
-    async def verifiziere(self, asgi_app: FastAPI, ablage: Ablage) -> None:
-        """Fahre die App hoch, spiele den Pact dagegen ab, raeume wieder ab.
+    async def verify(self, asgi_app: FastAPI, store: Store) -> None:
+        """Boot the app, replay the pact against it, tear down again.
 
-        Faellt der Lauf durch, wirft `pact-python` - das ist das Testergebnis.
+        If the run fails, `pact-python` raises - that's the test result.
         """
-        schleife = asyncio.get_running_loop()
-        quelle = ablage(self._abzuspielen.inhalt)
+        loop = asyncio.get_running_loop()
+        source = store(self._to_replay.content)
 
-        async with _laufende_app(asgi_app) as url:
+        async with _running_app(asgi_app) as url:
             verifier = (
                 Verifier(self._provider, host="127.0.0.1")
                 .add_transport(url=url)
-                .add_source(quelle)
-                .state_handler(
-                    {z.name: _handler(z, schleife) for z in self._zustaende}, teardown=True
-                )
-                # Ein Pact ohne Interaktionen ist ein Fehler, kein gruener Lauf.
+                .add_source(source)
+                .state_handler({s.name: _handler(s, loop) for s in self._states}, teardown=True)
+                # An empty pact is a failure, not a green run.
                 .set_error_on_empty_pact(enabled=True)
             )
-            # Im Thread, damit die Loop des Tests fuer die State-Handler frei bleibt.
+            # In a thread, so the test's loop stays free for the state handlers.
             await asyncio.to_thread(verifier.verify)
 
 
-def _handler(zustand: Zustand, schleife: asyncio.AbstractEventLoop) -> Callable[..., None]:
-    """Baue aus einem `Zustand` den synchronen Handler, den `pact-python` erwartet.
+def _handler(state: State, loop: asyncio.AbstractEventLoop) -> Callable[..., None]:
+    """Build the synchronous handler `pact-python` expects from a `State`.
 
-    Pact ruft die State-Handler aus dem Thread seines eigenen kleinen
-    HTTP-Servers heraus auf. Die Datenbank-Engine des Tests gehoert aber dessen
-    Event-Loop; von einem fremden Thread aus benutzt, faellt asyncpg um. Der
-    Umweg ueber `run_coroutine_threadsafe` reicht die Arbeit dorthin zurueck -
-    moeglich, weil `verifiziere()` den Verifier seinerseits in einem Thread
-    laufen laesst und die Loop des Tests damit frei ist.
+    Pact calls the state handlers from its own small HTTP server's thread. The
+    test's database engine belongs to that test's event loop though; used from
+    a foreign thread, asyncpg falls over. The detour through
+    `run_coroutine_threadsafe` hands the work back there - possible because
+    `verify()` runs the verifier itself in a thread, leaving the test's
+    loop free.
     """
 
-    # `action` ist **nicht** frei waehlbar: `pact-python` schaut sich die Signatur
-    # des Handlers an und reicht nur die Argumente herein, deren Parameter genau
-    # `state`, `action` oder `parameters` heissen (`Verifier.state_handler` ->
-    # `apply_args`). Ein deutscher Name hier laesst den Handler ohne Argument
-    # laufen, und der Lauf bricht mit "state change handlers has failed" ab -
-    # nachgemessen. Der Name gehoert damit Pact, nicht dem Glossar dieses Repos.
-    def handler(action: Haelfte) -> None:
-        asyncio.run_coroutine_threadsafe(zustand.haelfte(action)(), schleife).result()
+    # `action` is **not** free to rename: `pact-python` inspects the handler's
+    # signature and only passes the arguments whose parameters are named
+    # exactly `state`, `action`, or `parameters` (`Verifier.state_handler` ->
+    # `apply_args`). A different name here leaves the handler called with no
+    # argument, and the run aborts with "state change handlers has failed" -
+    # measured. The name belongs to Pact, not this repo's glossary.
+    def handler(action: Phase) -> None:
+        asyncio.run_coroutine_threadsafe(state.pick(action)(), loop).result()
 
     return handler
 
 
 @contextlib.asynccontextmanager
-async def _laufende_app(asgi_app: FastAPI) -> AsyncGenerator[str]:
-    """Halte die App unter `uvicorn` am Laufen und nenne ihre URL."""
-    # Port 0: das Betriebssystem sucht einen freien und nennt ihn ueber den
-    # Socket zurueck. Ein selbst gewuerfelter Port waere zwischen Wahl und
-    # `bind()` fuer andere frei.
+async def _running_app(asgi_app: FastAPI) -> AsyncGenerator[str]:
+    # Port 0: the OS picks a free one and reports it back via the socket. A
+    # self-chosen port would be free for others between the pick and `bind()`.
     server = uvicorn.Server(uvicorn.Config(asgi_app, host="127.0.0.1", port=0, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     try:
         async with asyncio.timeout(_START_FRIST):
             while not server.started:
-                # Auf `is_alive()` mitwarten, nicht nur auf `started`: bricht der
-                # Start ab - fehlende Konfiguration etwa -, setzt uvicorn
-                # `started` nie, und ein blosses Warten verschwiege den Grund.
+                # Wait on `is_alive()` too, not just `started`: if startup
+                # aborts - missing config, say - uvicorn never sets `started`,
+                # and waiting alone would hide the reason.
                 if not thread.is_alive():
-                    msg = "Die App ist beim Start abgebrochen - siehe die Ausgabe von uvicorn."
+                    msg = "The app aborted on startup - see uvicorn's output."
                     raise RuntimeError(msg)
                 await asyncio.sleep(0.05)
-        yield f"http://127.0.0.1:{_gebundener_port(server)}"
+        yield f"http://127.0.0.1:{_bound_port(server)}"
     finally:
         server.should_exit = True
         await asyncio.to_thread(thread.join, _STOPP_FRIST)
 
 
-def _gebundener_port(server: uvicorn.Server) -> int:
-    """Den Port nennen, den das Betriebssystem beim `bind()` vergeben hat."""
+def _bound_port(server: uvicorn.Server) -> int:
     return server.servers[0].sockets[0].getsockname()[1]

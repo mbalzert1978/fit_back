@@ -5,6 +5,12 @@
 [`2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`](./2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md)
 auf: **dass** die Verträge die Vorgabe sind, steht dort; hier steht nur, **wie** sie geprüft werden.
 
+> **Die Bezeichner in diesem Dokument sind überholt.** Die Mechanik gilt unverändert, der Code
+> heißt seit
+> [`2026-08-21-2115-provider-verifikation-traegt-englische-bezeichner.md`](./2026-08-21-2115-provider-verifikation-traegt-englische-bezeichner.md)
+> aber englisch; dort steht die Übersetzungstabelle. Die Codebeispiele und der eingeklebte
+> pytest-Auszug unten bleiben absichtlich so stehen, wie sie gelaufen sind.
+
 ## Was entschieden wurde
 
 **Die Verifikation ist ein gewöhnlicher pytest-Test** unter `tests/contracts/`, kein eigenes

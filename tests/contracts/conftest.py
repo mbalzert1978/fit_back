@@ -1,8 +1,8 @@
-"""Was die Contract-Tests vorfinden: fertige Pacts und eine App auf der Testdatenbank.
+"""What the contract tests find ready: finished Pacts and an app on the test database.
 
-**Hier und nur hier** wird in diesem Verzeichnis eine Datei angefasst und `json`
-importiert. Ein Testmodul bekommt den Pact als Objekt gereicht und die `Ablage`
-als Funktion; es weiss weder, wo die Dateien liegen, noch dass es welche gibt.
+**Only here**, in this package, does a file get opened and `json` imported. A
+test module receives the Pact as an object and the `Store` as a function; it
+knows neither where the files live nor that they exist.
 """
 
 import json
@@ -14,79 +14,77 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine
 from testcontainers.community.postgres import PostgresContainer
 
-from tests.contracts.provider_verification import Ablage, Pact
-from tests.contracts.testkonto import Testkonto
+from tests.contracts.account import Account
+from tests.contracts.provider_verification import Pact, Store
 
 _PACTS = Path(__file__).parents[2] / "contracts/pacts"
-"""Der eine Ablageort aller Pacts (`docs/decisions/2026-08-21-1330-...`)."""
+"""The one place all pacts live (`docs/decisions/2026-08-21-1330-...`)."""
 
 EMAIL = "a@b.de"
-PASSWORT = "geheim123"
-"""Die Daten, die die Provider-States des Identity-Pacts im Klartext nennen.
+PASSWORD = "geheim123"
+"""Data the identity pact's provider states name in plain text.
 
-Sie stehen hier, weil zwei Dinge sie brauchen: das `testkonto` unten und die
-State-Namen im Testmodul, die daraus zusammengesetzt sind.
+They live here because two things need them: the `account` fixture below and
+the state names in the test module, which are composed from these.
 """
 
 
-def _gelesen(datei: Path) -> Pact:
-    """Lies eine Pact-Datei und deute sie."""
-    return Pact.von(json.loads(datei.read_text(encoding="utf-8")))
+def _read(file: Path) -> Pact:
+    return Pact.from_raw(json.loads(file.read_text(encoding="utf-8")))
 
 
 @pytest.fixture
 def identity_pact() -> Pact:
-    """Der Pact des Frontends gegen `nutritrack-identity` - die Vorgabe."""
-    return _gelesen(_PACTS / "identity/nutritrack-app-nutritrack-identity.json")
+    """The frontend's pact against `nutritrack-identity` - the specification."""
+    return _read(_PACTS / "identity/nutritrack-app-nutritrack-identity.json")
 
 
 @pytest.fixture
 def mechanik_pact() -> Pact:
-    """Der Pact, dessen Konsument dieses Repo selbst ist - der Nachweis.
+    """The pact whose consumer is this repo itself - the proof.
 
-    Herkunft und Zweck beider Dateien stehen in
+    Origin and purpose of both files are in
     `contracts/pacts/identity/README.md`.
     """
-    return _gelesen(_PACTS / "identity/fit-back-mechanik-nutritrack-identity.json")
+    return _read(_PACTS / "identity/fit-back-mechanik-nutritrack-identity.json")
 
 
 @pytest.fixture
-def pact_ablage(tmp_path: Path) -> Ablage:
-    """Wohin der abzuspielende Pact geschrieben wird, damit der Verifier ihn liest.
+def pact_store(tmp_path: Path) -> Store:
+    """Where the pact to replay gets written, so the verifier can read it.
 
-    In `tmp_path`, das pytest je Test anlegt und wieder wegraeumt - die Dateien
-    unter `contracts/pacts/` bleiben unberuehrt.
+    In `tmp_path`, which pytest creates and tears down per test - the files
+    under `contracts/pacts/` stay untouched.
     """
 
-    def ablegen(inhalt: Mapping[str, object]) -> Path:
-        datei = tmp_path / "abzuspielen.json"
-        datei.write_text(json.dumps(inhalt), encoding="utf-8")
-        return datei
+    def write(content: Mapping[str, object]) -> Path:
+        file = tmp_path / "abzuspielen.json"
+        file.write_text(json.dumps(content), encoding="utf-8")
+        return file
 
-    return ablegen
+    return write
 
 
 @pytest_asyncio.fixture
-async def testkonto(postgres_engine: AsyncEngine) -> Testkonto:
-    """Das eine Konto, um das die Register-States des Identity-Pacts kreisen.
+async def account(postgres_engine: AsyncEngine) -> Account:
+    """The one account the identity pact's register states revolve around.
 
-    Beide Verifikationslaeufe brauchen dasselbe; ihre States unterscheiden sich
-    nur darin, welche Haelfte sie auf `anlegen` und welche sie auf `entfernen`
-    legen.
+    Both verification runs need the same account; their states differ only in
+    which half maps to `create` and which to `remove`.
     """
-    return Testkonto(postgres_engine, email=EMAIL, passwort=PASSWORT)
+    return Account(postgres_engine, email=EMAIL, password=PASSWORD)
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def app_zeigt_auf_die_testdatenbank(
+async def app_uses_test_database(
     postgres_service: PostgresContainer,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Setze die Umgebung, aus der `validate_settings()` beim Start liest.
+    """Set the environment `validate_settings()` reads from at startup.
 
-    Die Provider-Verifikation faehrt die echte App hoch; die baut ihre Engine
-    selbst aus der Umgebung. Ohne diese Werte bricht sie beim Start ab - und ein
-    Abbruch beim Start ist ein Aufsetzfehler, kein Vertragsbruch.
+    Provider verification boots the real app, which builds its own engine from
+    the environment. Without these values it aborts at startup - and a startup
+    abort is a setup bug, not a contract violation.
     """
     monkeypatch.setenv("DB_HOST", postgres_service.get_container_host_ip())
     monkeypatch.setenv("DB_PORT", str(postgres_service.get_exposed_port(5432)))

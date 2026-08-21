@@ -1,23 +1,23 @@
-"""Provider-Verifikation gegen den Identity-Vertrag des Frontends (Ticket #94).
+"""Provider verification against the frontend's identity pact (ticket #94).
 
-Der Pact unter `contracts/pacts/identity/` ist die Vorgabe der HTTP-Grenze
+The pact under `contracts/pacts/identity/` is the HTTP boundary's specification
 (`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`).
 
-**Der Lauf gegen ihn ist erwartungsgemaess rot**, solange
-`POST /api/v1/identity/register` ihn nicht erfuellt. Ein Pact vom Konsumenten ist
-Vorgabe, nicht Nachweis - rot heisst hier "noch nicht gebaut", nicht "falsch
-getestet". Gruen wird er mit dem Ticket, das den Endpunkt heranbaut.
+**The run against it is red as expected**, for as long as
+`POST /api/v1/identity/register` doesn't satisfy it. A pact from the consumer
+is a specification, not proof - red here means "not built yet", not "tested
+wrong". It goes green with the ticket that builds the endpoint.
 
-Weil ein roter Lauf nichts belegen kann, laeuft die **Mechanik** gegen einen
-zweiten, kleinen Pact, dessen Konsument dieses Repo selbst ist: derselbe Weg,
-dieselbe Verdrahtung, aber gruen. Er belegt, was das Ticket verlangt - zwei
-Interaktionen mit demselben State stoeren einander nicht.
+Because a red run can't prove anything, the **mechanics** also run against a
+second, small pact whose consumer is this repo itself: same path, same wiring,
+but green. It proves what the ticket requires - two interactions on the same
+state don't interfere with each other.
 
-Nur die fuenf `register`-Interaktionen laufen mit; `login`, `refresh`, `logout`
-und `me` sind noch nicht gebaut und bleiben ueber `REGISTER_PFAD` draussen, bis
-ihr jeweiliges Ticket kommt. Die Mechanik dahinter steht in
-`provider_verification.py`, die beiden Pacts und die `Ablage` reicht die
-`conftest.py` herein - dieses Modul oeffnet keine Datei.
+Only the five `register` interactions run; `login`, `refresh`, `logout`, and
+`me` aren't built yet and stay excluded via `REGISTER_PATH` until their
+respective ticket lands. The mechanics behind this live in
+`provider_verification.py`; `conftest.py` hands in both pacts and the `Store` -
+this module opens no file itself.
 """
 
 from pathlib import PurePosixPath
@@ -25,57 +25,57 @@ from pathlib import PurePosixPath
 import pytest
 
 from src.main import app
-from tests.contracts.conftest import EMAIL, PASSWORT
-from tests.contracts.provider_verification import Ablage, Pact, ProviderVerifikation
-from tests.contracts.testkonto import Testkonto
+from tests.contracts.account import Account
+from tests.contracts.conftest import EMAIL, PASSWORD
+from tests.contracts.provider_verification import Pact, ProviderVerification, Store
 
 PROVIDER = "nutritrack-identity"
 
-REGISTER_PFAD = PurePosixPath("/api/v1/identity/register")
-"""Der eine Endpunkt, der heute gebaut ist - und damit der einzige, der mitlaeuft.
+REGISTER_PATH = PurePosixPath("/api/v1/identity/register")
+"""The one endpoint that's built today - and so the only one that runs.
 
-Ein weiterer kostet eine Zeile hier und die States, die seine Interaktionen
-tragen; welche Interaktionen das sind, liest der Builder aus dem Pact.
+Another one costs a line here plus the states carrying its interactions;
+which interactions those are, the builder reads off the pact.
 """
 
-# Die States benennen ihr Konto im Klartext, statt es als V3-`parameters` zu
-# fuehren - hier steht deshalb, was dort im Text steht. Die beiden Werte kommen
-# aus der `conftest.py`, weil das `testkonto` dort aus denselben gebaut wird.
-KEIN_KONTO = f"Keine Registrierung mit {EMAIL} vorhanden"
-KONTO_EXISTIERT = f"Nutzer {EMAIL} existiert mit Passwort {PASSWORT}"
+# The states name their account in plain text instead of carrying it as a V3
+# `parameters` - hence the literal text here. Both values come from
+# `conftest.py`, since the `account` fixture there is built from the same.
+NO_ACCOUNT = f"Keine Registrierung mit {EMAIL} vorhanden"
+ACCOUNT_EXISTS = f"Nutzer {EMAIL} existiert mit Passwort {PASSWORD}"
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_die_registrierung_erfuellt_den_identity_vertrag(
-    testkonto: Testkonto,
+async def test_registration_fulfils_the_identity_contract(
+    account: Account,
     identity_pact: Pact,
-    pact_ablage: Ablage,
+    pact_store: Store,
 ) -> None:
-    """Spiele die fuenf register-Interaktionen gegen die laufende App ab."""
+    """Replay the five register interactions against the running app."""
     await (
-        ProviderVerifikation.fuer(PROVIDER, identity_pact)
-        .nur_pfade(REGISTER_PFAD)
-        .mit_zustand(KEIN_KONTO, setup=testkonto.entfernen, teardown=testkonto.entfernen)
-        .mit_zustand(KONTO_EXISTIERT, setup=testkonto.anlegen, teardown=testkonto.entfernen)
-        .verifiziere(app, pact_ablage)
+        ProviderVerification.for_provider(PROVIDER, identity_pact)
+        .only_paths(REGISTER_PATH)
+        .with_state(NO_ACCOUNT, setup=account.remove, teardown=account.remove)
+        .with_state(ACCOUNT_EXISTS, setup=account.create, teardown=account.remove)
+        .verify(app, pact_store)
     )
 
 
-async def test_zwei_interaktionen_mit_demselben_state_stoeren_einander_nicht(
-    testkonto: Testkonto,
+async def test_two_interactions_sharing_a_state_do_not_interfere(
+    account: Account,
     mechanik_pact: Pact,
-    pact_ablage: Ablage,
+    pact_store: Store,
 ) -> None:
-    """Derselbe anlegende State, zweimal hintereinander - beide Male durch.
+    """Same account-creating state, twice in a row - both times through.
 
-    Bleibt das Konto der ersten Interaktion stehen, laeuft das Setup der zweiten
-    in den `uq_users_email` und der Lauf wird rot. `Testkonto.anlegen()` raeumt
-    bewusst nicht selbst vor, damit dieser Fall wirklich eintritt statt verdeckt
-    zu werden.
+    If the first interaction's account were left standing, the second setup
+    would run into `uq_users_email` and the run would go red.
+    `Account.create()` deliberately doesn't clean up first, so this case
+    actually occurs instead of being masked.
     """
     await (
-        ProviderVerifikation.fuer(PROVIDER, mechanik_pact)
-        .mit_zustand(KONTO_EXISTIERT, setup=testkonto.anlegen, teardown=testkonto.entfernen)
-        .verifiziere(app, pact_ablage)
+        ProviderVerification.for_provider(PROVIDER, mechanik_pact)
+        .with_state(ACCOUNT_EXISTS, setup=account.create, teardown=account.remove)
+        .verify(app, pact_store)
     )
