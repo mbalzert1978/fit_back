@@ -10,7 +10,7 @@ schon fest, wenn die Pipeline zurückkommt. Die Sprachauswahl ist rein
 präsentativ und beeinflußt das fachliche Ergebnis nicht.
 """
 
-from typing import Final, Literal, assert_never, final
+from typing import Literal, assert_never, final
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -32,11 +32,13 @@ router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
 
 _PROBLEM_JSON = "application/problem+json"
 
-_TOKEN_TYPE: Final = "Bearer"  # noqa: S105 -- ein Schema-Name aus RFC 6750, kein Geheimnis
+type TokenType = Literal["Bearer"]
 """Das Schema, in dem der Access-Token vorzulegen ist (RFC 6750).
 
-Steht ohne Matcher im Vertrag und ist damit bindend - eine Konstante und kein
-Wert, den irgendwer waehlen koennte.
+Steht ohne Matcher im Vertrag und ist damit bindend - ein Typ mit genau einem
+bewohnbaren Wert und kein Wert, den irgendwer waehlen koennte. Als Typ und
+nicht als Konstante, weil `Literal[...]` nur echte Literale annimmt: ein Name
+darin ist zur Laufzeit unauffaellig und statisch ungueltig.
 """
 
 _SELF_URL = "/api/v1/identity/me"
@@ -95,7 +97,7 @@ class GrantedSession(BaseModel):
     expires_in: int = Field(serialization_alias="expiresIn")
     refresh_token: str = Field(serialization_alias="refreshToken", repr=False)
     refresh_expires_in: int = Field(serialization_alias="refreshExpiresIn")
-    token_type: Literal[_TOKEN_TYPE] = Field(serialization_alias="tokenType")
+    token_type: TokenType = Field(default="Bearer", serialization_alias="tokenType")
 
 
 @final
@@ -155,7 +157,6 @@ async def register_user(
                     expires_in=accepted.expires_in,
                     refresh_token=accepted.refresh_token,
                     refresh_expires_in=accepted.refresh_expires_in,
-                    token_type=_TOKEN_TYPE,
                 ),
             )
 
