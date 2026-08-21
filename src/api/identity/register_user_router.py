@@ -88,14 +88,14 @@ class RegisteredUser(BaseModel):
 
 
 @final
-class IssuedSession(BaseModel):
+class GrantedSession(BaseModel):
     """Die mit der Registrierung ausgegebene Sitzung."""
 
     access_token: str = Field(serialization_alias="accessToken", repr=False)
     expires_in: int = Field(serialization_alias="expiresIn")
     refresh_token: str = Field(serialization_alias="refreshToken", repr=False)
     refresh_expires_in: int = Field(serialization_alias="refreshExpiresIn")
-    token_type: str = Field(default=_TOKEN_TYPE, serialization_alias="tokenType")
+    token_type: str = Field(serialization_alias="tokenType")
 
 
 @final
@@ -103,7 +103,7 @@ class RegisterUserResponse(BaseModel):
     """Der 201-Koerper: der nackte `data`-Teil, ohne den Umschlag der Middleware."""
 
     user: RegisteredUser
-    session: IssuedSession
+    session: GrantedSession
 
 
 @router.post(
@@ -112,7 +112,6 @@ class RegisterUserResponse(BaseModel):
     summary="Registriert ein neues Konto",
     response_model=RegisterUserResponse,
     responses={
-        status.HTTP_201_CREATED: {"model": RegisterUserResponse},
         status.HTTP_409_CONFLICT: {"model": ProblemDetails},
         status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ProblemDetails},
     },
@@ -151,11 +150,12 @@ async def register_user(
                     locale=accepted.locale,
                     time_zone_id=accepted.time_zone_id,
                 ),
-                session=IssuedSession(
+                session=GrantedSession(
                     access_token=accepted.access_token,
                     expires_in=accepted.expires_in,
                     refresh_token=accepted.refresh_token,
                     refresh_expires_in=accepted.refresh_expires_in,
+                    token_type=_TOKEN_TYPE,
                 ),
             )
 
