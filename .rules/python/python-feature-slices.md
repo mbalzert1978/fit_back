@@ -477,23 +477,32 @@ End-to-End-Tests gegen echte Infrastruktur** (Testcontainers/Postgres, HTTP gege
 sind eine **eigene, aeusserste Testebene** und ausdruecklich **nicht** Teil der Test-API — siehe
 [`docs/milestones/02-test-pyramide.md`](../../docs/milestones/02-test-pyramide.md).
 
-## Baureihenfolge: Domaene zuerst, Infrastruktur zuletzt
+## Baureihenfolge: Vertragsform zuerst, Infrastruktur zuletzt
 
-Ein Slice wird **von innen nach aussen** gebaut, und er ist **fertig und abnehmbar, bevor
+Ein Slice wird **von aussen nach innen** entworfen und ist **fertig und abnehmbar, bevor
 Infrastruktur existiert**:
 
-1. **`domain/`** — VOs, Entitaeten, Aggregatwurzel, Ports, Regeln. Nur stdlib.
+1. **`src/api/<context>/`** — Request-/Response-DTO und Route-Signatur, abgeleitet aus dem
+   Vertragsausschnitt unter `contracts/pacts/`. Die Antwortform steht damit fest, bevor etwas
+   dahinter existiert.
 2. **`application/<use_case>/`** — Command, Handler, beide Mapper, Validierungsregeln, Port-Adapter,
-   die public Naht (Protocol + Ergebnis-Union).
-3. **Test-API + In-Memory-Fake + Specs** — ab hier ist das Verhalten des Slice **vollstaendig**
+   die public Naht (Protocol + Ergebnis-Union) — abgeleitet aus dem, was die Route braucht.
+3. **`domain/`** — VOs, Entitaeten, Aggregatwurzel, Ports, Regeln. Nur stdlib.
+4. **Test-API + In-Memory-Fake + Specs** — ab hier ist das Verhalten des Slice **vollstaendig**
    spezifiziert und gruen.
-4. **`infrastructure/`** — erst jetzt: die echte Naht-Implementierung (SQLAlchemy-Repository,
+5. **`infrastructure/`** — zuletzt: die echte Naht-Implementierung (SQLAlchemy-Repository,
    externer Adapter).
-5. **`src/api/<context>/`** — zuletzt der HTTP-Router: nur HTTP ↔ Application-DTO.
 
-Wer Schritt 4 oder 5 vor Schritt 3 baut, hat den Slice nicht geschnitten, sondern eine Schicht.
-**Ein Ticket, das nur Schritt 4 oder 5 liefert, ist kein Tracer Bullet** — siehe die
+Wer die Domaene baut, bevor die Vertragsform feststeht, raet — und raet an einer Stelle, an der ein
+Consumer bereits entschieden hat. Wer Schritt 5 vor Schritt 4 baut, hat den Slice nicht geschnitten,
+sondern eine Schicht. **Ein Ticket, das nur eine Schicht liefert, ist kein Tracer Bullet** — siehe die
 Ticket-Schnitt-Regel in [`docs/milestones/00-overview.md`](../../docs/milestones/00-overview.md).
+
+Die **Abhaengigkeitsrichtung bleibt unveraendert**: `domain/` importiert nichts nach aussen, der
+Slice ist ohne Infrastruktur vollstaendig gruen, `import-lint` gilt wie bisher. Die Reihenfolge
+beschreibt, *wo der Entwurf anfaengt*, nicht *wer wen importieren darf*
+([`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`](../../docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md)).
+
 
 ## Keine Exception als Kontrollfluss — auch nicht im Adapter
 
@@ -521,7 +530,7 @@ Deklarativer, zeitgemaesser Stil gilt unveraendert auch in Handlern
 - [ ] **Test-API verdrahtet die echte Pipeline** (Request-Mapper → Handler → Response-Mapper + Validierung) und tauscht nur an der aeussersten Naht den Fake ein; nichts dazwischen wird gemockt.
 - [ ] **Specs: Arrange ueber die Test-API, Act ueber das echte Request-DTO, Assert gegen die echte Response-Union** — kein Test greift auf Handler, Domaene oder Fake direkt zu.
 - [ ] **Der Slice ist ohne Infrastruktur vollstaendig gruen** (keine DB, kein HTTP, kein Container); Integrations-/E2E-Tests sind eine eigene, aeusserste Ebene.
-- [ ] **Baureihenfolge eingehalten**: `domain/` → `application/<use_case>/` → Test-API + Specs → `infrastructure/` → `src/api/`.
+- [ ] **Baureihenfolge eingehalten**: `src/api/` (aus dem Vertragsausschnitt) → `application/<use_case>/` → `domain/` → Test-API + Specs → `infrastructure/`.
 - [ ] **Keine vorgelagerte Pruefung, wo die Gegenseite die Invariante durchsetzt** — kein `find_by_…` vor dem `insert`, das das Wettrennen erst aufmacht.
 - [ ] Domaene spricht nur VOs/Entitaeten; Primitive ausschliesslich in Request-/Response-DTOs + Gateway.
 - [ ] Entitaeten haben identitaetsbasierte Gleichheit; VOs sind `@dataclass(frozen=True, slots=True)`; Identitaet ist ein validierter Typ, kein freier `str`.

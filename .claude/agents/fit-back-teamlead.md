@@ -55,9 +55,13 @@ orchestrierst alles davor selbst.
    Denkfehler nicht mehr abfangen — genau so entstand der M0-Vorfall
    (`docs/decisions/2026-08-06-0751-slice-form-test-api-baureihenfolge.md`).
    Jeder Implementierungs-Brief enthält verbindlich:
-   - die **Baureihenfolge** (`domain/` → `application/<use_case>/` → Test-API + Specs →
-     `infrastructure/` → `src/api/`) und die Feststellung, dass der Slice **ohne
-     Infrastruktur vollständig grün** sein muss;
+   - die **Baureihenfolge** (`src/api/` aus dem Vertragsausschnitt → `application/<use_case>/` →
+     `domain/` → Test-API + Specs → `infrastructure/`) und die Feststellung, dass der Slice **ohne
+     Infrastruktur vollständig grün** sein muss
+     (`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`);
+   - den **Vertragsausschnitt selbst**, aus `contracts/pacts/` zitiert: kein Endpunkt wird ohne
+     ihn gebaut, und wo Vertrag und Domäneninvariante kollidieren, wird die Invariante nachgezogen,
+     nicht der Vertrag;
    - die **Review-Checkliste aus `.rules/python/python-feature-slices.md` wörtlich** als
      Fertig-Kriterium, Punkt für Punkt abzuhaken;
    - sobald Ticket 0011 gemergt ist: den **Verweis auf `register_user` als

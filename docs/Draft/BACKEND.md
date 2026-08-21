@@ -1,7 +1,26 @@
 # Backend-Spezifikation — Nährwert-Tracking-App
 
 Zielsystem: **ASP.NET Core 8 Web API, C#, DDD-Schnitt nach Bounded Contexts.**
-Diese Datei ist die vollständige Vorgabe. Es gibt keine offenen Punkte, die vor Baubeginn geklärt werden müssen; wo Entscheidungen offen wären, sind sie hier bereits getroffen.
+
+> **Diese Datei ist nicht mehr die vollständige Vorgabe.** Sie war es bis zum 2026-08-21.
+>
+> **Für die HTTP-Grenze ist sie nicht mehr maßgeblich.** Pfade, Statuscodes, Header, Feldnamen und
+> Antwortform gibt der Pact-Vertrag des Frontends vor, der unter [`contracts/pacts/`](../../contracts/pacts/)
+> liegt. Wo diese Datei und ein Vertrag dieselbe Fläche beschreiben, gilt der Vertrag — auch dann,
+> wenn dafür eine hier festgehaltene Invariante nachgezogen werden muss. Begründung und Regeln:
+> [`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`](../decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md).
+>
+> **Maßgeblich bleibt sie für Domäne, Invarianten, Ereignisse und Persistenz** — für alles also,
+> was ein Consumer nicht sehen kann. Die Abschnitte 1–7 sind in diesem Sinn weiter zu lesen: ihre
+> Aggregate, Regeln und Berechnungen gelten, ihre `API-Contracts`-Blöcke nicht.
+>
+> **Zwei Querschnitts-Regeln sind überholt:**
+> - **Regel 4 (Zeit und Datum)** — der Kalendertag gehört dem Client; das Backend leitet aus
+>   `timeZoneId` keinen Tag mehr ab. Siehe Punkt 4 des Entscheidungs-Dokuments.
+> - **Regel 6 (Fehlerformat)** — Form und `type`-Schema gibt der Vertrag vor.
+>
+> Auch der Abschnitt **8. Reihenfolge der Umsetzung** ist überholt: gebaut wird, was ein Vertrag
+> deckt, in der Reihenfolge, in der Verträge freigegeben werden.
 
 ---
 
