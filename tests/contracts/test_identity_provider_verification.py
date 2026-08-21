@@ -19,7 +19,7 @@ ihr jeweiliges Ticket kommt. Die Mechanik dahinter steht in
 `provider_verification.py`.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -46,7 +46,7 @@ Er liegt hier und **nicht** unter `contracts/pacts/`: dort stehen nur Pacts, die
 vom Konsumenten kommen.
 """
 
-REGISTER_PFAD = "/api/v1/identity/register"
+REGISTER_PFAD = PurePosixPath("/api/v1/identity/register")
 """Der eine Endpunkt, der heute gebaut ist - und damit der einzige, der mitlaeuft.
 
 Ein weiterer kostet eine Zeile hier und die States, die seine Interaktionen
