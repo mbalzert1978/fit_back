@@ -101,9 +101,17 @@ def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, st
     title: str,
     detail: str,
     errors: dict[str, list[str]] | None = None,
-    language_tag: str = "de-DE",
+    *,
+    language_tag: str,
 ) -> JSONResponse:
-    """Baue eine RFC-7807-Antwort im Format des Shared Kernel."""
+    """Baue eine RFC-7807-Antwort im Format des Shared Kernel.
+
+    `language_tag` hat bewusst **keinen** Vorgabewert: `title` und `detail` sind
+    beim Aufruf bereits uebersetzt, und ein Vorgabewert liesse sich vergessen,
+    ohne dass etwas auffaellt - der Aufrufer bekaeme dann einen englischen Text
+    mit `Content-Language: de-DE`. Wer die Antwort baut, hat die ausgehandelte
+    Sprache ohnehin in der Hand.
+    """
     details = ProblemDetails(
         type=problem_type(error_type),
         title=title,

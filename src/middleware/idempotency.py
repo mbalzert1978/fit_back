@@ -70,7 +70,7 @@ from starlette.status import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_CONTENT
 from starlette.types import ASGIApp
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import ProblemDetails, problem_type
+from src.api.problem_details import problem
 from src.contexts.shared_kernel.time_provider import TimeProvider
 
 logger = logging.getLogger(__name__)
@@ -80,8 +80,15 @@ IDEMPOTENCY_KEYS_TABLE = "shared_kernel.idempotency_keys"
 IDEMPOTENT_METHODS = frozenset({"POST", "PUT"})
 CACHEABLE_STATUS_CODES = frozenset({200, 201})
 
-KEY_REUSED_TYPE = problem_type("idempotency-key-reused")
-REQUEST_IN_PROGRESS_TYPE = problem_type("request-in-progress")
+KEY_REUSED_SLUG = "idempotency-key-reused"
+REQUEST_IN_PROGRESS_SLUG = "request-in-progress"
+"""Die Fehlercodes der beiden Idempotenz-Ausgaenge, als nackter Slug.
+
+Kein fertiger URI: das `tag:`-Praefix setzt `problem()` an, an einer Stelle
+fuer die ganze API. Die Zeichenketten stehen ausserdem in
+`PRESENTATION_CODES` (`src/main.py`) und in den i18n-Ressourcen - dort ist
+ebenfalls der Slug gemeint und nicht der URI.
+"""
 
 # So viele Zeichen eines abgelehnten Header-Werts kommen ins Log. Eine UUID hat
 # 36 Zeichen; wer sich in einer vertippt hat, sieht seinen Wert damit noch ganz.
@@ -236,38 +243,6 @@ async def release_claim(engine: AsyncEngine, key: UUID) -> None:
         await connection.execute(_RELEASE_CLAIM, {"key": key})
 
 
-def _problem(  # noqa: PLR0913, PLR0917 -- Response builder needs context, status, type, and translated text
-    request: Request,
-    http_status: int,
-    error_type: str,
-    title: str,
-    detail: str,
-    language_tag: str,
-) -> Response:
-    """Baue eine RFC-7807-Antwort - dasselbe Format wie ueberall sonst.
-
-    `language_tag` hat bewusst **keinen** Vorgabewert: `title` und `detail` sind
-    hier bereits uebersetzt, und ein Vorgabewert liesse sich vergessen, ohne dass
-    etwas auffaellt - der Aufrufer bekaeme dann einen englischen Text mit
-    `Content-Language: de-DE`. Wer die Antwort baut, hat die ausgehandelte
-    Sprache ohnehin in der Hand.
-    """
-    problem = ProblemDetails(
-        type=error_type,
-        title=title,
-        status=http_status,
-        detail=detail,
-        instance=request.url.path,
-    )
-    response = JSONResponse(
-        status_code=http_status,
-        content=problem.model_dump(exclude_none=True),
-        media_type="application/problem+json",
-    )
-    response.headers["Content-Language"] = language_tag
-    return response
-
-
 @final
 class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
     """Middleware für Idempotency-Key-Behandlung.
@@ -378,13 +353,13 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             logger.warning("Idempotency key %s fuer eine abweichende Anfrage verwendet", key)
             title = translate(resources, "idempotency-key-reused", language=language)
             detail = translate(resources, "idempotency-key-reused-detail", language=language)
-            return _problem(
+            return problem(
                 request,
                 HTTP_422_UNPROCESSABLE_CONTENT,
-                KEY_REUSED_TYPE,
+                KEY_REUSED_SLUG,
                 title,
                 detail,
-                language,
+                language_tag=language,
             )
 
         if existing["response_body"] is None:
@@ -393,13 +368,13 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             detail = translate(
                 resources, "idempotency-request-in-progress-detail", language=language
             )
-            return _problem(
+            return problem(
                 request,
                 HTTP_409_CONFLICT,
-                REQUEST_IN_PROGRESS_TYPE,
+                REQUEST_IN_PROGRESS_SLUG,
                 title,
                 detail,
-                language,
+                language_tag=language,
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)
