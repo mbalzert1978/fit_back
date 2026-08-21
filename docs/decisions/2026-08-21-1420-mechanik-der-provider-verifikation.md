@@ -24,11 +24,11 @@ sagt nur noch, was verifiziert wird:
 
 ```python
 await (
-    ProviderVerifikation.fuer("nutritrack-identity", PACT_DATEI)
-    .nur_interaktionen(NUR_REGISTRIERUNG)
+    ProviderVerifikation.fuer("nutritrack-identity", identity_pact)
+    .nur_pfade(REGISTER_PFAD)
     .mit_state(KEIN_KONTO, setup=konto.entfernen, teardown=konto.entfernen)
     .mit_state(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
-    .verifiziere(app)
+    .verifiziere(app, pact_ablage)
 )
 ```
 
@@ -46,10 +46,18 @@ Builder einen **reduzierten Pact** ab: eine Kopie im Temp-Ordner, die nur die ge
 Interaktionen trägt. Damit gibt es keinen Regex mehr, der danebengreifen könnte, und die Datei des
 Stakeholders bleibt unberührt.
 
-Die Form eines Pacts wird an genau einer Stelle gelesen (`Pact.aus`). `Interaktion` trägt
+Die Form eines Pacts wird an genau einer Stelle gedeutet (`Pact.von`). `Interaktion` trägt
 `beschreibung`, `pfad` und die rohe Nutzlast und entscheidet über `zeigt_auf(pfade)` selbst, ob sie
 dazugehört; `Pact.nur_auf(pfade)` gibt den reduzierten Pact zurück. `Any` kommt in keiner Signatur
-und keinem Feld vor.
+und keinem Feld vor — was aus JSON kommt, ist `object` und wird über `_als(wert, art, wo)` geprüft,
+das im Fehlerfall den Feldnamen nennt.
+
+**Das Dateisystem berührt nur die `conftest.py`.** Sie ist die einzige Stelle unter
+`tests/contracts/`, die `json` importiert und eine Datei öffnet: die Fixtures `identity_pact` und
+`mechanik_pact` reichen fertige `Pact`-Objekte herein, `pact_ablage` reicht die Funktion, die den
+reduzierten Pact nach `tmp_path` schreibt (pytest räumt ihn selbst weg — kein `tempfile` mehr im
+Baukasten). Weder ein Testmodul noch der Baukasten weiß damit, wo die Pacts liegen oder dass es
+Dateien sind; austauschbar ist beides über eine Fixture statt über einen Patch.
 
 `pfad` ist ein `PurePosixPath` — kein String, weil der Typ `/a//b` und `/a/b` gleich vergleicht;
 kein `Path`, damit unter Windows keine Backslash-Semantik hereinrutscht; und kein URL-Typ, weil im

@@ -16,32 +16,20 @@ Interaktionen mit demselben State stoeren einander nicht.
 Nur die fuenf `register`-Interaktionen laufen mit; `login`, `refresh`, `logout`
 und `me` sind noch nicht gebaut und bleiben ueber `REGISTER_PFAD` draussen, bis
 ihr jeweiliges Ticket kommt. Die Mechanik dahinter steht in
-`provider_verification.py`.
+`provider_verification.py`, die beiden Pacts und die `Ablage` reicht die
+`conftest.py` herein - dieses Modul oeffnet keine Datei.
 """
 
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.main import app
-from tests.contracts.provider_verification import ProviderVerifikation
+from tests.contracts.provider_verification import Ablage, Pact, ProviderVerifikation
 from tests.contracts.testkonto import Testkonto
 
 PROVIDER = "nutritrack-identity"
-PACTS = Path(__file__).parents[2] / "contracts/pacts/identity"
-
-IDENTITY_PACT = PACTS / "nutritrack-app-nutritrack-identity.json"
-
-MECHANIK_PACT = PACTS / "fit-back-mechanik-nutritrack-identity.json"
-"""Ein Pact, den wir selbst schreiben - Konsument ist dieses Repo.
-
-Zwei Interaktionen, die sich den State `KONTO_EXISTIERT` teilen und beide 409
-erwarten - eine Form, die die App heute schon erfuellt. Der State ist mit Absicht
-der anlegende: raeumt sein Teardown nicht, laeuft das zweite Setup in den
-`uq_users_email` und der Lauf wird rot. Bei `KEIN_KONTO` waere der Nachweis wertlos,
-weil dort schon das Setup aufraeumt.
-"""
 
 REGISTER_PFAD = PurePosixPath("/api/v1/identity/register")
 """Der eine Endpunkt, der heute gebaut ist - und damit der einzige, der mitlaeuft.
@@ -62,21 +50,25 @@ pytestmark = pytest.mark.asyncio
 
 async def test_die_registrierung_erfuellt_den_identity_vertrag(
     postgres_engine: AsyncEngine,
+    identity_pact: Pact,
+    pact_ablage: Ablage,
 ) -> None:
     """Spiele die fuenf register-Interaktionen gegen die laufende App ab."""
     konto = Testkonto(postgres_engine, email=EMAIL, passwort=PASSWORT)
 
     await (
-        ProviderVerifikation.fuer(PROVIDER, IDENTITY_PACT)
+        ProviderVerifikation.fuer(PROVIDER, identity_pact)
         .nur_pfade(REGISTER_PFAD)
         .mit_state(KEIN_KONTO, setup=konto.entfernen, teardown=konto.entfernen)
         .mit_state(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
-        .verifiziere(app)
+        .verifiziere(app, pact_ablage)
     )
 
 
 async def test_zwei_interaktionen_mit_demselben_state_stoeren_einander_nicht(
     postgres_engine: AsyncEngine,
+    mechanik_pact: Pact,
+    pact_ablage: Ablage,
 ) -> None:
     """Derselbe anlegende State, zweimal hintereinander - beide Male durch.
 
@@ -88,7 +80,7 @@ async def test_zwei_interaktionen_mit_demselben_state_stoeren_einander_nicht(
     konto = Testkonto(postgres_engine, email=EMAIL, passwort=PASSWORT)
 
     await (
-        ProviderVerifikation.fuer(PROVIDER, MECHANIK_PACT)
+        ProviderVerifikation.fuer(PROVIDER, mechanik_pact)
         .mit_state(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
-        .verifiziere(app)
+        .verifiziere(app, pact_ablage)
     )

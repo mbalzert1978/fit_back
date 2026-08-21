@@ -6,11 +6,15 @@ State-Handler aus Pacts eigenem Thread zurueck auf die Event-Loop des Tests
 holt. Ein Test sagt damit nur noch, **was** verifiziert wird:
 
     await (
-        ProviderVerifikation.fuer("nutritrack-identity", PACT_DATEI)
+        ProviderVerifikation.fuer("nutritrack-identity", identity_pact)
         .nur_pfade(PurePosixPath("/api/v1/identity/register"))
         .mit_state("Konto existiert", setup=konto.anlegen, teardown=konto.entfernen)
-        .verifiziere(app)
+        .verifiziere(app, pact_ablage)
     )
+
+Weder hier noch im Test wird eine Datei geoeffnet: den fertigen `Pact` und die
+`Ablage`, die der Verifier zum Lesen braucht, reicht die `conftest.py` herein.
+Sie ist die einzige Stelle, die `json` importiert und das Dateisystem anfasst.
 
 Wiederverwendbar fuer die uebrigen fuenf Vertraege, sobald ihre Contexts gebaut
 sind - jeder bekommt seinen eigenen Lauf unter seinem eigenen Provider-Namen.
@@ -18,8 +22,6 @@ sind - jeder bekommt seinen eigenen Lauf unter seinem eigenen Provider-Namen.
 
 import asyncio
 import contextlib
-import json
-import tempfile
 import threading
 from collections.abc import AsyncGenerator, Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
@@ -30,16 +32,37 @@ import uvicorn
 from fastapi import FastAPI
 from pact.verifier import Verifier
 
-__all__ = ["Interaktion", "Pact", "ProviderVerifikation", "Zustand"]
+__all__ = ["Ablage", "Interaktion", "Pact", "ProviderVerifikation", "Zustand"]
 
 type Arbeit = Callable[[], Awaitable[None]]
 """Was ein State-Handler zu tun hat - als Coroutine-Funktion, ohne Argumente."""
+
+type Ablage = Callable[[Mapping[str, object]], Path]
+"""Legt den abzuspielenden Pact ab und nennt die Datei.
+
+`pact-python` liest seine Quelle vom Dateisystem - irgendwo muss der reduzierte
+Pact also landen. Wo, entscheidet der Test ueber seine Fixture, nicht dieser
+Baukasten.
+"""
 
 type Haelfte = Literal["setup", "teardown"]
 """Die beiden Haelften, mit denen Pact einen State-Handler ruft."""
 
 _START_FRIST = 30.0
 """Sekunden, die die App zum Hochfahren hat, bevor der Lauf abbricht."""
+
+
+def _als[T](wert: object, art: type[T], wo: str) -> T:
+    """Nimm einen Wert aus einem Pact als das, was dort stehen muss.
+
+    Was aus einer JSON-Datei kommt, ist zunaechst nur `object`. Statt das mit
+    `Any` zu verwischen, faellt hier auf, wenn eine Pact-Datei anders gebaut ist
+    als angenommen - mit dem Feldnamen im Fehlertext.
+    """
+    if not isinstance(wert, art):
+        msg = f"Der Pact fuehrt unter {wo} kein {art.__name__}, sondern {type(wert).__name__}."
+        raise TypeError(msg)
+    return wert
 
 
 @final
@@ -63,6 +86,16 @@ class Interaktion:
     pfad: PurePosixPath
     roh: Mapping[str, object]
 
+    @classmethod
+    def von(cls, roh: Mapping[str, object]) -> "Interaktion":
+        """Deute eine Interaktion aus dem Inhalt einer Pact-Datei."""
+        anfrage = _als(roh["request"], Mapping, "request")
+        return cls(
+            _als(roh["description"], str, "description"),
+            PurePosixPath(_als(anfrage["path"], str, "request.path")),
+            roh,
+        )
+
     def zeigt_auf(self, pfade: Collection[PurePosixPath]) -> bool:
         """Gehoert diese Interaktion zu einem dieser Endpunkte?"""
         return self.pfad in pfade
@@ -77,18 +110,17 @@ class Pact:
     interaktionen: tuple[Interaktion, ...]
 
     @classmethod
-    def aus(cls, datei: Path) -> "Pact":
-        """Lies eine Pact-Datei ein.
+    def von(cls, roh: Mapping[str, object]) -> "Pact":
+        """Deute den eingelesenen Inhalt einer Pact-Datei.
 
         Die einzige Stelle, die die Form eines Pacts kennt - ab hier haengt alles
-        an Namen statt an Schluessel-Ketten.
+        an Namen statt an Schluessel-Ketten. Gelesen wird die Datei in der
+        `conftest.py`; was hier ankommt, ist schon geparst.
         """
-        roh = json.loads(datei.read_text(encoding="utf-8"))
         return cls(
             kopf={name: wert for name, wert in roh.items() if name != "interactions"},
             interaktionen=tuple(
-                Interaktion(i["description"], PurePosixPath(i["request"]["path"]), i)
-                for i in roh["interactions"]
+                map(Interaktion.von, _als(roh["interactions"], list, "interactions"))
             ),
         )
 
@@ -96,11 +128,10 @@ class Pact:
         """Derselbe Pact, beschraenkt auf die Interaktionen dieser Endpunkte."""
         return Pact(self.kopf, tuple(i for i in self.interaktionen if i.zeigt_auf(pfade)))
 
-    def schreibe_nach(self, datei: Path) -> Path:
-        """Schreib den Pact als Datei und nenne sie."""
-        inhalt = {**self.kopf, "interactions": [i.roh for i in self.interaktionen]}
-        datei.write_text(json.dumps(inhalt), encoding="utf-8")
-        return datei
+    @property
+    def inhalt(self) -> Mapping[str, object]:
+        """Derselbe Pact wieder als das, was in einer Pact-Datei stuende."""
+        return {**self.kopf, "interactions": [i.roh for i in self.interaktionen]}
 
 
 @final
@@ -126,16 +157,15 @@ class Zustand:
 class ProviderVerifikation:
     """Der schrittweise Aufbau eines Verifikationslaufs."""
 
-    def __init__(self, provider: str, pact: Path) -> None:
-        """Beginne einen Lauf dieses Providers gegen diese Pact-Datei."""
+    def __init__(self, provider: str, pact: Pact) -> None:
+        """Beginne einen Lauf dieses Providers gegen diesen Pact."""
         self._provider = provider
-        self._name = pact.name
-        self._abzuspielen = Pact.aus(pact)
+        self._abzuspielen = pact
         self._zustaende: list[Zustand] = []
 
     @classmethod
-    def fuer(cls, provider: str, pact: Path) -> Self:
-        """Beginne einen Lauf dieses Providers gegen diese Pact-Datei.
+    def fuer(cls, provider: str, pact: Pact) -> Self:
+        """Beginne einen Lauf dieses Providers gegen diesen Pact.
 
         Beides zusammen, weil ein Lauf ohne Pact nichts ist, was man
         versehentlich starten koennen sollte.
@@ -153,7 +183,7 @@ class ProviderVerifikation:
         """
         gewaehlt = self._abzuspielen.nur_auf(pfade)
         if not gewaehlt.interaktionen:
-            msg = f"{self._name} hat keine Interaktion auf {[str(p) for p in pfade]}."
+            msg = f"Der Pact hat keine Interaktion auf {[str(p) for p in pfade]}."
             raise AssertionError(msg)
         self._abzuspielen = gewaehlt
         return self
@@ -163,26 +193,25 @@ class ProviderVerifikation:
         self._zustaende.append(Zustand(name, setup, teardown))
         return self
 
-    async def verifiziere(self, asgi_app: FastAPI) -> None:
+    async def verifiziere(self, asgi_app: FastAPI, ablage: Ablage) -> None:
         """Fahre die App hoch, spiele den Pact dagegen ab, raeume wieder ab.
 
         Faellt der Lauf durch, wirft `pact-python` - das ist das Testergebnis.
         """
         handler = _handler_auf(asyncio.get_running_loop())
+        quelle = ablage(self._abzuspielen.inhalt)
 
-        with tempfile.TemporaryDirectory() as ordner:
-            quelle = self._abzuspielen.schreibe_nach(Path(ordner) / self._name)
-            async with _laufende_app(asgi_app) as url:
-                verifier = (
-                    Verifier(self._provider, host="127.0.0.1")
-                    .add_transport(url=url)
-                    .add_source(quelle)
-                    .state_handler({z.name: handler(z) for z in self._zustaende}, teardown=True)
-                    # Ein Pact ohne Interaktionen ist ein Fehler, kein gruener Lauf.
-                    .set_error_on_empty_pact(enabled=True)
-                )
-                # Im Thread, damit die Loop des Tests fuer die State-Handler frei bleibt.
-                await asyncio.to_thread(verifier.verify)
+        async with _laufende_app(asgi_app) as url:
+            verifier = (
+                Verifier(self._provider, host="127.0.0.1")
+                .add_transport(url=url)
+                .add_source(quelle)
+                .state_handler({z.name: handler(z) for z in self._zustaende}, teardown=True)
+                # Ein Pact ohne Interaktionen ist ein Fehler, kein gruener Lauf.
+                .set_error_on_empty_pact(enabled=True)
+            )
+            # Im Thread, damit die Loop des Tests fuer die State-Handler frei bleibt.
+            await asyncio.to_thread(verifier.verify)
 
 
 def _handler_auf(schleife: asyncio.AbstractEventLoop) -> Callable[[Zustand], Callable[..., None]]:
