@@ -7,10 +7,10 @@ nichts an.
 
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from src.api.composition import request_transaction
+from src.api.composition import SettingsDep, request_transaction
 from src.contexts.identity.application.register_user import (
     RegisterUserPipeline,
     build_register_user_pipeline,
@@ -26,7 +26,7 @@ __all__ = ["RegisterUser"]
 
 
 def _register_user(
-    request: Request,
+    settings: SettingsDep,
     connection: Annotated[AsyncConnection, Depends(request_transaction)],
 ) -> RegisterUserPipeline:
     """Baue die Pipeline gegen Postgres, Argon2id und die Outbox.
@@ -36,8 +36,9 @@ def _register_user(
     Refresh-Token und Ereignis gemeinsam sichtbar werden. Zwei Verbindungen
     waeren hier ein stiller Bruch der Zusage.
 
-    Das Signaturgeheimnis kommt aus `app.state.settings` und damit aus der
-    Umgebung - der Lifespan hat es beim Start gegen `src/settings.py` geprueft.
+    Das Signaturgeheimnis kommt als `Settings` herein (`request_settings`) und
+    damit aus der Umgebung - der Lifespan hat es beim Start gegen
+    `src/settings.py` geprueft. Die Fabrik kennt dafuer kein HTTP.
 
     Dieselbe Fabrik wie in der Test-API; getauscht wird nur, was hinter der Naht
     steckt.
@@ -47,9 +48,7 @@ def _register_user(
         hasher=Argon2PasswordHasher(),
         labels=IdnaLabels(),
         events=RegisterUserOutbox(connection),
-        sessions=PostgresSessionTokens(
-            connection, JwtAccessTokens(request.app.state.settings.jwt_secret)
-        ),
+        sessions=PostgresSessionTokens(connection, JwtAccessTokens(settings.jwt_secret)),
         clock=SystemTimeProvider(),
     )
 

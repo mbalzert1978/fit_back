@@ -15,18 +15,22 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import AsyncGenerator
+from typing import Annotated
 
-from fastapi import Request
+from fastapi import Depends, Request
 from sqlalchemy import URL
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
 from src.contexts.shared_kernel.events import EventRegistry
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.infrastructure.outbox import OutboxRelay, OutboxWorker
+from src.settings import Settings
 
 __all__ = [
+    "SettingsDep",
     "build_engine",
     "build_event_registry",
+    "request_settings",
     "request_transaction",
     "run_outbox_worker",
 ]
@@ -71,6 +75,21 @@ async def request_transaction(request: Request) -> AsyncGenerator[AsyncConnectio
         await connection.begin()
         yield connection
         await connection.commit()
+
+
+def request_settings(request: Request) -> Settings:
+    """Reiche die beim Start geprueften Einstellungen an eine Anfrage weiter.
+
+    Der eine Ort, an dem `app.state.settings` gelesen wird - gesetzt wird es
+    genau einmal, im Lifespan von `src/main.py` gegen `validate_settings`. Wer
+    Konfiguration braucht, nimmt `SettingsDep` und kennt weder `Request` noch
+    `app.state`.
+    """
+    settings: Settings = request.app.state.settings
+    return settings
+
+
+type SettingsDep = Annotated[Settings, Depends(request_settings)]
 
 
 @contextlib.asynccontextmanager
