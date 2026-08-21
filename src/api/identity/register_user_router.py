@@ -10,7 +10,7 @@ schon fest, wenn die Pipeline zurückkommt. Die Sprachauswahl ist rein
 präsentativ und beeinflußt das fachliche Ergebnis nicht.
 """
 
-from typing import assert_never, final
+from typing import Final, Literal, assert_never, final
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
 
 _PROBLEM_JSON = "application/problem+json"
 
-_TOKEN_TYPE = "Bearer"  # noqa: S105 -- ein Schema-Name aus RFC 6750, kein Geheimnis
+_TOKEN_TYPE: Final = "Bearer"  # noqa: S105 -- ein Schema-Name aus RFC 6750, kein Geheimnis
 """Das Schema, in dem der Access-Token vorzulegen ist (RFC 6750).
 
 Steht ohne Matcher im Vertrag und ist damit bindend - eine Konstante und kein
@@ -95,7 +95,7 @@ class GrantedSession(BaseModel):
     expires_in: int = Field(serialization_alias="expiresIn")
     refresh_token: str = Field(serialization_alias="refreshToken", repr=False)
     refresh_expires_in: int = Field(serialization_alias="refreshExpiresIn")
-    token_type: str = Field(serialization_alias="tokenType")
+    token_type: Literal[_TOKEN_TYPE] = Field(serialization_alias="tokenType")
 
 
 @final
