@@ -22,7 +22,6 @@ _ANLEGEN = text(
     ")"
 )
 _ENTFERNEN = text("DELETE FROM identity.users WHERE email = :email")
-_ZAEHLEN = text("SELECT count(*) FROM identity.users WHERE email = :email")
 
 _USER_ID = "01920000-0000-7000-8000-000000000094"
 _REGISTRIERT_AM = 1_700_000_000
@@ -68,9 +67,3 @@ class Testkonto:
         """Gib die Adresse wieder frei, egal wer sie belegt hat."""
         async with self._engine.begin() as verbindung:
             await verbindung.execute(_ENTFERNEN, {"email": self._email})
-
-    async def existiert(self) -> bool:
-        """Ist die Adresse belegt?"""
-        async with self._engine.connect() as verbindung:
-            treffer = await verbindung.execute(_ZAEHLEN, {"email": self._email})
-            return treffer.scalar_one() > 0

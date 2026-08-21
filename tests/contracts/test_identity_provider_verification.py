@@ -23,9 +23,9 @@ ihr jeweiliges Ticket kommt. Die Mechanik dahinter steht in
 from pathlib import PurePosixPath
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.main import app
+from tests.contracts.conftest import EMAIL, PASSWORT
 from tests.contracts.provider_verification import Ablage, Pact, ProviderVerifikation
 from tests.contracts.testkonto import Testkonto
 
@@ -39,9 +39,8 @@ tragen; welche Interaktionen das sind, liest der Builder aus dem Pact.
 """
 
 # Die States benennen ihr Konto im Klartext, statt es als V3-`parameters` zu
-# fuehren - hier steht deshalb, was dort im Text steht.
-EMAIL = "a@b.de"
-PASSWORT = "geheim123"
+# fuehren - hier steht deshalb, was dort im Text steht. Die beiden Werte kommen
+# aus der `conftest.py`, weil das `testkonto` dort aus denselben gebaut wird.
 KEIN_KONTO = f"Keine Registrierung mit {EMAIL} vorhanden"
 KONTO_EXISTIERT = f"Nutzer {EMAIL} existiert mit Passwort {PASSWORT}"
 
@@ -49,24 +48,22 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_die_registrierung_erfuellt_den_identity_vertrag(
-    postgres_engine: AsyncEngine,
+    testkonto: Testkonto,
     identity_pact: Pact,
     pact_ablage: Ablage,
 ) -> None:
     """Spiele die fuenf register-Interaktionen gegen die laufende App ab."""
-    konto = Testkonto(postgres_engine, email=EMAIL, passwort=PASSWORT)
-
     await (
         ProviderVerifikation.fuer(PROVIDER, identity_pact)
         .nur_pfade(REGISTER_PFAD)
-        .mit_state(KEIN_KONTO, setup=konto.entfernen, teardown=konto.entfernen)
-        .mit_state(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
+        .mit_zustand(KEIN_KONTO, setup=testkonto.entfernen, teardown=testkonto.entfernen)
+        .mit_zustand(KONTO_EXISTIERT, setup=testkonto.anlegen, teardown=testkonto.entfernen)
         .verifiziere(app, pact_ablage)
     )
 
 
 async def test_zwei_interaktionen_mit_demselben_state_stoeren_einander_nicht(
-    postgres_engine: AsyncEngine,
+    testkonto: Testkonto,
     mechanik_pact: Pact,
     pact_ablage: Ablage,
 ) -> None:
@@ -77,10 +74,8 @@ async def test_zwei_interaktionen_mit_demselben_state_stoeren_einander_nicht(
     bewusst nicht selbst vor, damit dieser Fall wirklich eintritt statt verdeckt
     zu werden.
     """
-    konto = Testkonto(postgres_engine, email=EMAIL, passwort=PASSWORT)
-
     await (
         ProviderVerifikation.fuer(PROVIDER, mechanik_pact)
-        .mit_state(KONTO_EXISTIERT, setup=konto.anlegen, teardown=konto.entfernen)
+        .mit_zustand(KONTO_EXISTIERT, setup=testkonto.anlegen, teardown=testkonto.entfernen)
         .verifiziere(app, pact_ablage)
     )

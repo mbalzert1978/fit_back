@@ -8,7 +8,7 @@ holt. Ein Test sagt damit nur noch, **was** verifiziert wird:
     await (
         ProviderVerifikation.fuer("nutritrack-identity", identity_pact)
         .nur_pfade(PurePosixPath("/api/v1/identity/register"))
-        .mit_state("Konto existiert", setup=konto.anlegen, teardown=konto.entfernen)
+        .mit_zustand("Konto existiert", setup=konto.anlegen, teardown=konto.entfernen)
         .verifiziere(app, pact_ablage)
     )
 
@@ -23,10 +23,11 @@ sind - jeder bekommt seinen eigenen Lauf unter seinem eigenen Provider-Namen.
 import asyncio
 import contextlib
 import threading
+from enum import Enum
 from collections.abc import AsyncGenerator, Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Literal, Self, final
+from typing import Self, assert_never, final
 
 import uvicorn
 from fastapi import FastAPI
@@ -45,11 +46,24 @@ Pact also landen. Wo, entscheidet der Test ueber seine Fixture, nicht dieser
 Baukasten.
 """
 
-type Haelfte = Literal["setup", "teardown"]
-"""Die beiden Haelften, mit denen Pact einen State-Handler ruft."""
+
+class Haelfte(str, Enum):
+    """Die beiden Haelften, mit denen Pact einen State-Handler ruft."""
+
+    setup = "setup"
+    teardown = "teardown"
+
 
 _START_FRIST = 30.0
 """Sekunden, die die App zum Hochfahren hat, bevor der Lauf abbricht."""
+
+_STOPP_FRIST = 10.0
+"""Sekunden, die der uvicorn-Thread zum Beenden hat.
+
+Laeuft sie ab, geht der Test trotzdem weiter: der Thread ist ein Daemon und
+stirbt mit dem Prozess. Warten heisst hier nur, den Port freizugeben, bevor der
+naechste Lauf ihn braucht.
+"""
 
 
 def _als[T](wert: object, art: type[T], wo: str) -> T:
@@ -82,7 +96,6 @@ class Interaktion:
     was der Builder nicht liest, gibt er unveraendert zurueck.
     """
 
-    beschreibung: str
     pfad: PurePosixPath
     roh: Mapping[str, object]
 
@@ -90,11 +103,7 @@ class Interaktion:
     def von(cls, roh: Mapping[str, object]) -> "Interaktion":
         """Deute eine Interaktion aus dem Inhalt einer Pact-Datei."""
         anfrage = _als(roh["request"], Mapping, "request")
-        return cls(
-            _als(roh["description"], str, "description"),
-            PurePosixPath(_als(anfrage["path"], str, "request.path")),
-            roh,
-        )
+        return cls(PurePosixPath(_als(anfrage["path"], str, "request.path")), roh)
 
     def zeigt_auf(self, pfade: Collection[PurePosixPath]) -> bool:
         """Gehoert diese Interaktion zu einem dieser Endpunkte?"""
@@ -150,7 +159,13 @@ class Zustand:
 
     def haelfte(self, gerufene: Haelfte) -> Arbeit:
         """Die Haelfte, die Pact mit diesem Aufruf meint."""
-        return self.setup if gerufene == "setup" else self.teardown
+        match gerufene:
+            case Haelfte.setup:
+                return self.setup
+            case Haelfte.teardown:
+                return self.teardown
+            case _:
+                assert_never(gerufene)
 
 
 @final
@@ -184,11 +199,11 @@ class ProviderVerifikation:
         gewaehlt = self._abzuspielen.nur_auf(pfade)
         if not gewaehlt.interaktionen:
             msg = f"Der Pact hat keine Interaktion auf {[str(p) for p in pfade]}."
-            raise AssertionError(msg)
+            raise LookupError(msg)
         self._abzuspielen = gewaehlt
         return self
 
-    def mit_state(self, name: str, *, setup: Arbeit, teardown: Arbeit) -> Self:
+    def mit_zustand(self, name: str, *, setup: Arbeit, teardown: Arbeit) -> Self:
         """Hinterlege den Handler fuer einen Provider-State des Pacts."""
         self._zustaende.append(Zustand(name, setup, teardown))
         return self
@@ -198,7 +213,7 @@ class ProviderVerifikation:
 
         Faellt der Lauf durch, wirft `pact-python` - das ist das Testergebnis.
         """
-        handler = _handler_auf(asyncio.get_running_loop())
+        schleife = asyncio.get_running_loop()
         quelle = ablage(self._abzuspielen.inhalt)
 
         async with _laufende_app(asgi_app) as url:
@@ -206,7 +221,9 @@ class ProviderVerifikation:
                 Verifier(self._provider, host="127.0.0.1")
                 .add_transport(url=url)
                 .add_source(quelle)
-                .state_handler({z.name: handler(z) for z in self._zustaende}, teardown=True)
+                .state_handler(
+                    {z.name: _handler(z, schleife) for z in self._zustaende}, teardown=True
+                )
                 # Ein Pact ohne Interaktionen ist ein Fehler, kein gruener Lauf.
                 .set_error_on_empty_pact(enabled=True)
             )
@@ -214,7 +231,7 @@ class ProviderVerifikation:
             await asyncio.to_thread(verifier.verify)
 
 
-def _handler_auf(schleife: asyncio.AbstractEventLoop) -> Callable[[Zustand], Callable[..., None]]:
+def _handler(zustand: Zustand, schleife: asyncio.AbstractEventLoop) -> Callable[..., None]:
     """Baue aus einem `Zustand` den synchronen Handler, den `pact-python` erwartet.
 
     Pact ruft die State-Handler aus dem Thread seines eigenen kleinen
@@ -225,13 +242,16 @@ def _handler_auf(schleife: asyncio.AbstractEventLoop) -> Callable[[Zustand], Cal
     laufen laesst und die Loop des Tests damit frei ist.
     """
 
-    def fuer(zustand: Zustand) -> Callable[..., None]:
-        def handler(action: Haelfte) -> None:
-            asyncio.run_coroutine_threadsafe(zustand.haelfte(action)(), schleife).result()
+    # `action` ist **nicht** frei waehlbar: `pact-python` schaut sich die Signatur
+    # des Handlers an und reicht nur die Argumente herein, deren Parameter genau
+    # `state`, `action` oder `parameters` heissen (`Verifier.state_handler` ->
+    # `apply_args`). Ein deutscher Name hier laesst den Handler ohne Argument
+    # laufen, und der Lauf bricht mit "state change handlers has failed" ab -
+    # nachgemessen. Der Name gehoert damit Pact, nicht dem Glossar dieses Repos.
+    def handler(action: Haelfte) -> None:
+        asyncio.run_coroutine_threadsafe(zustand.haelfte(action)(), schleife).result()
 
-        return handler
-
-    return fuer
+    return handler
 
 
 @contextlib.asynccontextmanager
@@ -256,7 +276,7 @@ async def _laufende_app(asgi_app: FastAPI) -> AsyncGenerator[str]:
         yield f"http://127.0.0.1:{_gebundener_port(server)}"
     finally:
         server.should_exit = True
-        await asyncio.to_thread(thread.join, 10)
+        await asyncio.to_thread(thread.join, _STOPP_FRIST)
 
 
 def _gebundener_port(server: uvicorn.Server) -> int:
