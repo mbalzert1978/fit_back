@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.identity.dependencies import RegisterUser
-from src.api.problem_details import ProblemDetails, problem_type
+from src.api.problem_details import ProblemDetails, problem
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
     RegisterUserRequest,
@@ -29,8 +29,6 @@ from src.contexts.identity.application.register_user import (
 __all__ = ["router"]
 
 router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
-
-_PROBLEM_JSON = "application/problem+json"
 
 type TokenType = Literal["Bearer"]
 """Das Schema, in dem der Access-Token vorzulegen ist (RFC 6750).
@@ -170,7 +168,7 @@ async def register_user(
             detail = translate(
                 resources, "email-already-registered-detail", {"email": email}, language
             )
-            return _problem(
+            return problem(
                 request,
                 status.HTTP_409_CONFLICT,
                 "email-already-registered",
@@ -191,7 +189,7 @@ async def register_user(
 
             title = translate(resources, "validation-failed", language=language)
             detail = translate(resources, "validation-failed-detail", language=language)
-            return _problem(
+            return problem(
                 request,
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
                 "validation-failed",
@@ -203,30 +201,3 @@ async def register_user(
 
         case _:
             assert_never(outcome)
-
-
-def _problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, status, type, and text
-    request: Request,
-    http_status: int,
-    error_type: str,
-    title: str,
-    detail: str,
-    errors: dict[str, list[str]] | None = None,
-    language_tag: str = "de-DE",
-) -> JSONResponse:
-    """Baue eine RFC-7807-Antwort im Format des Shared Kernel."""
-    problem = ProblemDetails(
-        type=problem_type(error_type),
-        title=title,
-        status=http_status,
-        detail=detail,
-        instance=str(request.url.path),
-        errors=errors,
-    )
-    response = JSONResponse(
-        status_code=http_status,
-        content=problem.model_dump(exclude_none=True),
-        media_type=_PROBLEM_JSON,
-    )
-    response.headers["Content-Language"] = language_tag
-    return response

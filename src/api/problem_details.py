@@ -2,9 +2,25 @@
 
 from typing import final
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-__all__ = ["PROBLEM_TYPE_PREFIX", "ProblemDetails", "problem_type"]
+__all__ = [
+    "PROBLEM_JSON_MEDIA_TYPE",
+    "PROBLEM_TYPE_PREFIX",
+    "ProblemDetails",
+    "problem",
+    "problem_type",
+]
+
+PROBLEM_JSON_MEDIA_TYPE = "application/problem+json"
+"""Der Media-Type, unter dem eine Fehlerantwort dieser API ausgeliefert wird (RFC 7807).
+
+An **einer** Stelle und nicht je Antwort: der Wert gehoert zur API als Ganzes,
+und eine Stelle, die ihn selbst hinschreibt, kann ihn als einzige falsch
+schreiben.
+"""
 
 PROBLEM_TYPE_PREFIX = "tag:nutritrack.app,2026:problems/"
 """Das Schema, unter dem jeder Fehlertyp dieser API benannt ist.
@@ -76,3 +92,30 @@ class ProblemDetails(BaseModel):
             ]
         }
     }
+
+
+def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, status, type, and text
+    request: Request,
+    http_status: int,
+    error_type: str,
+    title: str,
+    detail: str,
+    errors: dict[str, list[str]] | None = None,
+    language_tag: str = "de-DE",
+) -> JSONResponse:
+    """Baue eine RFC-7807-Antwort im Format des Shared Kernel."""
+    details = ProblemDetails(
+        type=problem_type(error_type),
+        title=title,
+        status=http_status,
+        detail=detail,
+        instance=str(request.url.path),
+        errors=errors,
+    )
+    response = JSONResponse(
+        status_code=http_status,
+        content=details.model_dump(exclude_none=True),
+        media_type=PROBLEM_JSON_MEDIA_TYPE,
+    )
+    response.headers["Content-Language"] = language_tag
+    return response

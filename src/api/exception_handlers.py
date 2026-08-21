@@ -16,7 +16,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import ProblemDetails, problem_type
+from src.api.problem_details import problem
 from src.api.request_validation_errors import (
     BodyNotAnObject,
     ExtraForbidden,
@@ -132,29 +132,23 @@ async def validation_exception_handler(
     title = translate(resources, "validation-failed", language=language)
     detail = translate(resources, "validation-failed-detail", language=language)
 
-    problem = ProblemDetails(
-        type=problem_type("validation-failed"),
-        title=title,
-        # 422 und nicht 400: der Koerper war lesbares JSON, nur sein Inhalt hat
-        # die Regeln nicht bestanden (RFC 9110 Abschnitt 15.5.21). Der Vertrag
-        # des Frontends nennt den Code ohne Matcher, er ist damit bindend.
-        status=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        detail=detail,
-        instance=str(request.url.path),
-        errors=errors_dict or None,
-    )
     logger.info(
         "Validation error at %s: %s fields",
         str(request.url.path),
         len(errors_dict),
     )
-    response = JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        content=problem.model_dump(exclude_none=True),
-        media_type="application/problem+json",
+    return problem(
+        request,
+        # 422 und nicht 400: der Koerper war lesbares JSON, nur sein Inhalt hat
+        # die Regeln nicht bestanden (RFC 9110 Abschnitt 15.5.21). Der Vertrag
+        # des Frontends nennt den Code ohne Matcher, er ist damit bindend.
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "validation-failed",
+        title,
+        detail,
+        errors_dict or None,
+        language_tag=language,
     )
-    response.headers["Content-Language"] = language
-    return response
 
 
 def register_exception_handlers(app: FastAPI) -> None:
