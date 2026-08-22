@@ -105,8 +105,13 @@ class TestIdempotencyKeyMiddleware:
         assert result == mock_response
         mock_call_next.assert_called_once()
 
-    async def test_passes_through_without_user_id(self) -> None:
-        """Sollte durchpassen, wenn keine user_id in request.state vorhanden ist."""
+    async def test_passes_through_without_database_engine(self) -> None:
+        """Ohne Engine gibt es keinen Schiedsrichter - die Anfrage laeuft ungeprueft.
+
+        Stand fruher fuer die fehlende `user_id`; die faellt seit #95 auf
+        `ANONYMOUS_USER_ID` zurueck, statt die Middleware auszuschalten. Der
+        Ausstieg an der fehlenden Engine ist geblieben.
+        """
         mock_app = MagicMock()
         middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
@@ -115,6 +120,7 @@ class TestIdempotencyKeyMiddleware:
         mock_request.method = "POST"
         mock_request.headers = {"Idempotency-Key": str(key)}
         mock_request.state.user_id = None
+        mock_request.app.state.engine = None
 
         mock_call_next = AsyncMock()
         mock_response = JSONResponse({"status": "created"}, status_code=201)

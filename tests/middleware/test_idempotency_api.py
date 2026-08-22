@@ -22,7 +22,11 @@ from starlette.responses import Response
 
 from src.api.i18n import create_resources
 from src.contexts.shared_kernel.time_provider import FakeTimeProvider
-from src.middleware.idempotency import IdempotencyKeyMiddleware, calculate_request_hash
+from src.middleware.idempotency import (
+    ANONYMOUS_USER_ID,
+    IdempotencyKeyMiddleware,
+    calculate_request_hash,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -168,10 +172,14 @@ async def test_ohne_schluessel_geht_die_anfrage_durch(
     assert response.status_code == 201
 
 
-async def test_ohne_angemeldeten_nutzer_geht_die_anfrage_durch(
+async def test_ohne_angemeldeten_nutzer_greift_der_schluessel_trotzdem(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Idempotenz haengt an der `user_id`; ohne sie wird nichts gespeichert."""
+    """Ohne `user_id` tritt `ANONYMOUS_USER_ID` ein - der Schluessel wird belegt.
+
+    Die Registrierung hat keinen angemeldeten Nutzer und braucht die Idempotenz
+    gerade dort: zweimal abgeschickt entstuende sonst ein zweites Konto (#95).
+    """
     app = _build_app(clean_idempotency_keys, user_id=None)
     key = str(uuid4())
 
@@ -179,13 +187,16 @@ async def test_ohne_angemeldeten_nutzer_geht_die_anfrage_durch(
         first = await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
         second = await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
 
-    assert (first.status_code, second.status_code) == (201, 201)
+    assert first.status_code == 201
+    assert second.status_code == 200
+    assert second.json() == first.json()
 
     async with clean_idempotency_keys.connect() as connection:
         stored = await connection.scalar(
-            text("SELECT count(*) FROM shared_kernel.idempotency_keys")
+            text("SELECT user_id FROM shared_kernel.idempotency_keys WHERE key = :key"),
+            {"key": key},
         )
-    assert stored == 0
+    assert stored == ANONYMOUS_USER_ID
 
 
 async def test_ungueltige_uuid_im_header_geht_durch(
@@ -217,7 +228,7 @@ async def test_get_wird_nicht_behandelt(clean_idempotency_keys: AsyncEngine) -> 
 async def test_derselbe_schluessel_mit_anderem_body_wird_abgelehnt(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """422 statt der Antwort von vorhin - genau dafuer steht der request_hash in der Tabelle.
+    """409 statt der Antwort von vorhin - genau dafuer steht der request_hash in der Tabelle.
 
     Ohne diesen Vergleich bekaeme der Aufrufer stillschweigend das Ergebnis
     seiner ERSTEN Anfrage und hielte seinen zweiten, voellig anderen Vorgang
@@ -235,7 +246,7 @@ async def test_derselbe_schluessel_mit_anderem_body_wird_abgelehnt(
         )
 
     assert first.status_code == 201
-    assert second.status_code == 422
+    assert second.status_code == 409
     assert second.headers["content-type"].startswith("application/problem+json")
     assert second.json()["type"].endswith("/idempotency-key-reused")
 
@@ -243,7 +254,7 @@ async def test_derselbe_schluessel_mit_anderem_body_wird_abgelehnt(
 async def test_der_schluessel_eines_anderen_nutzers_ist_belegt(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """422 - und die Antwort verraet nicht, dass der Schluessel jemand anderem gehoert.
+    """409 - und die Antwort verraet nicht, dass der Schluessel jemand anderem gehoert.
 
     Derselbe Ausgang wie beim abweichenden Body: waeren die beiden Faelle
     unterscheidbar, liesse sich damit die Schluesselvergabe fremder Nutzer
@@ -256,7 +267,7 @@ async def test_der_schluessel_eines_anderen_nutzers_ist_belegt(
     async with await _client(_build_app(clean_idempotency_keys, user_id=uuid4())) as zweiter:
         response = await zweiter.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
 
-    assert response.status_code == 422
+    assert response.status_code == 409
     assert response.json()["type"].endswith("/idempotency-key-reused")
 
 
@@ -275,7 +286,9 @@ async def test_eine_laufende_anfrage_blockt_den_zweiten_versuch(
 
     async with await _client(app) as client:
         # Den Hash so bilden, wie die Middleware ihn fuer diese Anfrage bildet -
-        # sonst schlaegt der Body-Vergleich zu und der Test pruefte 422.
+        # sonst schlaegt der Body-Vergleich zu und der Test pruefte den
+        # Wiederverwendungs-Fall statt den laufenden Erstversuch - beide 409,
+        # unterscheidbar nur am `type`.
         request_hash = calculate_request_hash("POST", "/api/v1/test-idempotency", "")
         async with clean_idempotency_keys.begin() as connection:
             await connection.execute(
@@ -354,7 +367,7 @@ async def test_put_wird_ebenfalls_zwischengespeichert(
 async def test_der_wiederverwendete_schluessel_nennt_die_sprache_der_antwort(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """422 traegt `Content-Language` - sonst geht die ausgehandelte Sprache verloren.
+    """409 traegt `Content-Language` - sonst geht die ausgehandelte Sprache verloren.
 
     Der Rumpf ist bereits uebersetzt; ohne den Header koennen Aufrufer und Caches
     nicht erkennen, in welcher Sprache er vorliegt, und ein Cache lieferte die
@@ -373,7 +386,7 @@ async def test_der_wiederverwendete_schluessel_nennt_die_sprache_der_antwort(
             json={"menge": 999},
         )
 
-    assert auf_englisch.status_code == 422
+    assert auf_englisch.status_code == 409
     assert auf_englisch.headers["content-language"] == "en-US"
     assert auf_englisch.json()["title"] == "Idempotency key already in use"
 
@@ -405,5 +418,5 @@ async def test_die_laufende_anfrage_nennt_die_sprache_der_antwort(
             headers={"Idempotency-Key": key, "Accept-Language": "en-US"},
         )
 
-    assert response.status_code == 422
+    assert response.status_code == 409
     assert response.headers["content-language"] == "en-US"

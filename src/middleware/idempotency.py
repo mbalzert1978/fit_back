@@ -24,11 +24,22 @@ Schluessel ist also schon vergeben:
 |---|---|
 | gleicher Nutzer, gleicher Body, Antwort liegt vor | die gespeicherte Antwort, mit 200 |
 | gleicher Nutzer, gleicher Body, Antwort steht aus | 409 - die erste Anfrage laeuft noch |
-| gleicher Nutzer, **anderer** Body | 422 - derselbe Schluessel fuer etwas anderes |
-| **anderer** Nutzer | 422 - der Schluessel ist belegt, mehr erfaehrt er nicht |
+| gleicher Nutzer, **anderer** Body | 409 - derselbe Schluessel fuer etwas anderes |
+| **anderer** Nutzer | 409 - der Schluessel ist belegt, mehr erfaehrt er nicht |
 
-Die Statuscodes folgen dem IETF-Entwurf zum `Idempotency-Key`-Header; BACKEND.md
-schreibt nur den Treffer-Fall (200) vor und sagt zu den uebrigen nichts.
+Die beiden Wiederverwendungs-Faelle standen bis #95 auf 422, dem IETF-Entwurf
+zum `Idempotency-Key`-Header folgend. Der Vertrag des Frontends
+(`contracts/pacts/identity/`) verlangt dort ohne Matcher **409**, und wo Vertrag
+und Invariante kollidieren, gewinnt der Vertrag - der Entwurf ist ein Entwurf,
+der Pact ist die Vorgabe der HTTP-Grenze
+(`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`).
+Fachlich passt 409 ohnehin besser: der Schluessel steht im Konflikt mit einem
+bestehenden Zustand, der Rumpf selbst ist verarbeitbar. BACKEND.md schreibt nur
+den Treffer-Fall (200) vor und sagt zu den uebrigen nichts.
+
+Die drei 409-Faelle sind nicht dasselbe und tragen deshalb unterschiedliche
+`type`-Bezeichner: `request-in-progress` fuer den laufenden Erstversuch,
+`idempotency-key-reused` fuer den belegten Schluessel.
 
 ## Was der `request_hash` soll
 
@@ -37,13 +48,19 @@ diesen Vergleich waere die Spalte Zierde - und ein Client, der einen Schluessel
 versehentlich fuer eine **andere** Anfrage wiederverwendet, bekaeme stillschweigend
 die Antwort der ersten und hielte seinen zweiten Vorgang fuer erledigt.
 
-## Solange es keine Anmeldung gibt, tut diese Middleware nichts
+## Ein Aufruf ohne Anmeldung belegt seinen Schluessel trotzdem
 
-Die Idempotenz haengt an `request.state.user_id`. Gesetzt wird das von der
-JWT-Pipeline aus **Ticket 0012**, die es noch nicht gibt; bis dahin laesst diese
-Middleware jede Anfrage unveraendert durch. Das ist kein Versehen, aber es heisst
-auch: der Weg hier drunter ist bis 0012 ausschliesslich durch Tests belegt, nicht
-durch Betrieb.
+`request.state.user_id` setzt die JWT-Pipeline aus **Ticket 0012**, die es noch
+nicht gibt. Fehlt der Wert, tritt `ANONYMOUS_USER_ID` an seine Stelle, statt die
+Anfrage ungeprueft durchzulassen: die Registrierung hat keinen angemeldeten
+Nutzer und braucht die Idempotenz gerade dort am dringendsten - ein zweites Mal
+abgeschickt entstuende sonst ein zweites Konto. Der Vertrag des Frontends
+verlangt fuer den wiederverwendeten Schluessel eine Antwort; ohne diesen Ersatz
+kaeme die Anfrage hier nie an (#95).
+
+Fuer den Vergleich heisst das: unter dem Ersatz-Nutzer entscheidet allein der
+`request_hash`, ob hinter dem Schluessel dieselbe Anfrage steckt. Genau so ist es
+vor der Anmeldung gemeint - wer der Aufrufer ist, weiss vor ihr niemand.
 
 Der Datenbankzugriff laeuft ueber **dieselbe** `AsyncEngine` wie die Slices. Sie
 wird nicht in den Konstruktor gereicht, sondern bei jeder Anfrage aus `app.state`
@@ -66,7 +83,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.status import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_CONTENT
+from starlette.status import HTTP_409_CONFLICT
 from starlette.types import ASGIApp
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
@@ -74,6 +91,15 @@ from src.api.problem_details import problem
 from src.contexts.shared_kernel.time_provider import TimeProvider
 
 logger = logging.getLogger(__name__)
+
+ANONYMOUS_USER_ID = UUID(int=0)
+"""Der Nutzer eines Aufrufs, der noch keinen hat.
+
+Die Nil-UUID und kein `NULL` in der Spalte: `user_id` ist `NOT NULL`, und ein
+`NULL` verglichen sich nach SQL-Regeln mit nichts - auch nicht mit sich selbst.
+Ein fester Wert haelt den Vergleich in `_answer_from_existing` genau so, wie er
+fuer angemeldete Nutzer schon funktioniert.
+"""
 
 IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
 IDEMPOTENCY_KEYS_TABLE = "shared_kernel.idempotency_keys"
@@ -289,11 +315,9 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             )
             return await call_next(request)
 
-        # Die Idempotenz haengt an der Nutzeridentitaet - die setzt die
-        # JWT-Pipeline aus Ticket 0012, die es noch nicht gibt.
-        if not (user_id := getattr(request.state, "user_id", None)):
-            logger.warning("No user_id in request state, skipping idempotency check")
-            return await call_next(request)
+        # Die Nutzeridentitaet setzt die JWT-Pipeline aus Ticket 0012, die es
+        # noch nicht gibt - und bei der Registrierung gibt es sie nie.
+        user_id: UUID = getattr(request.state, "user_id", None) or ANONYMOUS_USER_ID
 
         engine: AsyncEngine | None = getattr(request.app.state, "engine", None)
         if engine is None:
@@ -355,7 +379,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             detail = translate(resources, "idempotency-key-reused-detail", language=language)
             return problem(
                 request,
-                HTTP_422_UNPROCESSABLE_CONTENT,
+                HTTP_409_CONFLICT,
                 KEY_REUSED_SLUG,
                 title,
                 detail,
