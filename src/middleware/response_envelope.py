@@ -15,7 +15,9 @@ Drei Dinge tut sie, und nur diese drei:
    nach RFC 7807 und im Vertrag **nicht** eingepackt - ein Umschlag darum waere
    ein zweites Format fuer dieselbe Sache.
 3. **`Cache-Control: no-store` auf 2xx.** Diese API antwortet mit Kontodaten und
-   Token; ein Zwischenspeicher hat davon nichts zu behalten.
+   Token; ein Zwischenspeicher hat davon nichts zu behalten. Fuer Fehlerkoerper
+   gilt dasselbe - die setzt `problem()` (`src/api/problem_details.py`) selbst,
+   weil sie an dieser Middleware vorbeilaufen.
 
 Was sie nicht anfasst: Antworten ohne Koerper (204, 304), Weiterleitungen und
 alles, was nicht `application/json` ist. Ein Umschlag um einen Datei-Download

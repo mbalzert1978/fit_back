@@ -126,4 +126,14 @@ def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, st
         media_type=PROBLEM_JSON_MEDIA_TYPE,
     )
     response.headers["Content-Language"] = language_tag
+    # Die Umschlag-Middleware setzt denselben Header, aber nur auf 2xx -
+    # Fehlerkoerper laufen an ihr bewusst vorbei. Hier ist die eine Stelle, an
+    # der jede RFC-7807-Antwort dieses Repos entsteht; ein Endpunkt, der ihn
+    # selbst setzte, koennte ihn als einziger vergessen. Doppelt gesetzt wird er
+    # nie: keine Fehlerantwort traegt einen Umschlag.
+    #
+    # Bindend laut Vertrag des Frontends (`contracts/pacts/identity/`,
+    # Ticket #95): diese API antwortet mit Kontodaten, und das gilt fuer
+    # Fehlerkoerper genauso.
+    response.headers["Cache-Control"] = "no-store"
     return response
