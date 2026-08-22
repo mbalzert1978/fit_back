@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from testcontainers.community.postgres import PostgresContainer
 
 from tests.contracts.account import Account
+from tests.contracts.idempotency_key import IdempotencyKey
 from tests.contracts.provider_verification import Pact, Store
 
 _PACTS = Path(__file__).parents[2] / "contracts/pacts"
@@ -26,6 +27,13 @@ PASSWORD = "geheim123"
 
 They live here because two things need them: the `account` fixture below and
 the state names in the test module, which are composed from these.
+"""
+
+REUSED_KEY = "3f2a1b0c-4d5e-4f60-8a91-b2c3d4e5f607"
+"""The key the reuse interaction sends - fixed in the pact, not generated.
+
+A generated one couldn't be it: the value stands in the request the verifier
+replays, so the state has to seed exactly this one.
 """
 
 
@@ -73,6 +81,12 @@ async def account(postgres_engine: AsyncEngine) -> Account:
     which half maps to `create` and which to `remove`.
     """
     return Account(postgres_engine, email=EMAIL, password=PASSWORD)
+
+
+@pytest_asyncio.fixture
+async def idempotency_key(postgres_engine: AsyncEngine) -> IdempotencyKey:
+    """The reserved key the register pact's reuse interaction runs into."""
+    return IdempotencyKey(postgres_engine, key=REUSED_KEY)
 
 
 @pytest_asyncio.fixture(autouse=True)
