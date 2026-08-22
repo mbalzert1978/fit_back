@@ -36,7 +36,11 @@ from src.contexts.identity.domain.entities.user import User, register
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.events import user_registered
 from src.contexts.identity.domain.locale_errors import LocaleError, LocaleNotSupported
-from src.contexts.identity.domain.password_errors import PasswordError, PasswordTooShort
+from src.contexts.identity.domain.password_errors import (
+    PasswordError,
+    PasswordTooLong,
+    PasswordTooShort,
+)
 from src.contexts.identity.domain.password_hash_errors import PasswordHashError, PasswordHashIsEmpty
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder, IdnEncoderError
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
@@ -114,6 +118,7 @@ __all__ = [
     "PasswordHashError",
     "PasswordHashIsEmpty",
     "PasswordHasher",
+    "PasswordTooLong",
     "PasswordTooShort",
     "PendingDeletion",
     "Suspended",

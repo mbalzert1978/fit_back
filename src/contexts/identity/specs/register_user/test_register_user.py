@@ -116,6 +116,32 @@ async def test_lehnt_ein_passwort_unter_zehn_zeichen_ab() -> None:
 
 
 @pytest.mark.asyncio
+async def test_lehnt_ein_passwort_ueber_128_zeichen_ab() -> None:
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(password="x" * 129))
+
+    assert isinstance(result, RegistrationInvalid)
+    assert "password" in result.errors
+    password_errors = result.errors["password"]
+    assert len(password_errors) == 1
+    code, params = password_errors[0]
+    assert code == "password-too-long"
+    assert params["maximum"] == 128
+    assert params["actual_length"] == 129
+
+
+@pytest.mark.asyncio
+async def test_nimmt_ein_passwort_mit_genau_128_zeichen_an() -> None:
+    """Die Grenze selbst liegt noch innerhalb - sonst waere 128 die Hoechstlaenge nicht."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(password="x" * 128))
+
+    assert isinstance(result, RegistrationAccepted)
+
+
+@pytest.mark.asyncio
 async def test_meldet_alle_ungueltigen_felder_auf_einmal() -> None:
     api = RegisterUserTestApi()
 

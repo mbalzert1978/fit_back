@@ -14,6 +14,7 @@
   "email-address-literal-invalid": "Das Adress-Literal ist keine gültige IPv4- oder IPv6-Adresse",
   "email-unencodable-domain-label": "Ein internationalisiertes Domain-Label lässt sich nicht nach Punycode umwandeln: {reason}",
   "password-too-short": "Das Passwort muss mindestens {minimum} Zeichen lang sein (aktuell: {actual_length})",
+  "password-too-long": "Das Passwort darf höchstens {maximum} Zeichen lang sein (aktuell: {actual_length})",
   "display-name-is-empty": "Der Anzeigename darf nicht leer sein",
   "display-name-too-short": "Der Name muss mindestens {minimum} Zeichen lang sein (aktuell: {actual_length})",
   "display-name-too-long": "Der Anzeigename überschreitet die maximale Länge von {maximum} Zeichen (aktuell: {actual_length})",

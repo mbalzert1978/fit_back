@@ -47,6 +47,7 @@ from src.contexts.identity.domain import (
     IdnEncoder,
     LocaleNotSupported,
     Password,
+    PasswordTooLong,
     PasswordTooShort,
     UnencodableDomainLabel,
     UserTimeZone,
@@ -134,7 +135,7 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- C
 
 
 def password_must_be_long_enough(request: RegisterUserRequest) -> list[FieldError]:
-    """Das Passwort muss die Mindestlaenge erfuellen."""
+    """Das Passwort muss zwischen Mindest- und Hoechstlaenge liegen."""
     outcome = Password.parse(request.password)
     match outcome:
         case Ok():
@@ -145,6 +146,14 @@ def password_must_be_long_enough(request: RegisterUserRequest) -> list[FieldErro
                     "password",
                     PasswordTooShort.code,
                     {"actual_length": actual, "minimum": minimum},
+                )
+            ]
+        case Err(error=PasswordTooLong(actual_length=actual, maximum=maximum)):
+            return [
+                FieldError(
+                    "password",
+                    PasswordTooLong.code,
+                    {"actual_length": actual, "maximum": maximum},
                 )
             ]
         case _:
