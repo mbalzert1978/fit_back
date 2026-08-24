@@ -8,9 +8,11 @@ from zoneinfo import available_timezones
 
 from src.contexts.identity.domain.user_time_zone_errors import (
     UserTimeZoneError,
+    UserTimeZoneIsEmpty,
     UserTimeZoneUnknown,
 )
-from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import Err, Ok, Result, not_blank
+from src.contexts.shared_kernel.validation import ResultRule, any_of, chain
 
 __all__ = ["DEFAULT_TIME_ZONE_ID", "UserTimeZone"]
 
@@ -54,6 +56,45 @@ def _normalized_offset(raw: str) -> str | None:
     return f"{compact[:3]}:{compact[3:5]}"
 
 
+def is_not_blank(candidate: str) -> Result[str, UserTimeZoneError]:
+    """Die Angabe besteht nicht nur aus Leerraum - und kommt getrimmt zurueck."""
+    return not_blank(candidate).map_err(lambda _: UserTimeZoneIsEmpty())
+
+
+def is_known_time_zone_id(candidate: str) -> Result[str, UserTimeZoneError]:
+    """Die Angabe ist eine IANA-Kennung.
+
+    Erster Zweig: `Etc/GMT-1` ist eine Kennung und kein Versatz - und soll es
+    bleiben.
+    """
+    if candidate in _known_time_zone_ids():
+        return Ok(candidate)
+    return Err(UserTimeZoneUnknown(candidate))
+
+
+def is_fixed_utc_offset(candidate: str) -> Result[str, UserTimeZoneError]:
+    """Die Angabe ist ein fester UTC-Versatz - normalisiert auf `\u00b1HH:MM`."""
+    if (offset := _normalized_offset(candidate)) is None:
+        return Err(UserTimeZoneUnknown(candidate))
+    return Ok(offset)
+
+
+def has_a_known_form(candidate: str) -> Result[str, UserTimeZoneError]:
+    """Die Angabe ist eine der beiden gueltigen Formen - Kennung oder Versatz.
+
+    Ein Fall statt je Zweig einer: `+25:00` ist weder das eine noch das andere,
+    und "keine IANA-Kennung" waere davon die willkuerlich herausgegriffene
+    Haelfte
+    (`docs/decisions/2026-08-24-1730-leerer-wert-ist-ein-eigener-fehlerfall.md`).
+    """
+    return _FORMS(candidate).map_err(lambda _: UserTimeZoneUnknown(candidate))
+
+
+_FORMS: ResultRule[str, UserTimeZoneError] = any_of(is_known_time_zone_id, is_fixed_utc_offset)
+
+_RULES: ResultRule[str, UserTimeZoneError] = chain(is_not_blank, has_a_known_form)
+
+
 @final
 @dataclass(frozen=True, slots=True)
 class UserTimeZone:
@@ -69,17 +110,8 @@ class UserTimeZone:
 
     @classmethod
     def parse(cls, raw: str) -> Result[UserTimeZone, UserTimeZoneError]:
-        """Pruefe eine Zeitzonen-Angabe gegen die IANA-Datenbank oder als festen Versatz.
-
-        Die IANA-Datenbank zuerst: `Etc/GMT-1` ist eine Kennung und kein
-        Versatz, und sie soll auch als Kennung stehenbleiben.
-        """
-        trimmed = raw.strip()
-        if trimmed in _known_time_zone_ids():
-            return Ok(cls(trimmed))
-        if (offset := _normalized_offset(trimmed)) is not None:
-            return Ok(cls(offset))
-        return Err(UserTimeZoneUnknown(raw))
+        """Pruefe eine Zeitzonen-Angabe gegen die IANA-Datenbank oder als festen Versatz."""
+        return _RULES(raw).map(cls)
 
     @classmethod
     def hydrate(cls, raw: str) -> UserTimeZone:

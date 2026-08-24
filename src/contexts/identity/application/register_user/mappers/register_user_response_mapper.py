@@ -56,7 +56,7 @@ def to_response(outcome: Result[Registration, RegisterUserError]) -> RegisterUse
             return RegistrationAccepted(
                 user_id=str(user.id),
                 email=user.email.value,
-                display_name=user.display_name.text,
+                display_name=user.display_name.value,
                 locale=locale_tag(user.locale),
                 time_zone_id=user.time_zone.value,
                 registered_at_unix=user.registered_at.unix_seconds,

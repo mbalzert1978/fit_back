@@ -9,6 +9,7 @@ from src.contexts.identity.domain.password_errors import (
     PasswordTooShort,
 )
 from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel.validation import ResultRule, chain
 
 __all__ = ["MAXIMUM_LENGTH", "MINIMUM_LENGTH", "Password"]
 
@@ -18,6 +19,23 @@ MINIMUM_LENGTH = 10
 MAXIMUM_LENGTH = 128
 """Hoechstlaenge laut Vertrag des Frontends (`contracts/pacts/identity/`,
 Ticket #95): 129 Zeichen ⇒ 422 mit einem Eintrag unter `errors.password`."""
+
+
+def meets_minimum_length(candidate: str) -> Result[str, PasswordError]:
+    """Fail-fast-Regel zur Mindestlaenge."""
+    if len(candidate) < MINIMUM_LENGTH:
+        return Err(PasswordTooShort(len(candidate), MINIMUM_LENGTH))
+    return Ok(candidate)
+
+
+def fits_maximum_length(candidate: str) -> Result[str, PasswordError]:
+    """Fail-fast-Regel zur Hoechstlaenge."""
+    if len(candidate) > MAXIMUM_LENGTH:
+        return Err(PasswordTooLong(len(candidate), MAXIMUM_LENGTH))
+    return Ok(candidate)
+
+
+_RULES: ResultRule[str, PasswordError] = chain(meets_minimum_length, fits_maximum_length)
 
 
 @final
@@ -33,12 +51,12 @@ class Password:
 
     @classmethod
     def parse(cls, raw: str) -> Result[Password, PasswordError]:
-        """Pruefe die Laenge einer moeglicherweise ungueltigen Eingabe."""
-        if len(raw) < MINIMUM_LENGTH:
-            return Err(PasswordTooShort(len(raw), MINIMUM_LENGTH))
-        if len(raw) > MAXIMUM_LENGTH:
-            return Err(PasswordTooLong(len(raw), MAXIMUM_LENGTH))
-        return Ok(cls(raw))
+        """Pruefe eine moeglicherweise ungueltige Eingabe.
+
+        `.map(cls)` erst am Ende - sonst muesste ein ungueltiges `Password`
+        gebaut werden, nur um es danach zu pruefen.
+        """
+        return _RULES(raw).map(cls)
 
     @classmethod
     def hydrate(cls, raw: str) -> Password:

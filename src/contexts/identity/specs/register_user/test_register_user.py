@@ -261,6 +261,32 @@ async def test_locale_error_code_in_response() -> None:
 
 
 @pytest.mark.asyncio
+async def test_blank_locale_is_its_own_code_not_an_unsupported_language() -> None:
+    """Beleg: gar keine Sprache angegeben ist ein eigener Fall."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(locale="   "))
+
+    assert isinstance(result, RegistrationInvalid)
+    code, params = result.errors["locale"][0]
+    assert code == "locale-is-empty"
+    assert params == {}
+
+
+@pytest.mark.asyncio
+async def test_blank_time_zone_is_its_own_code_not_an_unknown_zone() -> None:
+    """Beleg: gar keine Zeitzone angegeben ist ein eigener Fall."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(time_zone_id="   "))
+
+    assert isinstance(result, RegistrationInvalid)
+    code, params = result.errors["timeZoneId"][0]
+    assert code == "user-time-zone-is-empty"
+    assert params == {}
+
+
+@pytest.mark.asyncio
 async def test_email_already_taken_code_in_response() -> None:
     """Beleg: EmailAlreadyTaken traegt seinen Code (nicht nur die Email)."""
     api = RegisterUserTestApi().with_registered_user("markus@example.de")

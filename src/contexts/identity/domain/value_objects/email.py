@@ -207,7 +207,21 @@ def _is_ascii_label_character(character: str) -> bool:
     return character.isalnum() or character == "-"
 
 
+def is_normalized(candidate: str) -> Result[str, EmailError]:
+    r"""Bringe die Adresse auf ihre Vergleichsform: getrimmt und case-folded.
+
+    Die einzige Regel dieser Kette, die nie scheitert - sie normalisiert, was
+    jede folgende voraussetzt.
+
+    Getrimmt wird nur `" \t"` und **nicht** per `not_blank`: das schnitte auch
+    `\n` ab und liesse damit verschwinden, was `has_no_whitespace` gleich danach
+    ablehnen soll.
+    """
+    return Ok(candidate.strip(" \t").casefold())
+
+
 _RULES: ResultRule[str, EmailError] = chain(
+    is_normalized,
     has_no_whitespace,
     has_exactly_one_at,
     has_both_parts,
@@ -233,16 +247,10 @@ class Email:
     def parse(cls, raw: str, idn: IdnEncoder) -> Result[Email, EmailError]:
         """Normalisiere und pruefe eine moeglicherweise ungueltige Eingabe.
 
-        Abgeschnitten werden **nur** umgebende Leerzeichen und Tabs - das sind
-        Kopier-Artefakte. Zeilenumbrueche und andere Steuerzeichen werden
-        bewusst nicht bereinigt, sondern von `has_no_whitespace` abgelehnt.
-
-        Die letzte Regel steht nicht in `_RULES`, weil sie als einzige den
-        IDN-Port braucht; angehaengt wird sie ueber `bind`, also mit derselben
-        Fail-fast-Semantik wie jede andere.
+        `domain_is_valid` steht nicht in `_RULES`, weil sie als einzige den
+        IDN-Port braucht - `bind` gibt ihr dieselbe Fail-fast-Semantik.
         """
-        candidate = raw.strip(" \t").casefold()
-        return _RULES(candidate).bind(lambda checked: domain_is_valid(checked, idn)).map(cls)
+        return _RULES(raw).bind(lambda checked: domain_is_valid(checked, idn)).map(cls)
 
     @classmethod
     def hydrate(cls, raw: str, idn: IdnEncoder) -> Email:

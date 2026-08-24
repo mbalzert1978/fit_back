@@ -1,9 +1,8 @@
-"""Value Object NotEmptyString - ein Text, von dem der Typ selbst sagt, dass er da ist.
+"""Allgemeine Textregeln - fail-fast, wiederverwendbar, ohne fachlichen Bezug.
 
-Ein Feld-Value-Object wie `DisplayName` wrappt dieses hier, statt die
-"nicht leer"-Pruefung erneut zu formulieren: die Invariante steht einmal, und
-jeder Typ, der ein `NotEmptyString` haelt, weiss ohne Nachfrage, dass sein Text
-nicht leer ist.
+Hierher gehoert nur, was in jedem Context dieselbe Frage ist **und** deren
+Fehlerfall selbst allgemein ist. Eine Laengenregel erfuellt das zweite nicht -
+ihr Fall traegt einen fachlichen Code - und steht deshalb bei ihrem Value Object.
 """
 
 from dataclasses import dataclass
@@ -11,51 +10,27 @@ from typing import final
 
 from src.contexts.shared_kernel.result import Err, Ok, Result
 
-__all__ = ["NotEmptyString", "NotEmptyStringError", "not_blank"]
+__all__ = ["NotBlankError", "TextIsEmpty", "not_blank"]
 
 
 @final
 @dataclass(frozen=True, slots=True)
 class TextIsEmpty:
-    """Der Text besteht nur aus Leerraum - und ist damit ungueltig."""
+    """Der Text besteht nur aus Leerraum.
+
+    Ohne Fehlercode: technisch und ohne Feldbezug. Wer ihn meldet, uebersetzt
+    ihn vorher in seinen fachlichen Fall.
+    """
 
 
-type NotEmptyStringError = TextIsEmpty
+type NotBlankError = TextIsEmpty
 
 
-def not_blank(raw: str) -> Result[str, NotEmptyStringError]:
-    """Fail-fast-Regel: der Text besteht nicht nur aus Leerraum - und kommt getrimmt zurueck.
+def not_blank(raw: str) -> Result[str, NotBlankError]:
+    """Der Text besteht nicht nur aus Leerraum - und kommt getrimmt zurueck.
 
-    Als eigenstaendige Regel exportiert, damit sie in einer `chain(...)` vor
-    laengeren Pruefungen stehen kann, statt in jedem VO neu geschrieben zu werden.
-
-    Das Ergebnis ist der **getrimmte** Text: die Regel muss ohnehin trimmen, um
-    ueberhaupt urteilen zu koennen, und jeder Aufrufer will danach dasselbe. Gaebe
-    sie den Rohwert zurueck, muesste jede nachgelagerte Pruefung erneut trimmen -
-    und wer es vergisst, laesst Leerraum in ein Value Object.
+    Getrimmt, weil die Regel ohnehin trimmen muss, um zu urteilen: gaebe sie den
+    Rohwert weiter, muesste jede folgende Regel es erneut tun.
     """
     trimmed = raw.strip()
     return Ok(trimmed) if trimmed else Err(TextIsEmpty())
-
-
-@final
-@dataclass(frozen=True, slots=True)
-class NotEmptyString:
-    """Ein garantiert nicht-leerer, getrimmter Text."""
-
-    value: str
-
-    @classmethod
-    def parse(cls, raw: str) -> Result[NotEmptyString, NotEmptyStringError]:
-        """Trimme und pruefe eine moeglicherweise leere Eingabe."""
-        return not_blank(raw).map(cls)
-
-    @classmethod
-    def hydrate(cls, raw: str) -> NotEmptyString:
-        """Rekonstruiere aus einem bereits validierten Rohwert."""
-        match cls.parse(raw):
-            case Ok(value=text):
-                return text
-            case Err():
-                msg = "unreachable: Text wurde vorgelagert validiert"
-                raise AssertionError(msg)

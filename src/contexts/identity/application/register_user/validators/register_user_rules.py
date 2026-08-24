@@ -45,12 +45,14 @@ from src.contexts.identity.domain import (
     EmailLocalPartTooLong,
     EmailNeedsExactlyOneAtSign,
     IdnEncoder,
+    LocaleIsEmpty,
     LocaleNotSupported,
     Password,
     PasswordTooLong,
     PasswordTooShort,
     UnencodableDomainLabel,
     UserTimeZone,
+    UserTimeZoneIsEmpty,
     UserTimeZoneUnknown,
     parse_locale,
 )
@@ -194,6 +196,8 @@ def locale_must_be_supported(request: RegisterUserRequest) -> list[FieldError]:
     match outcome:
         case Ok():
             return []
+        case Err(error=LocaleIsEmpty()):
+            return [FieldError("locale", LocaleIsEmpty.code, {})]
         case Err(error=LocaleNotSupported(candidate=candidate)):
             return [FieldError("locale", LocaleNotSupported.code, {"candidate": candidate})]
         case _:
@@ -206,6 +210,8 @@ def time_zone_must_be_known(request: RegisterUserRequest) -> list[FieldError]:
     match outcome:
         case Ok():
             return []
+        case Err(error=UserTimeZoneIsEmpty()):
+            return [FieldError("timeZoneId", UserTimeZoneIsEmpty.code, {})]
         case Err(error=UserTimeZoneUnknown(candidate=candidate)):
             return [FieldError("timeZoneId", UserTimeZoneUnknown.code, {"candidate": candidate})]
         case _:

@@ -23,7 +23,7 @@ __all__ = [
 class DisplayNameIsEmpty:
     """Der Anzeigename ist leer oder besteht nur aus Leerraum.
 
-    Eigener Fall, obwohl die Pruefung selbst aus `NotEmptyString` im Shared Kernel
+    Eigener Fall, obwohl die Pruefung selbst aus `not_blank` im Shared Kernel
     kommt: `TextIsEmpty` ist dort ein technischer Fall ohne Feldbezug und traegt
     deshalb keinen Code. Waere er hier stehengeblieben, muesste ein und derselbe
     Fall je nach Feld einen anderen Code liefern - und der Code gehoert laut

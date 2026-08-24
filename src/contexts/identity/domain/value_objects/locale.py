@@ -4,8 +4,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import assert_never, final
 
-from src.contexts.identity.domain.locale_errors import LocaleError, LocaleNotSupported
-from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.identity.domain.locale_errors import (
+    LocaleError,
+    LocaleIsEmpty,
+    LocaleNotSupported,
+)
+from src.contexts.shared_kernel import Err, Ok, Result, not_blank
+from src.contexts.shared_kernel.validation import ParseRule
 
 __all__ = [
     "DEFAULT_LOCALE",
@@ -37,11 +42,30 @@ DEFAULT_LOCALE: Locale = German()
 _BY_TAG: Mapping[str, Locale] = {"de": German(), "en": English()}
 
 
-def parse_locale(raw: str) -> Result[Locale, LocaleError]:
-    """Lies eine moeglicherweise nicht unterstuetzte Sprach-Kennung."""
-    if (locale := _BY_TAG.get(raw.strip().casefold())) is None:
-        return Err(LocaleNotSupported(raw))
+def is_not_blank(candidate: str) -> Result[str, LocaleError]:
+    """Die Kennung besteht nicht nur aus Leerraum - und kommt getrimmt zurueck."""
+    return not_blank(candidate).map_err(lambda _: LocaleIsEmpty())
+
+
+def is_supported_tag(candidate: str) -> Result[Locale, LocaleError]:
+    """Die Kennung steht in der Tabelle der unterstuetzten Sprachen.
+
+    Der Tabellentreffer *ist* die Sprache - deshalb `ParseRule`.
+    """
+    if (locale := _BY_TAG.get(candidate.casefold())) is None:
+        return Err(LocaleNotSupported(candidate))
     return Ok(locale)
+
+
+_RULE: ParseRule[str, Locale, LocaleError] = is_supported_tag
+
+
+def parse_locale(raw: str) -> Result[Locale, LocaleError]:
+    """Lies eine moeglicherweise nicht unterstuetzte Sprach-Kennung.
+
+    `bind` statt `chain`: die beiden Regeln haben verschiedene Ausgangsformen.
+    """
+    return is_not_blank(raw).bind(_RULE)
 
 
 def hydrate_locale(raw: str) -> Locale:
