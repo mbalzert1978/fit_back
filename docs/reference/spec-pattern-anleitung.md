@@ -200,7 +200,9 @@ class PasswordPolicy:
 
 
 @classmethod
-def parse(cls, raw: str, policy: PasswordPolicy = DEFAULT_POLICY) -> Result[Password, PasswordError]:
+def parse(
+    cls, raw: str, policy: PasswordPolicy = DEFAULT_POLICY
+) -> Result[Password, PasswordError]:
     return policy.spec(raw).map(cls)
 ```
 
@@ -225,7 +227,7 @@ Eine Regel, die selbst scheitern kann, ist einfach eine `Spec` ohne `rule`:
 
 ```python
 def not_breached(client: BreachClient) -> StrSpec:
-    return Spec(client.check)   # str -> Result[str, PasswordError]
+    return Spec(client.check)  # str -> Result[str, PasswordError]
 
 
 SPEC = min_length(8) & max_length(64) & not_breached(client)
