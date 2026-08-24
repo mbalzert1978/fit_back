@@ -8,9 +8,13 @@
 Es fällt hier **keine** Fachentscheidung mehr: welcher Ausgang eintritt, steht
 schon fest, wenn die Pipeline zurückkommt. Die Sprachauswahl ist rein
 präsentativ und beeinflußt das fachliche Ergebnis nicht.
+
+Die Antwortform des Vertrags steht nebenan in
+`src/api/identity/register_user_response.py`; hier bleiben Routing und
+Verdrahtung.
 """
 
-from typing import Literal, assert_never, final
+from typing import assert_never, final
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -18,6 +22,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.identity.dependencies import RegisterUser
+from src.api.identity.register_user_response import (
+    GrantedSession,
+    RegisteredUser,
+    RegisterUserResponse,
+)
 from src.api.problem_details import ProblemDetails, translated_problem
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
@@ -29,19 +38,6 @@ from src.contexts.identity.application.register_user import (
 __all__ = ["router"]
 
 router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
-
-type TokenType = Literal["Bearer"]
-"""Das Schema, in dem der Access-Token vorzulegen ist (RFC 6750).
-
-Steht ohne Matcher im Vertrag und ist damit bindend - ein Typ mit genau einem
-bewohnbaren Wert und kein Wert, den irgendwer waehlen koennte. Als Typ und
-nicht als Konstante, weil `Literal[...]` nur echte Literale annimmt: ein Name
-darin ist zur Laufzeit unauffaellig und statisch ungueltig.
-
-Das Feld traegt bewusst **keinen** Default: ein Default nimmt es aus `required`
-des Schemas, und dann behauptet die Dokumentation, ein bindendes Feld duerfe
-fehlen. Der Wert wird an der Aufrufstelle gesetzt.
-"""
 
 _SELF_URL = "/api/v1/identity/me"
 """Wohin die 201 zeigt: auf das angelegte Konto.
@@ -78,36 +74,6 @@ class RegisterUserBody(BaseModel):
             locale=self.locale,
             time_zone_id=self.time_zone_id,
         )
-
-
-@final
-class RegisteredUser(BaseModel):
-    """Das angelegte Konto, in der camelCase-Schreibweise der Schnittstelle."""
-
-    id: str
-    email: str
-    display_name: str = Field(serialization_alias="displayName")
-    locale: str
-    time_zone_id: str = Field(serialization_alias="timeZoneId")
-
-
-@final
-class GrantedSession(BaseModel):
-    """Die mit der Registrierung ausgegebene Sitzung."""
-
-    access_token: str = Field(serialization_alias="accessToken", repr=False)
-    expires_in: int = Field(serialization_alias="expiresIn")
-    refresh_token: str = Field(serialization_alias="refreshToken", repr=False)
-    refresh_expires_in: int = Field(serialization_alias="refreshExpiresIn")
-    token_type: TokenType = Field(serialization_alias="tokenType")
-
-
-@final
-class RegisterUserResponse(BaseModel):
-    """Der 201-Koerper: der nackte `data`-Teil, ohne den Umschlag der Middleware."""
-
-    user: RegisteredUser
-    session: GrantedSession
 
 
 @router.post(
