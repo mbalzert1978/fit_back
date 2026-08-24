@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.identity.dependencies import RegisterUser
-from src.api.problem_details import ProblemDetails, problem
+from src.api.problem_details import ProblemDetails, translated_problem
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
     RegisterUserRequest,
@@ -164,17 +164,13 @@ async def register_user(
             )
 
         case EmailAlreadyTaken(email=email):
-            title = translate(resources, "email-already-registered", language=language)
-            detail = translate(
-                resources, "email-already-registered-detail", {"email": email}, language
-            )
-            return problem(
+            return translated_problem(
                 request,
                 status.HTTP_409_CONFLICT,
                 "email-already-registered",
-                title,
-                detail,
-                language_tag=language,
+                resources,
+                language=language,
+                parameters={"email": email},
             )
 
         case RegistrationInvalid(errors=errors):
@@ -187,16 +183,13 @@ async def register_user(
                     messages.append(text)
                 translated_errors[field] = messages
 
-            title = translate(resources, "validation-failed", language=language)
-            detail = translate(resources, "validation-failed-detail", language=language)
-            return problem(
+            return translated_problem(
                 request,
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
                 "validation-failed",
-                title,
-                detail,
-                translated_errors,
-                language_tag=language,
+                resources,
+                language=language,
+                errors=translated_errors,
             )
 
         case _:

@@ -16,7 +16,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import problem
+from src.api.problem_details import translated_problem
 from src.api.request_validation_errors import (
     BodyNotAnObject,
     ExtraForbidden,
@@ -129,25 +129,21 @@ async def validation_exception_handler(
             translate(resources, fault.code, asdict(fault), language)
         )
 
-    title = translate(resources, "validation-failed", language=language)
-    detail = translate(resources, "validation-failed-detail", language=language)
-
     logger.info(
         "Validation error at %s: %s fields",
         str(request.url.path),
         len(errors_dict),
     )
-    return problem(
+    return translated_problem(
         request,
         # 422 und nicht 400: der Koerper war lesbares JSON, nur sein Inhalt hat
         # die Regeln nicht bestanden (RFC 9110 Abschnitt 15.5.21). Der Vertrag
         # des Frontends nennt den Code ohne Matcher, er ist damit bindend.
         status.HTTP_422_UNPROCESSABLE_CONTENT,
         "validation-failed",
-        title,
-        detail,
-        errors_dict or None,
-        language_tag=language,
+        resources,
+        language=language,
+        errors=errors_dict or None,
     )
 
 

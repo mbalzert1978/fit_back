@@ -32,8 +32,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
-from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import problem
+from src.api.i18n import ResourcesCache, get_language_from_header
+from src.api.problem_details import translated_problem
 
 logger = logging.getLogger(__name__)
 
@@ -68,16 +68,12 @@ class UnhandledExceptionMiddleware(BaseHTTPMiddleware):
             )
             language = get_language_from_header(request.headers.get("accept-language"))
             resources: ResourcesCache = request.app.state.resources
-            title = translate(resources, "internal-server-error", language=language)
-            detail = translate(resources, "internal-server-error-detail", language=language)
-
-            return problem(
+            # Der Text ist bewusst nichtssagend: was schiefging, steht im Log,
+            # nicht in der Antwort.
+            return translated_problem(
                 request,
                 HTTP_500_INTERNAL_SERVER_ERROR,
                 UNHANDLED_ERROR_SLUG,
-                title,
-                # Bewusst nichtssagend: was schiefging, steht im Log, nicht in
-                # der Antwort.
-                detail,
-                language_tag=language,
+                resources,
+                language=language,
             )

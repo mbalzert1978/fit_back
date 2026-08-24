@@ -86,8 +86,8 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_409_CONFLICT
 from starlette.types import ASGIApp
 
-from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import problem
+from src.api.i18n import ResourcesCache, get_language_from_header
+from src.api.problem_details import translated_problem
 from src.contexts.shared_kernel.time_provider import TimeProvider
 
 logger = logging.getLogger(__name__)
@@ -375,30 +375,27 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             # beiden bewusst nicht - sonst verriete sie, dass der Schluessel
             # jemand anderem gehoert.
             logger.warning("Idempotency key %s fuer eine abweichende Anfrage verwendet", key)
-            title = translate(resources, "idempotency-key-reused", language=language)
-            detail = translate(resources, "idempotency-key-reused-detail", language=language)
-            return problem(
+            return translated_problem(
                 request,
                 HTTP_409_CONFLICT,
                 KEY_REUSED_SLUG,
-                title,
-                detail,
-                language_tag=language,
+                resources,
+                language=language,
             )
 
         if existing["response_body"] is None:
             logger.info("Idempotency key %s: die erste Anfrage laeuft noch", key)
-            title = translate(resources, "idempotency-request-in-progress", language=language)
-            detail = translate(
-                resources, "idempotency-request-in-progress-detail", language=language
-            )
-            return problem(
+            return translated_problem(
                 request,
                 HTTP_409_CONFLICT,
                 REQUEST_IN_PROGRESS_SLUG,
-                title,
-                detail,
-                language_tag=language,
+                resources,
+                language=language,
+                # Der Slug heisst `request-in-progress`, die Ressourcen fuehren
+                # den Text unter `idempotency-request-in-progress`. Der Slug
+                # steht im Vertrag des Frontends, der Schluessel wird deshalb
+                # genannt statt angeglichen.
+                resource_key="idempotency-request-in-progress",
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)

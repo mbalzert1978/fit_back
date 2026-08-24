@@ -1,10 +1,13 @@
 """RFC 7807 Problem Details model for structured error responses."""
 
+from collections.abc import Mapping
 from typing import final
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+
+from src.api.i18n import ResourcesCache, translate
 
 __all__ = [
     "PROBLEM_JSON_MEDIA_TYPE",
@@ -12,6 +15,7 @@ __all__ = [
     "ProblemDetails",
     "problem",
     "problem_type",
+    "translated_problem",
 ]
 
 PROBLEM_JSON_MEDIA_TYPE = "application/problem+json"
@@ -137,3 +141,52 @@ def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, st
     # Fehlerkoerper genauso.
     response.headers["Cache-Control"] = "no-store"
     return response
+
+
+def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
+    request: Request,
+    http_status: int,
+    slug: str,
+    resources: ResourcesCache,
+    *,
+    language: str,
+    resource_key: str | None = None,
+    parameters: Mapping[str, object] | None = None,
+    errors: dict[str, list[str]] | None = None,
+) -> JSONResponse:
+    """Baue eine RFC-7807-Antwort samt ihren beiden Uebersetzungen.
+
+    Die eine Stelle, an der eine Fehlerantwort dieser API **entsteht**. Vorher
+    standen an jeder Aufrufstelle zwei `translate`-Aufrufe unmittelbar vor
+    `problem()`, und `(slug, title, detail, language_tag)` reisten ueberall
+    zusammen - vier Werte, von denen drei aus dem ersten folgen. Hier folgen sie
+    wirklich aus ihm: `title` steht unter `<resource_key>`, `detail` unter
+    `<resource_key>-detail`.
+
+    `resource_key` faellt auf `slug` zurueck, weil beide fast ueberall
+    deckungsgleich sind. Wo sie es nicht sind, wird der Schluessel genannt statt
+    die Ressource umbenannt: der Slug steht im Fehlertyp und damit im Vertrag des
+    Frontends (`contracts/pacts/identity/`), der Ressourcenschluessel nicht -
+    eine Angleichung waere entweder ein Vertragsbruch oder eine Migration der
+    Ressourcendateien. Einzige Abweichung im Repo: `request-in-progress` liest
+    unter `idempotency-request-in-progress`.
+
+    `parameters` fuellt die Platzhalter beider Vorlagen; ein Titel ohne
+    Platzhalter ignoriert sie.
+
+    Zum `noqa`: die Signatur zaehlt acht Argumente, `PLR0913` erlaubt fuenf.
+    Weniger sind es nicht - Anfrage, Status, Slug, Ressourcen und Sprache sind
+    allesamt Pflicht, und `resource_key`, `parameters` und `errors` decken je
+    eine Aufrufstelle ab, die es ohne sie nicht gibt. Nur `positional` ist es
+    gedeckelt: nach dem vierten Argument ist Schluss, `PLR0917` greift nicht.
+    """
+    key = resource_key if resource_key is not None else slug
+    return problem(
+        request,
+        http_status,
+        slug,
+        translate(resources, key, parameters, language),
+        translate(resources, f"{key}-detail", parameters, language),
+        errors,
+        language_tag=language,
+    )
