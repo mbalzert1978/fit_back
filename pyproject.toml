@@ -81,3 +81,21 @@ ignore = [
     "T201",    # `print` ist bei einem CLI-Werkzeug die Ausgabe, nicht ein Debug-Rest
     "S101",    # `assert` im mitgelieferten --demo-Selbsttest
 ]
+
+[tool.pytest.ini_options]
+# Eine DeprecationWarning ist eine Ankuendigung mit Frist - sie soll die Suite
+# brechen, solange die Frist laeuft, nicht still mitlaufen. Ausnahmen werden
+# einzeln benannt, mit Paket, Grund und Upstream-Link.
+filterwarnings = [
+    "error::DeprecationWarning",
+    # uvloop 0.22.1: `Loop.run_in_executor` und `add_signal_handler` rufen das
+    # deprecatete `asyncio.iscoroutinefunction` (uvloop/includes/stdlib.pxi:40).
+    # Sichtbar wird es dort, wo hineingelaufen wird - `asyncio.to_thread` in
+    # tests/contracts/provider_verification.py; ausgeloest wird es von uvloop.
+    # Upstream behoben, aber noch nicht veroeffentlicht: PR ist am 2026-01-15
+    # nach master gemergt, das juengste Release 0.22.1 stammt vom 2025-10-16.
+    # Der Eintrag faellt weg, sobald ein Release nach diesem Merge da ist.
+    # https://github.com/MagicStack/uvloop/issues/703
+    # https://github.com/MagicStack/uvloop/pull/705
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning",
+]
