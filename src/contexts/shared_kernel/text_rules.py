@@ -5,12 +5,14 @@ Fehlerfall selbst allgemein ist. Eine Laengenregel erfuellt das zweite nicht -
 ihr Fall traegt einen fachlichen Code - und steht deshalb bei ihrem Value Object.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import final
 
 from src.contexts.shared_kernel.result import Err, Ok, Result
+from src.contexts.shared_kernel.validation import ResultRule
 
-__all__ = ["NotBlankError", "TextIsEmpty", "not_blank"]
+__all__ = ["NotBlankError", "TextIsEmpty", "not_blank", "not_blank_as"]
 
 
 @final
@@ -34,3 +36,18 @@ def not_blank(raw: str) -> Result[str, NotBlankError]:
     """
     trimmed = raw.strip()
     return Ok(trimmed) if trimmed else Err(TextIsEmpty())
+
+
+def not_blank_as[E](error_factory: Callable[[], E]) -> ResultRule[str, E]:
+    """Baue `not_blank` als Regel, die ihren Fall im Vokabular des Aufrufers meldet.
+
+    `TextIsEmpty` ist technisch und ohne Feldbezug; wer trimmt, will danach den
+    eigenen fachlichen Fall in der Kette stehen haben. Statt diese Uebersetzung
+    an jedem Value Object wortgleich zu wiederholen, nimmt der Kombinator die
+    Fabrik des Falls entgegen und liefert die fertige, verkettbare Regel.
+    """
+
+    def rule(raw: str) -> Result[str, E]:
+        return not_blank(raw).map_err(lambda _: error_factory())
+
+    return rule

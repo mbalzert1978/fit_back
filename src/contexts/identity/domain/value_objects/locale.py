@@ -9,8 +9,8 @@ from src.contexts.identity.domain.locale_errors import (
     LocaleIsEmpty,
     LocaleNotSupported,
 )
-from src.contexts.shared_kernel import Err, Ok, Result, not_blank
-from src.contexts.shared_kernel.validation import ParseRule
+from src.contexts.shared_kernel import Err, Ok, Result, not_blank_as
+from src.contexts.shared_kernel.validation import ParseRule, ResultRule
 
 __all__ = [
     "DEFAULT_LOCALE",
@@ -42,9 +42,8 @@ DEFAULT_LOCALE: Locale = German()
 _BY_TAG: Mapping[str, Locale] = {"de": German(), "en": English()}
 
 
-def is_not_blank(candidate: str) -> Result[str, LocaleError]:
-    """Die Kennung besteht nicht nur aus Leerraum - und kommt getrimmt zurueck."""
-    return not_blank(candidate).map_err(lambda _: LocaleIsEmpty())
+is_not_blank: ResultRule[str, LocaleError] = not_blank_as(LocaleIsEmpty)
+"""Die Kennung besteht nicht nur aus Leerraum - und kommt getrimmt zurueck."""
 
 
 def is_supported_tag(candidate: str) -> Result[Locale, LocaleError]:

@@ -53,6 +53,10 @@ _CASES: list[tuple[str, bool]] = [
     ("something@@somewhere.com", False),
     ('"test@test"@example.com', False),
     # --- Leerraum ---
+    # Leerzeichen und Tabulator werden abgeschnitten, bevor die Adresse geprueft
+    # wird (`is_not_blank` als erste Regel der Kette) - ein Zeilenumbruch bleibt
+    # stehen und faellt bei `has_no_whitespace` durch, egal ob er am Rand oder
+    # **innerhalb** der Adresse steht.
     ("a @x.cz", False),
     ("a@b.com\n", False),
     ("a\n@b.com", False),

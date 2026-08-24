@@ -39,6 +39,7 @@ from src.contexts.identity.domain import (
     EmailDomainMissing,
     EmailDomainTooLong,
     EmailHasWhitespace,
+    EmailIsEmpty,
     EmailLocalPartHasInvalidCharacters,
     EmailLocalPartHasMisplacedDot,
     EmailLocalPartMissing,
@@ -62,7 +63,7 @@ from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
 __all__ = ["build_register_user_rules"]
 
 _EMAIL = "email"
-"""Feldname des API-Vertrags - als Konstante, weil ihn vierzehn Arme wiederholen.
+"""Feldname des API-Vertrags - als Konstante, weil ihn fuenfzehn Arme wiederholen.
 
 Die uebrigen Regeln haben je einen Arm und nennen ihren Feldnamen dort direkt:
 eine Konstante fuer eine einzige Verwendungsstelle verschiebt die Antwort nur
@@ -80,7 +81,7 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- C
     def email_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:  # noqa: C901, PLR0911, PLR0912 -- Exhaustive match over 15+ email error types
         """Die E-Mail-Adresse muss wohlgeformt sein.
 
-        Vierzehn Arme, einer je Regel aus `Email.parse` - das ist der Preis
+        Fuenfzehn Arme, einer je Regel aus `Email.parse` - das ist der Preis
         dafuer, dass die Domaene die Adresse nicht per Regex, sondern in einzeln
         benannten Faellen prueft. Jeder Fall hat einen eigenen Code und eine
         eigene Textvorlage; sie zusammenzufassen hiesse, dem Aufrufer statt der
@@ -90,6 +91,8 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- C
         match outcome:
             case Ok():
                 return []
+            case Err(error=EmailIsEmpty()):
+                return [FieldError(_EMAIL, EmailIsEmpty.code, {})]
             case Err(error=EmailHasWhitespace()):
                 return [FieldError(_EMAIL, EmailHasWhitespace.code, {})]
             case Err(error=EmailNeedsExactlyOneAtSign(at_sign_count=count)):
@@ -136,7 +139,7 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- C
     return email_must_be_wellformed
 
 
-def password_must_be_long_enough(request: RegisterUserRequest) -> list[FieldError]:
+def password_length_is_in_range(request: RegisterUserRequest) -> list[FieldError]:
     """Das Passwort muss zwischen Mindest- und Hoechstlaenge liegen."""
     outcome = Password.parse(request.password)
     match outcome:
@@ -222,7 +225,7 @@ def build_register_user_rules(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
     """Setze das Regelwerk des Use Case zusammen."""
     return all_of(
         email_rule(idn),
-        password_must_be_long_enough,
+        password_length_is_in_range,
         display_name_must_be_wellformed,
         locale_must_be_supported,
         time_zone_must_be_known,

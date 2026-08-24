@@ -9,7 +9,7 @@ from src.contexts.identity.domain.display_name_errors import (
     DisplayNameTooLong,
     DisplayNameTooShort,
 )
-from src.contexts.shared_kernel import Err, Ok, Result, not_blank
+from src.contexts.shared_kernel import Err, Ok, Result, not_blank_as
 from src.contexts.shared_kernel.validation import ResultRule, chain
 
 __all__ = ["MAXIMUM_LENGTH", "MINIMUM_LENGTH", "DisplayName"]
@@ -28,9 +28,8 @@ MAXIMUM_LENGTH = 60
 """BACKEND.md Abschnitt 1: 2-60 Zeichen."""
 
 
-def is_not_blank(candidate: str) -> Result[str, DisplayNameError]:
-    """Der Anzeigename besteht nicht nur aus Leerraum - und kommt getrimmt zurueck."""
-    return not_blank(candidate).map_err(lambda _: DisplayNameIsEmpty())
+is_not_blank: ResultRule[str, DisplayNameError] = not_blank_as(DisplayNameIsEmpty)
+"""Der Anzeigename besteht nicht nur aus Leerraum - und kommt getrimmt zurueck."""
 
 
 def is_long_enough(candidate: str) -> Result[str, DisplayNameError]:

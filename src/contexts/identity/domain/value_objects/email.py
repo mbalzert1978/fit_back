@@ -25,6 +25,7 @@ from src.contexts.identity.domain.email_errors import (
     EmailDomainTooLong,
     EmailError,
     EmailHasWhitespace,
+    EmailIsEmpty,
     EmailLocalPartHasInvalidCharacters,
     EmailLocalPartHasMisplacedDot,
     EmailLocalPartMissing,
@@ -207,20 +208,34 @@ def _is_ascii_label_character(character: str) -> bool:
     return character.isalnum() or character == "-"
 
 
+def is_not_blank(candidate: str) -> Result[str, EmailError]:
+    """Es wurde ueberhaupt eine Adresse angegeben - und sie kommt getrimmt zurueck.
+
+    Erste Regel der Kette, nicht ein `strip` daneben: sonst saehe jede folgende
+    Regel einen Wert, den sie erneut anfassen muesste
+    (.rules/python/python-rule-pattern.md). Und `"   "` meldet damit "keine
+    Adresse angegeben" statt des irrefuehrenden "kein At-Zeichen".
+
+    Getrimmt wird nur Leerzeichen und Tabulator, nicht wie bei `not_blank` jeder
+    Leerraum: ein abschliessender Zeilenumbruch soll `has_no_whitespace` in die
+    Haende fallen und die Adresse verwerfen. Geurteilt wird trotzdem gegen den
+    voll getrimmten Wert: ein Wert aus reinem Leerraum ist keine Adresse,
+    sondern leer.
+    """
+    return Ok(candidate.strip(" \t")) if candidate.strip() else Err(EmailIsEmpty())
+
+
 def is_normalized(candidate: str) -> Result[str, EmailError]:
-    r"""Bringe die Adresse auf ihre Vergleichsform: getrimmt und case-folded.
+    """Bringe die Adresse auf ihre Vergleichsform: case-folded.
 
     Die einzige Regel dieser Kette, die nie scheitert - sie normalisiert, was
-    jede folgende voraussetzt.
-
-    Getrimmt wird nur `" \t"` und **nicht** per `not_blank`: das schnitte auch
-    `\n` ab und liesse damit verschwinden, was `has_no_whitespace` gleich danach
-    ablehnen soll.
+    jede folgende voraussetzt. Getrimmt hat bereits `is_not_blank`.
     """
-    return Ok(candidate.strip(" \t").casefold())
+    return Ok(candidate.casefold())
 
 
 _RULES: ResultRule[str, EmailError] = chain(
+    is_not_blank,
     is_normalized,
     has_no_whitespace,
     has_exactly_one_at,

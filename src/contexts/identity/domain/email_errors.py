@@ -27,6 +27,7 @@ __all__ = [
     "EmailDomainTooLong",
     "EmailError",
     "EmailHasWhitespace",
+    "EmailIsEmpty",
     "EmailLocalPartHasInvalidCharacters",
     "EmailLocalPartHasMisplacedDot",
     "EmailLocalPartMissing",
@@ -34,6 +35,23 @@ __all__ = [
     "EmailNeedsExactlyOneAtSign",
     "UnencodableDomainLabel",
 ]
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class EmailIsEmpty:
+    """Es wurde gar keine Adresse angegeben - der Wert ist leer oder nur Leerraum.
+
+    Eigener Fall neben `EmailNeedsExactlyOneAtSign`: "gar nichts eingegeben" und
+    "kein At-Zeichen darin" sind zwei verschiedene Auskuenfte, und nur die zweite
+    zeigt auf etwas Eingegebenes. Dieselbe Trennung wie bei `DisplayNameIsEmpty`,
+    `LocaleIsEmpty` und `UserTimeZoneIsEmpty`
+    (`docs/decisions/2026-08-24-1730-leerer-wert-ist-ein-eigener-fehlerfall.md`).
+
+    Ohne `candidate`-Nutzlast: es gibt keinen Wert zu nennen.
+    """
+
+    code: ClassVar[str] = "email-is-empty"
 
 
 @final
@@ -190,7 +208,8 @@ class UnencodableDomainLabel:
 
 
 type EmailError = (
-    EmailHasWhitespace
+    EmailIsEmpty
+    | EmailHasWhitespace
     | EmailNeedsExactlyOneAtSign
     | EmailLocalPartMissing
     | EmailDomainMissing

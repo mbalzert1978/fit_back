@@ -1,4 +1,5 @@
 {
+  "email-is-empty": "Es wurde keine E-Mail-Adresse angegeben",
   "email-has-whitespace": "Die E-Mail-Adresse enthält Leerraum",
   "email-needs-exactly-one-at-sign": "Die E-Mail-Adresse benötigt genau ein @-Zeichen (gefunden: {at_sign_count})",
   "email-local-part-missing": "Die E-Mail-Adresse hat keinen Local-Part vor dem @",

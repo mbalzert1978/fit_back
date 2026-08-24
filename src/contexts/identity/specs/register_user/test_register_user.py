@@ -232,6 +232,19 @@ async def test_email_error_codes_und_parameter_sind_in_der_response() -> None:
 
 
 @pytest.mark.asyncio
+async def test_blank_email_is_its_own_code_not_a_missing_at_sign() -> None:
+    """Beleg: gar keine Adresse angegeben ist ein eigener Fall."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(email="   "))
+
+    assert isinstance(result, RegistrationInvalid)
+    code, params = result.errors["email"][0]
+    assert code == "email-is-empty"
+    assert params == {}
+
+
+@pytest.mark.asyncio
 async def test_display_name_error_code_in_response() -> None:
     """Beleg: DisplayNameError-Codes sind typisiert in der Response."""
     api = RegisterUserTestApi()
