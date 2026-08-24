@@ -177,8 +177,38 @@ Zwei Dinge daran sind Regel, nicht Geschmack:
   selbst; `all_of_async` nutzt `asyncio.TaskGroup`, damit unabhaengige Regeln nebenlaeufig laufen
   und der Abbruch an alle durchschlaegt ([python-async.md](./python-async.md)).
 
-Die Kombinatoren **OR** und **Conditional** aus der Vorlage sind bewusst nicht gebaut — sie kommen
-mit dem ersten Fall, der sie braucht (`docs/decisions/2026-08-07-1331-…`).
+## ODER: `any_of`, wenn ein Wert in mehr als einer Form gueltig ist
+
+`chain` bindet — es kann nur UND. Ist ein Wert in mehreren, einander ausschliessenden Formen
+gueltig (eine Zeitzone ist eine IANA-Kennung **oder** ein fester UTC-Versatz), ist der Kombinator
+`any_of`: der erste Zweig, der `Ok` meldet, gewinnt, die folgenden laufen gar nicht mehr.
+
+```python
+def any_of[T, E](first: ResultRule[T, E], *rest: ResultRule[T, E]) -> ResultRule[T, E]: ...
+
+
+_RULES: ResultRule[str, UserTimeZoneError] = any_of(is_known_time_zone_id, is_fixed_utc_offset)
+
+# Der Kombinator entscheidet nicht, was ein Wert war, der zu keiner Form passt — das tut der Aufrufer:
+return _RULES(raw.strip()).map_err(lambda _: UserTimeZoneUnknown(raw)).map(cls)
+```
+
+Drei Dinge daran sind Regel, nicht Geschmack:
+
+- **Die Reihenfolge ist eine fachliche Aussage.** Wer zuerst steht, entscheidet, als was ein
+  mehrdeutiger Wert gelesen wird (`Etc/GMT-1` ist eine Kennung, kein Versatz).
+- **Der ueberlebende Fehler ist keine.** Scheitern alle Zweige, traegt das Ergebnis den Fehler des
+  letzten — beliebig. Der Aufrufer uebersetzt ihn per `map_err` in den einen ehrlichen Fall
+  („diese Angabe ist keine der beiden Formen"). Kein `sonst`-Parameter am Kombinator: `map_err`
+  leistet dasselbe ohne Zwischenschicht.
+- **Die erste Regel ist ein eigener Parameter.** ODER hat kein neutrales Element: `all_of()` darf
+  mit null Regeln „alles gueltig" bedeuten, `any_of()` haette keinen Fehler zu melden.
+
+Gebaut zu sehen in `domain/value_objects/user_time_zone.py`; die Entscheidung samt verworfener
+Alternativen steht in `docs/decisions/2026-08-24-1500-any-of-gebaut-fuer-die-zeitzone.md`.
+
+Der Kombinator **Conditional** aus der Vorlage bleibt bewusst nicht gebaut — eine Regel ist hier
+eine Funktion und darf selbst verzweigen (`docs/decisions/2026-08-07-1331-…`).
 
 ## Validierungsregeln laufen als erstes Behavior der Pipeline, nicht vorab im Command geparst
 
@@ -204,3 +234,7 @@ Pruefung dupliziert.
 - [ ] Eine ueber mehrere Request-Typen geteilte Regel ist dadurch gerechtfertigt, dass sie wirklich dieselbe Frage ueber dieselben Felder stellt, ausgedrueckt ueber ein gemeinsames `Protocol` — nicht durch das Zusammenzwingen unverwandter Typen.
 - [ ] Validierung laeuft als **erstes Behavior** der Pipeline via `Rule[TRequest]`/`AsyncRule[TRequest]`, nicht als `if` im Slice und nicht vorab im Command geparst; die Command-Konstruktion ist infallibel, sobald Validierung vorgelagert bereits gelaufen ist.
 - [ ] Eine Regel ist nur dann `AsyncRule`, wenn sie wirklich IO braucht; eine synchrone Regel wird mit `as_async` gehoben, nicht umgeschrieben.
+- [ ] Ein Wert, der in mehreren einander ausschliessenden Formen gueltig ist, wird mit `any_of` ausgedrueckt, nicht mit einer `if`-Kette — und der Fall „keine der Formen" kommt per `map_err` vom Aufrufer, nicht vom Kombinator.
+- [ ] **Jede** Pruefung steht als benannte Funktion und wird als `_RULE`/`_RULES` deklariert — auch die einzelne. `parse` verdrahtet nur noch (`_RULES(raw).map(cls)`); ein `if` oder ein `try` im Rumpf von `parse` ist der Befund.
+- [ ] Wandelt die Pruefung den Typ (`str -> UUID`, `str -> Locale`), ist sie eine `ParseRule[TIn, TOut, E]` — **trotzdem eine Regel**, nur keine verkettbare: `chain`/`any_of` setzen gleiche Ein- und Ausgangsform voraus, verkettet wird per `.bind`.
+- [ ] Kein `raw.strip()` neben den Regeln. Trimmen ist die erste Regel der Kette (`not_blank` aus `shared_kernel/text_rules.py`), nicht eine Vorbereitung davor — sonst sieht jede folgende Regel einen Wert, den sie erneut anfassen muesste.

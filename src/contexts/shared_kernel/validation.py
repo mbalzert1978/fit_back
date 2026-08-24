@@ -8,6 +8,9 @@ Die Wahl trifft die **Fehlerform**, nicht die Gewohnheit:
   erste gewinnt und die folgenden Regeln laufen gar nicht mehr. Ort: der
   `parse`-Weg eines Value Object und Domaeneninvarianten.
 
+`chain` verknuepft diese Regeln mit UND, `any_of` mit ODER - beides ueber
+`Result`, nicht ueber `if`.
+
 Bewusst hier und nicht im Feature: eine feature-lokale Kopie dieser Typen waere
 genau das strukturelle Duplikat, das die Regel verbietet. Modul ist stdlib-rein.
 """
@@ -23,10 +26,12 @@ __all__ = [
     "AsyncRule",
     "FieldError",
     "FieldErrorDetail",
+    "ParseRule",
     "ResultRule",
     "Rule",
     "all_of",
     "all_of_async",
+    "any_of",
     "as_async",
     "chain",
     "group_by_field",
@@ -112,7 +117,15 @@ def as_async[T](rule: Rule[T]) -> AsyncRule[T]:
     return lifted
 
 
-type ResultRule[T, E] = Callable[[T], Result[T, E]]
+type ParseRule[TIn, TOut, E] = Callable[[TIn], Result[TOut, E]]
+"""Eine Regel, die den Wert dabei in seine gueltige Form ueberfuehrt (`str -> UUID`).
+
+Die Pruefung *ist* hier die Umwandlung. Nicht verkettbar: `chain`/`any_of`
+setzen gleiche Ein- und Ausgangsform voraus.
+"""
+
+type ResultRule[T, E] = ParseRule[T, T, E]
+"""Der wertformerhaltende Sonderfall - und nur der ist verkettbar."""
 
 
 def chain[T, E](*rules: ResultRule[T, E]) -> ResultRule[T, E]:
@@ -128,6 +141,28 @@ def chain[T, E](*rules: ResultRule[T, E]) -> ResultRule[T, E]:
         for rule in rules:
             result = result.bind(rule)
         return result
+
+    return combined
+
+
+def any_of[T, E](first: ResultRule[T, E], *rest: ResultRule[T, E]) -> ResultRule[T, E]:
+    """Verknuepfe Regeln mit ODER: die erste, die `Ok` meldet, gewinnt.
+
+    Die Reihenfolge ist fachlich - wer zuerst steht, entscheidet, als was ein
+    mehrdeutiger Wert gelesen wird.
+
+    Scheitern alle Zweige, ueberlebt der Fehler des letzten. Das ist **keine**
+    Aussage: den ehrlichen Fall setzt der Aufrufer per `map_err`
+    (`docs/decisions/2026-08-07-1331-or-und-conditional-rule-erst-beim-ersten-fall.md`).
+
+    `first` steht als eigener Parameter, weil ODER kein neutrales Element hat.
+    """
+
+    def combined(value: T) -> Result[T, E]:
+        outcome = first(value)
+        for rule in rest:
+            outcome = outcome.or_else(lambda _, rule=rule: rule(value))
+        return outcome
 
     return combined
 

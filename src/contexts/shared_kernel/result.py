@@ -35,6 +35,10 @@ class Ok[T]:
         """Ignoriere die Fehler-Transformation (es liegt kein Fehler vor)."""
         return self
 
+    def or_else[E](self, _: Callable[[E], Result[T, E]], /) -> Ok[T]:
+        """Nimm die Alternative nicht (es liegt kein Fehler vor)."""
+        return self
+
     async def inspect_async(self, f: Callable[[T], Awaitable[object]]) -> Ok[T]:
         """Loese eine Nebenwirkung auf dem Erfolgs-Wert aus und gib das Result unveraendert zurueck.
 
@@ -76,6 +80,10 @@ class Err[E]:
     def map_err[F](self, f: Callable[[E], F]) -> Err[F]:
         """Transformiere den Fehler - z. B. Domänenfehler in eine Anzeigemeldung."""
         return Err(f(self.error))
+
+    def or_else[T, F](self, f: Callable[[E], Result[T, F]], /) -> Result[T, F]:
+        """Versuche die Alternative - das Gegenstueck zu `bind` auf dem Fehler-Zweig."""
+        return f(self.error)
 
     async def inspect_async[T](self, _: Callable[[T], Awaitable[object]], /) -> Err[E]:
         """Loese keine Nebenwirkung aus (es liegt kein Erfolgs-Wert vor)."""
