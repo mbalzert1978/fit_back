@@ -3,11 +3,16 @@
 Der Punkt dieser Tests ist die **Startbedingung**: fehlt etwas oder ist es
 unbrauchbar, soll der Prozess gar nicht erst hochkommen, statt beim ersten
 Zugriff umzufallen.
+
+Geprueft wird ueber `get_settings()` - den einzigen oeffentlichen Einstieg in
+die Konfiguration. Dass jeder Test dabei die Umgebung frisch liest, besorgt die
+autouse-Fixture `_frische_settings` in `tests/conftest.py`; sie leert den Cache
+um jeden Test herum.
 """
 
 import pytest
 
-from src.settings import JWT_SECRET_MINIMUM_LENGTH, Settings, validate_settings
+from src.settings import JWT_SECRET_MINIMUM_LENGTH, Settings, get_settings
 
 GUELTIGES_GEHEIMNIS = "g" * JWT_SECRET_MINIMUM_LENGTH
 """Ein Signaturgeheimnis, das lang genug ist - die Tests hier pruefen anderes."""
@@ -19,7 +24,7 @@ def test_ohne_passwort_startet_nichts(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("DB_PASSWORD", raising=False)
 
     with pytest.raises(RuntimeError):
-        validate_settings()
+        get_settings()
 
 
 def test_ohne_signaturgeheimnis_startet_nichts(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -32,7 +37,7 @@ def test_ohne_signaturgeheimnis_startet_nichts(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.delenv("JWT_SECRET", raising=False)
 
     with pytest.raises(RuntimeError):
-        validate_settings()
+        get_settings()
 
 
 def test_ein_zu_kurzes_signaturgeheimnis_faellt_beim_start_auf(
@@ -47,7 +52,7 @@ def test_ein_zu_kurzes_signaturgeheimnis_faellt_beim_start_auf(
     monkeypatch.setenv("JWT_SECRET", "g" * (JWT_SECRET_MINIMUM_LENGTH - 1))
 
     with pytest.raises(RuntimeError):
-        validate_settings()
+        get_settings()
 
 
 def test_das_signaturgeheimnis_taucht_in_keiner_darstellung_auf() -> None:
@@ -64,7 +69,7 @@ def test_ein_unbrauchbarer_port_faellt_beim_start_auf(monkeypatch: pytest.Monkey
     monkeypatch.setenv("DB_PORT", "achtundzwanzig")
 
     with pytest.raises(RuntimeError):
-        validate_settings()
+        get_settings()
 
 
 def test_ein_port_ausserhalb_des_bereichs_faellt_auf(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -74,7 +79,7 @@ def test_ein_port_ausserhalb_des_bereichs_faellt_auf(monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("DB_PORT", "65536")
 
     with pytest.raises(RuntimeError):
-        validate_settings()
+        get_settings()
 
 
 def test_die_fehlermeldung_nennt_keinen_wert(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,7 +89,7 @@ def test_die_fehlermeldung_nennt_keinen_wert(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("DB_PORT", "0")
 
     with pytest.raises(RuntimeError) as raised:
-        validate_settings()
+        get_settings()
 
     assert "streng-geheim" not in str(raised.value)
 
@@ -98,7 +103,7 @@ def test_die_werte_kommen_aus_der_umgebung(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("DB_PASSWORD", "geheim")
     monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
 
-    settings = validate_settings()
+    settings = get_settings()
 
     assert settings.db_host == "datenbank"
     assert settings.db_port == 6543
