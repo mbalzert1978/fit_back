@@ -1,9 +1,31 @@
 """Idempotency-Key-Middleware fuer POST/PUT (Ticket 0006, BACKEND.md Abschnitt 0.3).
 
-Ein bereits verarbeiteter Schluessel liefert die urspruengliche Antwort mit 200
-statt eines zweiten Datensatzes. Abgelegt wird
-`(key, user_id, request_hash, response_body, created_utc)` in
-`shared_kernel.idempotency_keys`.
+Ein bereits verarbeiteter Schluessel liefert die urspruengliche Antwort statt
+eines zweiten Datensatzes. Abgelegt wird
+`(key, user_id, request_hash, response_body, response_status, response_headers,
+created_utc)` in `shared_kernel.idempotency_keys`.
+
+## Der Replay wiederholt den Erstaufruf, nicht nur seinen Rumpf
+
+Gespeichert wird nicht bloss der Koerper, sondern auch der Statuscode und die
+Kopfzeilen aus `REPLAYED_HEADERS`. Ein Replay, der den Rumpf des Erstaufrufs
+unter einem anderen Statuscode und ohne dessen `Location` ausliefert, ist keine
+Wiederholung - der Aufrufer, der die Antwort verloren hat, bekaeme etwas
+anderes als der, dessen erste Anfrage ankam. Genau diese Gleichheit ist der
+Sinn eines Idempotency-Keys.
+
+Damit weicht die Middleware von `docs/Draft/BACKEND.md` Abschnitt 0.3 ab, der
+woertlich `200` statt `201` fuer den Treffer vorschreibt; siehe
+`docs/decisions/2026-08-24-1800-idempotenz-replay-wiederholt-den-erstaufruf.md`.
+Der Pact prueft den Doppelaufruf nicht - es ist also kein Vertragsbruch.
+
+Die Kopfzeilen wandern **selektiv** mit, ueber eine benannte Erlaubnisliste.
+Blind alles zu speichern hiesse, `Content-Length` und `Date` des Erstaufrufs
+Tage spaeter erneut auszuliefern - beschreibende Kopfzeilen, die nur fuer die
+Antwort von damals galten. Der Umschlag (`ResponseEnvelopeMiddleware`) liegt
+**ausserhalb** dieser Middleware: gespeichert wird der nackte Koerper, und der
+Replay wird auf dem Rueckweg mit seiner *eigenen* `X-Request-Id` neu
+eingepackt.
 
 ## Reservieren, dann arbeiten
 
@@ -22,7 +44,7 @@ Schluessel ist also schon vergeben:
 
 | Zustand der bestehenden Zeile | Antwort |
 |---|---|
-| gleicher Nutzer, gleicher Body, Antwort liegt vor | die gespeicherte Antwort, mit 200 |
+| gleicher Nutzer, gleicher Body, Antwort liegt vor | die gespeicherte Antwort, wie sie war |
 | gleicher Nutzer, gleicher Body, Antwort steht aus | 409 - die erste Anfrage laeuft noch |
 | gleicher Nutzer, **anderer** Body | 409 - derselbe Schluessel fuer etwas anderes |
 | **anderer** Nutzer | 409 - der Schluessel ist belegt, mehr erfaehrt er nicht |
@@ -74,7 +96,7 @@ import json
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime
-from typing import Any, final
+from typing import Any, Final, final
 from uuid import UUID
 
 from sqlalchemy import TextClause, text
@@ -83,7 +105,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.status import HTTP_409_CONFLICT
+from starlette.status import HTTP_200_OK, HTTP_409_CONFLICT
 from starlette.types import ASGIApp
 
 from src.api.i18n import ResourcesCache, get_language_from_header
@@ -105,6 +127,23 @@ IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
 IDEMPOTENCY_KEYS_TABLE = "shared_kernel.idempotency_keys"
 IDEMPOTENT_METHODS = frozenset({"POST", "PUT"})
 CACHEABLE_STATUS_CODES = frozenset({200, 201})
+
+REPLAYED_HEADERS: Final = frozenset({"location", "content-language"})
+"""Die Kopfzeilen, die zur Antwort gehoeren und deshalb mit ihr aufgezeichnet werden.
+
+Kleingeschrieben, weil HTTP-Feldnamen ohne Ruecksicht auf Gross-/Kleinschreibung
+verglichen werden.
+
+Eine Erlaubnisliste und keine Sperrliste: was hier nicht steht, wird nicht
+gespeichert. `Content-Length` und `Content-Type` beschreiben den Koerper von
+damals, `Date` den Zeitpunkt von damals - Tage spaeter wiederholt waeren sie
+falsch. `X-Request-Id` und `Cache-Control` setzt der Umschlag ohnehin neu, und
+zwar fuer *diese* Anfrage.
+
+`Location` und `Content-Language` sind dagegen Aussagen ueber das Ergebnis: wo
+die angelegte Ressource liegt, und in welcher Sprache der Rumpf verfasst ist.
+Beide gehen dem Aufrufer verloren, wenn der Replay sie weglaesst.
+"""
 
 KEY_REUSED_SLUG = "idempotency-key-reused"
 REQUEST_IN_PROGRESS_SLUG = "request-in-progress"
@@ -139,7 +178,7 @@ _CLAIM_KEY: TextClause = text(
 # in einen Zustand, den es laut Reservierung gerade nicht geben kann.
 _FIND_KEY: TextClause = text(
     f"""
-        SELECT user_id, request_hash, response_body
+        SELECT user_id, request_hash, response_body, response_status, response_headers
         FROM {IDEMPOTENCY_KEYS_TABLE}
         WHERE key = :key
     """  # noqa: S608 -- Parameterized via named bindings
@@ -148,7 +187,9 @@ _FIND_KEY: TextClause = text(
 _STORE_RESPONSE: TextClause = text(
     f"""
         UPDATE {IDEMPOTENCY_KEYS_TABLE}
-        SET response_body = :response_body
+        SET response_body = :response_body,
+            response_status = :response_status,
+            response_headers = :response_headers
         WHERE key = :key
     """  # noqa: S608 -- Parameterized via named bindings
 )
@@ -255,12 +296,47 @@ async def find_key(engine: AsyncEngine, key: UUID) -> Mapping[str, Any] | None:
         return found.mappings().first()
 
 
-async def store_response(engine: AsyncEngine, key: UUID, response_body: dict[str, Any]) -> None:
-    """Halte die Antwort an der Reservierung fest."""
+async def store_response(
+    engine: AsyncEngine,
+    key: UUID,
+    response_body: dict[str, Any],
+    response_status: int,
+    response_headers: Mapping[str, str],
+) -> None:
+    """Halte die Antwort an der Reservierung fest - Rumpf, Statuscode und Kopfzeilen."""
     async with engine.begin() as connection:
         await connection.execute(
-            _STORE_RESPONSE, {"key": key, "response_body": json.dumps(response_body)}
+            _STORE_RESPONSE,
+            {
+                "key": key,
+                "response_body": json.dumps(response_body),
+                "response_status": response_status,
+                "response_headers": json.dumps(dict(response_headers)),
+            },
         )
+
+
+def replayable_headers(headers: Mapping[str, str]) -> dict[str, str]:
+    """Waehle aus einer Antwort die Kopfzeilen, die ihre Wiederholung tragen soll."""
+    return {name: value for name, value in headers.items() if name.lower() in REPLAYED_HEADERS}
+
+
+def stored_headers(raw: str | None) -> dict[str, str]:
+    """Lies die aufgezeichneten Kopfzeilen zurueck.
+
+    `None` steht fuer eine Zeile aus der Zeit vor `shared_005`; die kennt keine
+    Kopfzeilen, und der Replay kommt wie frueher ohne sie aus. Ein unlesbarer
+    Wert wird genauso behandelt: eine wiederholte Antwort ohne `Location` ist
+    unvollstaendig, eine verweigerte Antwort waere schlimmer.
+    """
+    if raw is None:
+        return {}
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError as e:
+        logger.warning(f"Gespeicherte Kopfzeilen sind unlesbar: {e}")  # noqa: G004 -- Parse error for debugging
+        return {}
+    return replayable_headers(decoded) if isinstance(decoded, dict) else {}
 
 
 async def release_claim(engine: AsyncEngine, key: UUID) -> None:
@@ -399,7 +475,13 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)
-        return JSONResponse(content=json.loads(existing["response_body"]), status_code=200)
+        # `or HTTP_200_OK`: eine Zeile aus der Zeit vor `shared_005` hat keinen
+        # aufgezeichneten Status - fuer sie bleibt es beim alten Verhalten.
+        return JSONResponse(
+            content=json.loads(existing["response_body"]),
+            status_code=existing["response_status"] or HTTP_200_OK,
+            headers=stored_headers(existing["response_headers"]),
+        )
 
     async def _process_and_store(
         self,
@@ -434,7 +516,13 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             response_body = None
 
         if response_body is not None:
-            await store_response(engine, key, response_body)
+            await store_response(
+                engine,
+                key,
+                response_body,
+                response.status_code,
+                replayable_headers(response.headers),
+            )
 
         return Response(
             content=raw_body,
