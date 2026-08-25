@@ -25,6 +25,11 @@ def _frische_settings() -> Generator[None]:
     Tests davor. Geleert wird vorher *und* nachher: der letzte Test soll seine
     Umgebung ebenso wenig hinterlassen.
     """
+    # TODO: überschreibe mittels dependency injection, statt den Cache zu leeren.
+    # Geht heute nicht: der Lifespan (`src/main.py:98`) ruft `get_settings()` direkt
+    # auf, und `dependency_overrides` greift nur in der Request-Auflösung. Ausserdem
+    # loest das Leeren hier ein zweites Problem, das DI nicht anfasst: der Cache lebt
+    # prozessweit. Beides haengt an Ticket #98.
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
