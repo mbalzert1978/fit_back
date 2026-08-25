@@ -11,8 +11,9 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from src.api.i18n import create_resources
+from src.api.problem_details import problem_type
 from src.middleware.unhandled_exceptions import (
-    UNHANDLED_ERROR_TYPE,
+    UNHANDLED_ERROR_SLUG,
     UnhandledExceptionMiddleware,
 )
 
@@ -47,7 +48,7 @@ async def test_eine_unbehandelte_ausnahme_wird_zu_500_als_problem_json() -> None
     assert response.status_code == 500
     assert response.headers["content-type"].startswith("application/problem+json")
     problem = response.json()
-    assert problem["type"] == UNHANDLED_ERROR_TYPE
+    assert problem["type"] == problem_type(UNHANDLED_ERROR_SLUG)
     assert problem["status"] == 500
     assert problem["instance"] == "/kaputt"
 

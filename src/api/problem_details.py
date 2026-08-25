@@ -1,8 +1,52 @@
 """RFC 7807 Problem Details model for structured error responses."""
 
+from collections.abc import Mapping
 from typing import final
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+
+from src.api.i18n import ResourcesCache, translate
+
+__all__ = [
+    "PROBLEM_JSON_MEDIA_TYPE",
+    "PROBLEM_TYPE_PREFIX",
+    "ProblemDetails",
+    "problem",
+    "problem_type",
+    "translated_problem",
+]
+
+PROBLEM_JSON_MEDIA_TYPE = "application/problem+json"
+"""Der Media-Type, unter dem eine Fehlerantwort dieser API ausgeliefert wird (RFC 7807).
+
+An **einer** Stelle und nicht je Antwort: der Wert gehoert zur API als Ganzes,
+und eine Stelle, die ihn selbst hinschreibt, kann ihn als einzige falsch
+schreiben.
+"""
+
+PROBLEM_TYPE_PREFIX = "tag:nutritrack.app,2026:problems/"
+"""Das Schema, unter dem jeder Fehlertyp dieser API benannt ist.
+
+Ein `tag:`-URI nach RFC 4151 und keine `https:`-Adresse: der Typ ist ein
+**Bezeichner**, nichts, was man abrufen koennte. Eine `https:`-Form verspricht
+eine Seite, die es nicht gibt, und bindet die Bezeichner an einen Hostnamen, der
+sich aendern kann.
+
+Der Wert steht ohne Matcher im Vertrag des Frontends und ist damit bindend
+(`contracts/pacts/identity/`, Ticket #95).
+"""
+
+
+def problem_type(slug: str) -> str:
+    """Baue den Fehlertyp zu einem Fehlercode.
+
+    An **einer** Stelle und nicht je Route: der Praefix gehoert zur API als
+    Ganzes, und ein Endpunkt, der ihn selbst zusammensetzt, kann ihn als
+    einziger falsch schreiben.
+    """
+    return f"{PROBLEM_TYPE_PREFIX}{slug}"
 
 
 @final
@@ -31,7 +75,7 @@ class ProblemDetails(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "type": "https://api.example/errors/product-not-found",
+                    "type": "tag:nutritrack.app,2026:problems/product-not-found",
                     "title": "Produkt nicht gefunden",
                     "status": 404,
                     "detail": "Zu EAN 4008400401027 existiert kein Produkt.",
@@ -39,9 +83,9 @@ class ProblemDetails(BaseModel):
                     "errors": None,
                 },
                 {
-                    "type": "https://api.example/errors/validation-failed",
+                    "type": "tag:nutritrack.app,2026:problems/validation-failed",
                     "title": "Validierung fehlgeschlagen",
-                    "status": 400,
+                    "status": 422,
                     "detail": "Die Eingabe erfüllt nicht die erforderlichen Bedingungen.",
                     "instance": "/api/v1/identity/register",
                     "errors": {
@@ -52,3 +96,97 @@ class ProblemDetails(BaseModel):
             ]
         }
     }
+
+
+def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, status, type, and text
+    request: Request,
+    http_status: int,
+    error_type: str,
+    title: str,
+    detail: str,
+    errors: dict[str, list[str]] | None = None,
+    *,
+    language_tag: str,
+) -> JSONResponse:
+    """Baue eine RFC-7807-Antwort im Format des Shared Kernel.
+
+    `language_tag` hat bewusst **keinen** Vorgabewert: `title` und `detail` sind
+    beim Aufruf bereits uebersetzt, und ein Vorgabewert liesse sich vergessen,
+    ohne dass etwas auffaellt - der Aufrufer bekaeme dann einen englischen Text
+    mit `Content-Language: de-DE`. Wer die Antwort baut, hat die ausgehandelte
+    Sprache ohnehin in der Hand.
+    """
+    details = ProblemDetails(
+        type=problem_type(error_type),
+        title=title,
+        status=http_status,
+        detail=detail,
+        instance=str(request.url.path),
+        errors=errors,
+    )
+    response = JSONResponse(
+        status_code=http_status,
+        content=details.model_dump(exclude_none=True),
+        media_type=PROBLEM_JSON_MEDIA_TYPE,
+    )
+    response.headers["Content-Language"] = language_tag
+    # Die Umschlag-Middleware setzt denselben Header, aber nur auf 2xx -
+    # Fehlerkoerper laufen an ihr bewusst vorbei. Hier ist die eine Stelle, an
+    # der jede RFC-7807-Antwort dieses Repos entsteht; ein Endpunkt, der ihn
+    # selbst setzte, koennte ihn als einziger vergessen. Doppelt gesetzt wird er
+    # nie: keine Fehlerantwort traegt einen Umschlag.
+    #
+    # Bindend laut Vertrag des Frontends (`contracts/pacts/identity/`,
+    # Ticket #95): diese API antwortet mit Kontodaten, und das gilt fuer
+    # Fehlerkoerper genauso.
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
+    request: Request,
+    http_status: int,
+    slug: str,
+    resources: ResourcesCache,
+    *,
+    language: str,
+    resource_key: str | None = None,
+    parameters: Mapping[str, object] | None = None,
+    errors: dict[str, list[str]] | None = None,
+) -> JSONResponse:
+    """Baue eine RFC-7807-Antwort samt ihren beiden Uebersetzungen.
+
+    Die eine Stelle, an der eine Fehlerantwort dieser API **entsteht**. Vorher
+    standen an jeder Aufrufstelle zwei `translate`-Aufrufe unmittelbar vor
+    `problem()`, und `(slug, title, detail, language_tag)` reisten ueberall
+    zusammen - vier Werte, von denen drei aus dem ersten folgen. Hier folgen sie
+    wirklich aus ihm: `title` steht unter `<resource_key>`, `detail` unter
+    `<resource_key>-detail`.
+
+    `resource_key` faellt auf `slug` zurueck, weil beide fast ueberall
+    deckungsgleich sind. Wo sie es nicht sind, wird der Schluessel genannt statt
+    die Ressource umbenannt: der Slug steht im Fehlertyp und damit im Vertrag des
+    Frontends (`contracts/pacts/identity/`), der Ressourcenschluessel nicht -
+    eine Angleichung waere entweder ein Vertragsbruch oder eine Migration der
+    Ressourcendateien. Einzige Abweichung im Repo: `request-in-progress` liest
+    unter `idempotency-request-in-progress`.
+
+    `parameters` fuellt die Platzhalter beider Vorlagen; ein Titel ohne
+    Platzhalter ignoriert sie.
+
+    Zum `noqa`: die Signatur zaehlt acht Argumente, `PLR0913` erlaubt fuenf.
+    Weniger sind es nicht - Anfrage, Status, Slug, Ressourcen und Sprache sind
+    allesamt Pflicht, und `resource_key`, `parameters` und `errors` decken je
+    eine Aufrufstelle ab, die es ohne sie nicht gibt. Nur `positional` ist es
+    gedeckelt: nach dem vierten Argument ist Schluss, `PLR0917` greift nicht.
+    """
+    key = resource_key if resource_key is not None else slug
+    return problem(
+        request,
+        http_status,
+        slug,
+        translate(resources, key, parameters, language),
+        translate(resources, f"{key}-detail", parameters, language),
+        errors,
+        language_tag=language,
+    )

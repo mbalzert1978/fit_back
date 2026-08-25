@@ -12,8 +12,21 @@ from typing import ClassVar, final
 
 __all__ = [
     "LocaleError",
+    "LocaleIsEmpty",
     "LocaleNotSupported",
 ]
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class LocaleIsEmpty:
+    """Es wurde gar keine Sprach-Kennung angegeben - nur Leerraum.
+
+    Eigener Fall neben `LocaleNotSupported`: "die Sprache '   ' wird nicht
+    unterstuetzt" zeigte auf nichts.
+    """
+
+    code: ClassVar[str] = "locale-is-empty"
 
 
 @final
@@ -26,5 +39,5 @@ class LocaleNotSupported:
     candidate: str
 
 
-type LocaleError = LocaleNotSupported
+type LocaleError = LocaleIsEmpty | LocaleNotSupported
 """Teil-Union - zusammengefuehrt zum einen `DomainError` in `errors.py`."""

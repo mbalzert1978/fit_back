@@ -29,6 +29,7 @@ from src.contexts.identity.domain import (
     DisplayName,
     DisplayNameIsEmpty,
     DisplayNameTooLong,
+    DisplayNameTooShort,
     Email,
     EmailAddressLiteralInvalid,
     EmailDomainHasEmptyLabel,
@@ -38,17 +39,21 @@ from src.contexts.identity.domain import (
     EmailDomainMissing,
     EmailDomainTooLong,
     EmailHasWhitespace,
+    EmailIsEmpty,
     EmailLocalPartHasInvalidCharacters,
     EmailLocalPartHasMisplacedDot,
     EmailLocalPartMissing,
     EmailLocalPartTooLong,
     EmailNeedsExactlyOneAtSign,
     IdnEncoder,
+    LocaleIsEmpty,
     LocaleNotSupported,
     Password,
+    PasswordTooLong,
     PasswordTooShort,
     UnencodableDomainLabel,
     UserTimeZone,
+    UserTimeZoneIsEmpty,
     UserTimeZoneUnknown,
     parse_locale,
 )
@@ -58,7 +63,7 @@ from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
 __all__ = ["build_register_user_rules"]
 
 _EMAIL = "email"
-"""Feldname des API-Vertrags - als Konstante, weil ihn vierzehn Arme wiederholen.
+"""Feldname des API-Vertrags - als Konstante, weil ihn fuenfzehn Arme wiederholen.
 
 Die uebrigen Regeln haben je einen Arm und nennen ihren Feldnamen dort direkt:
 eine Konstante fuer eine einzige Verwendungsstelle verschiebt die Antwort nur
@@ -76,7 +81,7 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- C
     def email_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:  # noqa: C901, PLR0911, PLR0912 -- Exhaustive match over 15+ email error types
         """Die E-Mail-Adresse muss wohlgeformt sein.
 
-        Vierzehn Arme, einer je Regel aus `Email.parse` - das ist der Preis
+        Fuenfzehn Arme, einer je Regel aus `Email.parse` - das ist der Preis
         dafuer, dass die Domaene die Adresse nicht per Regex, sondern in einzeln
         benannten Faellen prueft. Jeder Fall hat einen eigenen Code und eine
         eigene Textvorlage; sie zusammenzufassen hiesse, dem Aufrufer statt der
@@ -86,6 +91,8 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- C
         match outcome:
             case Ok():
                 return []
+            case Err(error=EmailIsEmpty()):
+                return [FieldError(_EMAIL, EmailIsEmpty.code, {})]
             case Err(error=EmailHasWhitespace()):
                 return [FieldError(_EMAIL, EmailHasWhitespace.code, {})]
             case Err(error=EmailNeedsExactlyOneAtSign(at_sign_count=count)):
@@ -132,8 +139,8 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- C
     return email_must_be_wellformed
 
 
-def password_must_be_long_enough(request: RegisterUserRequest) -> list[FieldError]:
-    """Das Passwort muss die Mindestlaenge erfuellen."""
+def password_length_is_in_range(request: RegisterUserRequest) -> list[FieldError]:
+    """Das Passwort muss zwischen Mindest- und Hoechstlaenge liegen."""
     outcome = Password.parse(request.password)
     match outcome:
         case Ok():
@@ -146,18 +153,34 @@ def password_must_be_long_enough(request: RegisterUserRequest) -> list[FieldErro
                     {"actual_length": actual, "minimum": minimum},
                 )
             ]
+        case Err(error=PasswordTooLong(actual_length=actual, maximum=maximum)):
+            return [
+                FieldError(
+                    "password",
+                    PasswordTooLong.code,
+                    {"actual_length": actual, "maximum": maximum},
+                )
+            ]
         case _:
             assert_never(outcome)
 
 
 def display_name_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:
-    """Der Anzeigename muss nicht leer und nicht zu lang sein."""
+    """Der Anzeigename muss nicht leer, nicht zu kurz und nicht zu lang sein."""
     outcome = DisplayName.parse(request.display_name)
     match outcome:
         case Ok():
             return []
         case Err(error=DisplayNameIsEmpty()):
             return [FieldError("displayName", DisplayNameIsEmpty.code, {})]
+        case Err(error=DisplayNameTooShort(actual_length=actual, minimum=minimum)):
+            return [
+                FieldError(
+                    "displayName",
+                    DisplayNameTooShort.code,
+                    {"actual_length": actual, "minimum": minimum},
+                )
+            ]
         case Err(error=DisplayNameTooLong(actual_length=actual, maximum=maximum)):
             return [
                 FieldError(
@@ -176,6 +199,8 @@ def locale_must_be_supported(request: RegisterUserRequest) -> list[FieldError]:
     match outcome:
         case Ok():
             return []
+        case Err(error=LocaleIsEmpty()):
+            return [FieldError("locale", LocaleIsEmpty.code, {})]
         case Err(error=LocaleNotSupported(candidate=candidate)):
             return [FieldError("locale", LocaleNotSupported.code, {"candidate": candidate})]
         case _:
@@ -183,11 +208,13 @@ def locale_must_be_supported(request: RegisterUserRequest) -> list[FieldError]:
 
 
 def time_zone_must_be_known(request: RegisterUserRequest) -> list[FieldError]:
-    """Die Zeitzone muss eine bekannte IANA-Id sein."""
+    """Die Zeitzone muss eine bekannte IANA-Id oder ein fester UTC-Versatz sein."""
     outcome = UserTimeZone.parse(request.time_zone_id)
     match outcome:
         case Ok():
             return []
+        case Err(error=UserTimeZoneIsEmpty()):
+            return [FieldError("timeZoneId", UserTimeZoneIsEmpty.code, {})]
         case Err(error=UserTimeZoneUnknown(candidate=candidate)):
             return [FieldError("timeZoneId", UserTimeZoneUnknown.code, {"candidate": candidate})]
         case _:
@@ -198,7 +225,7 @@ def build_register_user_rules(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
     """Setze das Regelwerk des Use Case zusammen."""
     return all_of(
         email_rule(idn),
-        password_must_be_long_enough,
+        password_length_is_in_range,
         display_name_must_be_wellformed,
         locale_must_be_supported,
         time_zone_must_be_known,

@@ -13,6 +13,7 @@ from src.contexts.identity.domain.display_name_errors import (
     DisplayNameError,
     DisplayNameIsEmpty,
     DisplayNameTooLong,
+    DisplayNameTooShort,
 )
 from src.contexts.identity.domain.email_errors import (
     EmailAddressLiteralInvalid,
@@ -24,6 +25,7 @@ from src.contexts.identity.domain.email_errors import (
     EmailDomainTooLong,
     EmailError,
     EmailHasWhitespace,
+    EmailIsEmpty,
     EmailLocalPartHasInvalidCharacters,
     EmailLocalPartHasMisplacedDot,
     EmailLocalPartMissing,
@@ -34,8 +36,16 @@ from src.contexts.identity.domain.email_errors import (
 from src.contexts.identity.domain.entities.user import User, register
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.events import user_registered
-from src.contexts.identity.domain.locale_errors import LocaleError, LocaleNotSupported
-from src.contexts.identity.domain.password_errors import PasswordError, PasswordTooShort
+from src.contexts.identity.domain.locale_errors import (
+    LocaleError,
+    LocaleIsEmpty,
+    LocaleNotSupported,
+)
+from src.contexts.identity.domain.password_errors import (
+    PasswordError,
+    PasswordTooLong,
+    PasswordTooShort,
+)
 from src.contexts.identity.domain.password_hash_errors import PasswordHashError, PasswordHashIsEmpty
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder, IdnEncoderError
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
@@ -43,6 +53,7 @@ from src.contexts.identity.domain.ports.user_registry import UserRegistry, UserR
 from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
 from src.contexts.identity.domain.user_time_zone_errors import (
     UserTimeZoneError,
+    UserTimeZoneIsEmpty,
     UserTimeZoneUnknown,
 )
 from src.contexts.identity.domain.value_objects.account_status import (
@@ -70,7 +81,6 @@ from src.contexts.identity.domain.value_objects.user_time_zone import (
     DEFAULT_TIME_ZONE_ID,
     UserTimeZone,
 )
-from src.contexts.shared_kernel.not_empty_string import NotEmptyStringError, TextIsEmpty
 
 __all__ = [
     "DEFAULT_LOCALE",
@@ -81,6 +91,7 @@ __all__ = [
     "DisplayNameError",
     "DisplayNameIsEmpty",
     "DisplayNameTooLong",
+    "DisplayNameTooShort",
     "DomainError",
     "Email",
     "EmailAddressLiteralInvalid",
@@ -93,6 +104,7 @@ __all__ = [
     "EmailDomainTooLong",
     "EmailError",
     "EmailHasWhitespace",
+    "EmailIsEmpty",
     "EmailLocalPartHasInvalidCharacters",
     "EmailLocalPartHasMisplacedDot",
     "EmailLocalPartMissing",
@@ -104,18 +116,18 @@ __all__ = [
     "IdnEncoderError",
     "Locale",
     "LocaleError",
+    "LocaleIsEmpty",
     "LocaleNotSupported",
-    "NotEmptyStringError",
     "Password",
     "PasswordError",
     "PasswordHash",
     "PasswordHashError",
     "PasswordHashIsEmpty",
     "PasswordHasher",
+    "PasswordTooLong",
     "PasswordTooShort",
     "PendingDeletion",
     "Suspended",
-    "TextIsEmpty",
     "UnencodableDomainLabel",
     "User",
     "UserId",
@@ -125,6 +137,7 @@ __all__ = [
     "UserRegistryError",
     "UserTimeZone",
     "UserTimeZoneError",
+    "UserTimeZoneIsEmpty",
     "UserTimeZoneUnknown",
     "account_status_tag",
     "hydrate_locale",

@@ -7,12 +7,20 @@ man ohne laufende App wissen muss.
 """
 
 import os
+from functools import lru_cache
 from typing import final
 
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import URL
 
-__all__ = ["Settings", "validate_settings"]
+__all__ = ["JWT_SECRET_MINIMUM_LENGTH", "Settings", "get_settings"]
+
+JWT_SECRET_MINIMUM_LENGTH = 32
+"""RFC 7518 Abschnitt 3.2: der HMAC-Schluessel ist mindestens so lang wie der Hash.
+
+Kuerzer nimmt `pyjwt` zwar an, warnt aber - und eine Warnung im Log ist kein
+Schutz. Der Prozess soll mit einem zu kurzen Geheimnis gar nicht erst starten.
+"""
 
 
 @final
@@ -24,6 +32,14 @@ class Settings(BaseModel):
     db_name: str = Field(default="fit_back")
     db_user: str = Field(default="fit_user")
     db_password: str = Field(...)  # Pflichtangabe, kein Standardwert
+    jwt_secret: str = Field(..., min_length=JWT_SECRET_MINIMUM_LENGTH, repr=False)
+    """Das Signaturgeheimnis der Access-Token - Pflichtangabe, kein Standardwert.
+
+    Ein Default waere hier keine Bequemlichkeit, sondern eine Hintertuer: wer
+    ihn kennt, kann sich als jeder Nutzer ausgeben. Genau dieser Fall steht
+    schon einmal in
+    `docs/decisions/2026-08-05-1130-security-gate-triage-ticket-0002-und-agent-integritaets-incident.md`.
+    """
 
     @property
     def database_url(self) -> URL:
@@ -55,13 +71,28 @@ class Settings(BaseModel):
         )
 
 
-def validate_settings() -> Settings:
-    """Lies die Einstellungen aus der Umgebung und pruefe sie.
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Die eine Konfiguration des Prozesses - gelesen und geprueft beim ersten Aufruf.
+
+    Der einzige oeffentliche Einstieg in die Konfiguration. Der Cache ist nicht
+    bloss Ersparnis: er macht diese Funktion zu *der* Quelle der Konfiguration.
+    Wer sie aufruft, bekommt dasselbe Objekt, das der Lifespan beim Start
+    geprueft hat - er ruft sie als Erstes auf und faengt sich den `RuntimeError`
+    einer unbrauchbaren Umgebung dort ein, wo er hingehoert: beim Start, nicht
+    bei der ersten Anfrage.
 
     Wirft `RuntimeError`, wenn etwas fehlt oder unbrauchbar ist - der Prozess
     soll in dem Fall gar nicht erst starten, statt beim ersten Zugriff
     umzufallen. Die Meldung nennt bewusst keinen Wert: hier steht ein Passwort
     im Spiel, und eine Startfehlermeldung landet im Log.
+
+    Als Dependency benutzt man sie ueber `SettingsDep` (`src/api/composition.py`).
+    Im Test wird nicht die Umgebung gebogen, sondern die Dependency
+    ueberschrieben - `app.dependency_overrides[get_settings]`.
+
+    Wer die Umgebung tatsaechlich neu lesen will, ruft `cache_clear()`; das
+    brauchen nur Tests, die den Start selbst nachstellen.
     """
     try:
         return Settings(
@@ -70,6 +101,7 @@ def validate_settings() -> Settings:
             db_name=os.getenv("DB_NAME", "fit_back"),
             db_user=os.getenv("DB_USER", "fit_user"),
             db_password=os.getenv("DB_PASSWORD"),
+            jwt_secret=os.getenv("JWT_SECRET"),
         )
     except (ValidationError, ValueError) as e:
         msg = "Configuration validation failed: invalid environment variables"

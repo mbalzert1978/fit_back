@@ -25,6 +25,7 @@ from src.contexts.identity.domain.email_errors import (
     EmailDomainTooLong,
     EmailError,
     EmailHasWhitespace,
+    EmailIsEmpty,
     EmailLocalPartHasInvalidCharacters,
     EmailLocalPartHasMisplacedDot,
     EmailLocalPartMissing,
@@ -207,7 +208,35 @@ def _is_ascii_label_character(character: str) -> bool:
     return character.isalnum() or character == "-"
 
 
+def is_not_blank(candidate: str) -> Result[str, EmailError]:
+    """Es wurde ueberhaupt eine Adresse angegeben - und sie kommt getrimmt zurueck.
+
+    Erste Regel der Kette, nicht ein `strip` daneben: sonst saehe jede folgende
+    Regel einen Wert, den sie erneut anfassen muesste
+    (.rules/python/python-rule-pattern.md). Und `"   "` meldet damit "keine
+    Adresse angegeben" statt des irrefuehrenden "kein At-Zeichen".
+
+    Getrimmt wird nur Leerzeichen und Tabulator, nicht wie bei `not_blank` jeder
+    Leerraum: ein abschliessender Zeilenumbruch soll `has_no_whitespace` in die
+    Haende fallen und die Adresse verwerfen. Geurteilt wird trotzdem gegen den
+    voll getrimmten Wert: ein Wert aus reinem Leerraum ist keine Adresse,
+    sondern leer.
+    """
+    return Ok(candidate.strip(" \t")) if candidate.strip() else Err(EmailIsEmpty())
+
+
+def is_normalized(candidate: str) -> Result[str, EmailError]:
+    """Bringe die Adresse auf ihre Vergleichsform: case-folded.
+
+    Die einzige Regel dieser Kette, die nie scheitert - sie normalisiert, was
+    jede folgende voraussetzt. Getrimmt hat bereits `is_not_blank`.
+    """
+    return Ok(candidate.casefold())
+
+
 _RULES: ResultRule[str, EmailError] = chain(
+    is_not_blank,
+    is_normalized,
     has_no_whitespace,
     has_exactly_one_at,
     has_both_parts,
@@ -233,16 +262,10 @@ class Email:
     def parse(cls, raw: str, idn: IdnEncoder) -> Result[Email, EmailError]:
         """Normalisiere und pruefe eine moeglicherweise ungueltige Eingabe.
 
-        Abgeschnitten werden **nur** umgebende Leerzeichen und Tabs - das sind
-        Kopier-Artefakte. Zeilenumbrueche und andere Steuerzeichen werden
-        bewusst nicht bereinigt, sondern von `has_no_whitespace` abgelehnt.
-
-        Die letzte Regel steht nicht in `_RULES`, weil sie als einzige den
-        IDN-Port braucht; angehaengt wird sie ueber `bind`, also mit derselben
-        Fail-fast-Semantik wie jede andere.
+        `domain_is_valid` steht nicht in `_RULES`, weil sie als einzige den
+        IDN-Port braucht - `bind` gibt ihr dieselbe Fail-fast-Semantik.
         """
-        candidate = raw.strip(" \t").casefold()
-        return _RULES(candidate).bind(lambda checked: domain_is_valid(checked, idn)).map(cls)
+        return _RULES(raw).bind(lambda checked: domain_is_valid(checked, idn)).map(cls)
 
     @classmethod
     def hydrate(cls, raw: str, idn: IdnEncoder) -> Email:

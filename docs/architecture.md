@@ -41,7 +41,7 @@ src/
       contracts/                 # veröffentlichtes Vokabular für andere Contexts — nur Primitive
       specs/<use_case>/          # Tests ausschließlich über die Test-API des Use Case
     shared_kernel/               # Result[T,E], Timestamp, TimeProvider, EventPublisher/-Registry,
-                                 # CodedError, NotEmptyString, IUserOwned, Rule-Pattern,
+                                 # CodedError, not_blank (text_rules), IUserOwned, Rule-Pattern,
                                  # pipeline.py (Handler/Behavior/build_pipeline)
                                  # — hängt an nichts außer der stdlib
       behaviors/                 # je ein konkretes Querschnitts-Behavior der Pipeline

@@ -23,6 +23,7 @@ from src.contexts.identity.application.register_user.adapters import IdnEncoderA
 from src.contexts.identity.application.register_user.fakes import (
     DeterministicPasswordHasher,
     InMemoryEventLog,
+    InMemorySessionTokens,
     InMemoryUserStore,
     PassthroughIdnLabels,
     RecordedEvent,
@@ -48,6 +49,7 @@ class RegisterUserTestApi:
         self._hasher = DeterministicPasswordHasher()
         self._labels = PassthroughIdnLabels()
         self._events = InMemoryEventLog()
+        self._sessions = InMemorySessionTokens()
         self._clock = FakeTimeProvider(_DEFAULT_NOW)
 
     # --- Arrange ---
@@ -67,11 +69,21 @@ class RegisterUserTestApi:
     async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
         """Fuehre das echte Request-DTO durch die echte Pipeline."""
         pipeline = build_register_user_pipeline(
-            self._store, self._hasher, self._labels, self._events, self._clock
+            self._store, self._hasher, self._labels, self._events, self._sessions, self._clock
         )
         return await pipeline.run(request)
 
     # --- Assert ---
+
+    @property
+    def issued_refresh_tokens(self) -> Sequence[tuple[str, str]]:
+        """Welche Refresh-Token abgelegt wurden - je Eintrag `(user_id, token)`.
+
+        Der dritte beobachtbare Ausgang: ein herausgegebener Refresh-Token, den
+        niemand abgelegt hat, waere eine Zusage, die der naechste Aufruf nicht
+        einloesen kann.
+        """
+        return tuple(self._sessions.issued)
 
     @property
     def published_events(self) -> Sequence[RecordedEvent]:

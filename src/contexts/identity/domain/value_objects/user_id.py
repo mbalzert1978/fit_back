@@ -6,8 +6,24 @@ from uuid import UUID, uuid7
 
 from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
 from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel.validation import ParseRule
 
 __all__ = ["UserId"]
+
+
+def is_well_formed_uuid(candidate: str) -> Result[UUID, UserIdError]:
+    """Der Rohwert ist eine wohlgeformte UUID - und kommt als solche zurueck.
+
+    Das `try` ist keine Ausnahme von "nur an der IO-Naht fangen": `ValueError`
+    ist hier der Rueckgabekanal von `UUID`, und er endet an dieser Zeile.
+    """
+    try:
+        return Ok(UUID(candidate))
+    except ValueError:
+        return Err(UserIdMalformed(candidate))
+
+
+_RULE: ParseRule[str, UUID, UserIdError] = is_well_formed_uuid
 
 
 @final
@@ -29,10 +45,7 @@ class UserId:
     @classmethod
     def parse(cls, raw: str) -> Result[UserId, UserIdError]:
         """Lies eine Identitaet aus einem moeglicherweise ungueltigen Rohwert."""
-        try:
-            return Ok(cls(UUID(raw)))
-        except ValueError:
-            return Err(UserIdMalformed(raw))
+        return _RULE(raw).map(cls)
 
     @classmethod
     def hydrate(cls, raw: str) -> UserId:

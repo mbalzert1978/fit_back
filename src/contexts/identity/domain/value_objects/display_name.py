@@ -1,4 +1,4 @@
-"""Value Object DisplayName - der Anzeigename des Users, 1-60 Zeichen."""
+"""Value Object DisplayName - der Anzeigename des Users, 2-60 Zeichen."""
 
 from dataclasses import dataclass
 from typing import final
@@ -7,65 +7,63 @@ from src.contexts.identity.domain.display_name_errors import (
     DisplayNameError,
     DisplayNameIsEmpty,
     DisplayNameTooLong,
+    DisplayNameTooShort,
 )
-from src.contexts.shared_kernel import Err, NotEmptyString, Ok, Result
+from src.contexts.shared_kernel import Err, Ok, Result, not_blank_as
+from src.contexts.shared_kernel.validation import ResultRule, chain
 
-__all__ = ["MAXIMUM_LENGTH", "DisplayName"]
+__all__ = ["MAXIMUM_LENGTH", "MINIMUM_LENGTH", "DisplayName"]
+
+MINIMUM_LENGTH = 2
+"""Zwei Zeichen, nicht eines.
+
+Der Vertrag des Frontends schickt `"a"` und erwartet dafuer einen Eintrag unter
+`errors.displayName`
+(`docs/decisions/2026-08-21-2200-vertrag-zieht-anzeigename-und-zeitzone-nach.md`).
+Wo Vertrag und Invariante kollidieren, gewinnt der Vertrag - `BACKEND.md`
+Abschnitt 1 ist entsprechend nachgezogen.
+"""
 
 MAXIMUM_LENGTH = 60
-"""BACKEND.md Abschnitt 1: 1-60 Zeichen. Die untere Grenze traegt `NotEmptyString`."""
+"""BACKEND.md Abschnitt 1: 2-60 Zeichen."""
 
 
-def fits_maximum_length(name: NotEmptyString) -> Result[NotEmptyString, DisplayNameError]:
-    """Fail-fast-Regel: der Anzeigename ist nicht laenger als erlaubt.
+is_not_blank: ResultRule[str, DisplayNameError] = not_blank_as(DisplayNameIsEmpty)
+"""Der Anzeigename besteht nicht nur aus Leerraum - und kommt getrimmt zurueck."""
 
-    Nimmt bereits einen `NotEmptyString` entgegen und nicht einen rohen `str` -
-    "getrimmt und nicht leer" ist an dieser Stelle schon durch den Typ zugesagt
-    und wird deshalb nicht ein zweites Mal geprueft.
-    """
-    if len(name.value) > MAXIMUM_LENGTH:
-        return Err(DisplayNameTooLong(len(name.value), MAXIMUM_LENGTH))
-    return Ok(name)
+
+def is_long_enough(candidate: str) -> Result[str, DisplayNameError]:
+    """Fail-fast-Regel zur Mindestlaenge - laeuft nach `is_not_blank`."""
+    if len(candidate) < MINIMUM_LENGTH:
+        return Err(DisplayNameTooShort(len(candidate), MINIMUM_LENGTH))
+    return Ok(candidate)
+
+
+def fits_maximum_length(candidate: str) -> Result[str, DisplayNameError]:
+    """Fail-fast-Regel zur Hoechstlaenge."""
+    if len(candidate) > MAXIMUM_LENGTH:
+        return Err(DisplayNameTooLong(len(candidate), MAXIMUM_LENGTH))
+    return Ok(candidate)
+
+
+_RULES: ResultRule[str, DisplayNameError] = chain(
+    is_not_blank,
+    is_long_enough,
+    fits_maximum_length,
+)
 
 
 @final
 @dataclass(frozen=True, slots=True)
 class DisplayName:
-    """Anzeigename des Users.
+    """Anzeigename des Users - getrimmt und laengengeprueft."""
 
-    Haelt einen `NotEmptyString` statt eines rohen `str`: die Invariante "nicht
-    leer" steht damit genau einmal im Shared Kernel, und jeder Leser sieht dem
-    Typ an, dass hier nichts Leeres liegen kann. `DisplayName` fuegt nur seine
-    eigene, fachliche Regel hinzu - die Obergrenze.
-    """
-
-    value: NotEmptyString
-
-    @property
-    def text(self) -> str:
-        """Der rohe Text - nur an Aussengrenzen (Naht, Response-DTO)."""
-        return self.value.value
+    value: str
 
     @classmethod
     def parse(cls, raw: str) -> Result[DisplayName, DisplayNameError]:
-        """Pruefe eine moeglicherweise ungueltige Eingabe.
-
-        Ein Fluss statt einer Kette: `NotEmptyString.parse` trimmt und sichert
-        die untere Grenze, `fits_maximum_length` prueft die obere, `map` wickelt
-        das Ergebnis ein. Jede Frage wird genau einmal gestellt.
-
-        Das `map_err` ist die Uebersetzung an der Grenze: `NotEmptyString` meldet
-        den technischen Fall `TextIsEmpty` ohne Feldbezug, nach aussen gehoert der
-        fachliche `DisplayNameIsEmpty` mit eigenem Code. Verkettet statt gematcht,
-        weil das Ergebnis ein `Result` bleibt und sich nur sein Fehlertyp aendert
-        (.rules/python/python-error-handling.md, "Verketten oder matchen").
-        """
-        return (
-            NotEmptyString.parse(raw)
-            .map_err(lambda _: DisplayNameIsEmpty())
-            .bind(fits_maximum_length)
-            .map(cls)
-        )
+        """Pruefe eine moeglicherweise ungueltige Eingabe."""
+        return _RULES(raw).map(cls)
 
     @classmethod
     def hydrate(cls, raw: str) -> DisplayName:

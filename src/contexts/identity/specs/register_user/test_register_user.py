@@ -116,6 +116,32 @@ async def test_lehnt_ein_passwort_unter_zehn_zeichen_ab() -> None:
 
 
 @pytest.mark.asyncio
+async def test_lehnt_ein_passwort_ueber_128_zeichen_ab() -> None:
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(password="x" * 129))
+
+    assert isinstance(result, RegistrationInvalid)
+    assert "password" in result.errors
+    password_errors = result.errors["password"]
+    assert len(password_errors) == 1
+    code, params = password_errors[0]
+    assert code == "password-too-long"
+    assert params["maximum"] == 128
+    assert params["actual_length"] == 129
+
+
+@pytest.mark.asyncio
+async def test_nimmt_ein_passwort_mit_genau_128_zeichen_an() -> None:
+    """Die Grenze selbst liegt noch innerhalb - sonst waere 128 die Hoechstlaenge nicht."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(password="x" * 128))
+
+    assert isinstance(result, RegistrationAccepted)
+
+
+@pytest.mark.asyncio
 async def test_meldet_alle_ungueltigen_felder_auf_einmal() -> None:
     api = RegisterUserTestApi()
 
@@ -206,6 +232,19 @@ async def test_email_error_codes_und_parameter_sind_in_der_response() -> None:
 
 
 @pytest.mark.asyncio
+async def test_blank_email_is_its_own_code_not_a_missing_at_sign() -> None:
+    """Beleg: gar keine Adresse angegeben ist ein eigener Fall."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(email="   "))
+
+    assert isinstance(result, RegistrationInvalid)
+    code, params = result.errors["email"][0]
+    assert code == "email-is-empty"
+    assert params == {}
+
+
+@pytest.mark.asyncio
 async def test_display_name_error_code_in_response() -> None:
     """Beleg: DisplayNameError-Codes sind typisiert in der Response."""
     api = RegisterUserTestApi()
@@ -235,6 +274,32 @@ async def test_locale_error_code_in_response() -> None:
 
 
 @pytest.mark.asyncio
+async def test_blank_locale_is_its_own_code_not_an_unsupported_language() -> None:
+    """Beleg: gar keine Sprache angegeben ist ein eigener Fall."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(locale="   "))
+
+    assert isinstance(result, RegistrationInvalid)
+    code, params = result.errors["locale"][0]
+    assert code == "locale-is-empty"
+    assert params == {}
+
+
+@pytest.mark.asyncio
+async def test_blank_time_zone_is_its_own_code_not_an_unknown_zone() -> None:
+    """Beleg: gar keine Zeitzone angegeben ist ein eigener Fall."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(time_zone_id="   "))
+
+    assert isinstance(result, RegistrationInvalid)
+    code, params = result.errors["timeZoneId"][0]
+    assert code == "user-time-zone-is-empty"
+    assert params == {}
+
+
+@pytest.mark.asyncio
 async def test_email_already_taken_code_in_response() -> None:
     """Beleg: EmailAlreadyTaken traegt seinen Code (nicht nur die Email)."""
     api = RegisterUserTestApi().with_registered_user("markus@example.de")
@@ -244,3 +309,61 @@ async def test_email_already_taken_code_in_response() -> None:
     assert isinstance(result, EmailAlreadyTaken)
     assert result.code == "email-already-registered"
     assert result.email == "markus@example.de"
+
+
+@pytest.mark.asyncio
+async def test_wer_sich_registriert_bekommt_eine_sitzung() -> None:
+    """Die Registrierung meldet gleich an - beide Token kommen mit der Antwort."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request())
+
+    assert isinstance(result, RegistrationAccepted)
+    assert result.access_token
+    assert result.refresh_token
+    assert result.expires_in > 0
+    assert result.refresh_expires_in > result.expires_in
+
+
+@pytest.mark.asyncio
+async def test_der_ausgegebene_refresh_token_ist_abgelegt() -> None:
+    """Ein Refresh-Token, den niemand einloesen kann, waere eine Luege."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request())
+
+    assert isinstance(result, RegistrationAccepted)
+    assert api.issued_refresh_tokens == ((result.user_id, result.refresh_token),)
+
+
+@pytest.mark.asyncio
+async def test_eine_abgelehnte_registrierung_stellt_keine_sitzung_aus() -> None:
+    """Kein Token fuer ein Konto, das nicht entstanden ist."""
+    api = RegisterUserTestApi().with_registered_user("markus@example.de")
+
+    result = await api.run(_request())
+
+    assert isinstance(result, EmailAlreadyTaken)
+    assert api.issued_refresh_tokens == ()
+
+
+@pytest.mark.asyncio
+async def test_ein_einzelnes_zeichen_ist_kein_anzeigename() -> None:
+    """Zwei Zeichen mindestens - der Vertrag schickt `"a"` und erwartet einen Feldfehler."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(display_name="a"))
+
+    assert isinstance(result, RegistrationInvalid)
+    assert "displayName" in result.errors
+
+
+@pytest.mark.asyncio
+async def test_nimmt_einen_festen_utc_versatz_als_zeitzone_an() -> None:
+    """`GMT+01:00` ist keine IANA-Zone, steht aber im Vertrag - und wird normalisiert."""
+    api = RegisterUserTestApi()
+
+    result = await api.run(_request(time_zone_id="GMT+01:00"))
+
+    assert isinstance(result, RegistrationAccepted)
+    assert result.time_zone_id == "+01:00"

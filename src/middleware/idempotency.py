@@ -1,9 +1,31 @@
 """Idempotency-Key-Middleware fuer POST/PUT (Ticket 0006, BACKEND.md Abschnitt 0.3).
 
-Ein bereits verarbeiteter Schluessel liefert die urspruengliche Antwort mit 200
-statt eines zweiten Datensatzes. Abgelegt wird
-`(key, user_id, request_hash, response_body, created_utc)` in
-`shared_kernel.idempotency_keys`.
+Ein bereits verarbeiteter Schluessel liefert die urspruengliche Antwort statt
+eines zweiten Datensatzes. Abgelegt wird
+`(key, user_id, request_hash, response_body, response_status, response_headers,
+created_utc)` in `shared_kernel.idempotency_keys`.
+
+## Der Replay wiederholt den Erstaufruf, nicht nur seinen Rumpf
+
+Gespeichert wird nicht bloss der Koerper, sondern auch der Statuscode und die
+Kopfzeilen aus `REPLAYED_HEADERS`. Ein Replay, der den Rumpf des Erstaufrufs
+unter einem anderen Statuscode und ohne dessen `Location` ausliefert, ist keine
+Wiederholung - der Aufrufer, der die Antwort verloren hat, bekaeme etwas
+anderes als der, dessen erste Anfrage ankam. Genau diese Gleichheit ist der
+Sinn eines Idempotency-Keys.
+
+Damit weicht die Middleware von `docs/Draft/BACKEND.md` Abschnitt 0.3 ab, der
+woertlich `200` statt `201` fuer den Treffer vorschreibt; siehe
+`docs/decisions/2026-08-24-1800-idempotenz-replay-wiederholt-den-erstaufruf.md`.
+Der Pact prueft den Doppelaufruf nicht - es ist also kein Vertragsbruch.
+
+Die Kopfzeilen wandern **selektiv** mit, ueber eine benannte Erlaubnisliste.
+Blind alles zu speichern hiesse, `Content-Length` und `Date` des Erstaufrufs
+Tage spaeter erneut auszuliefern - beschreibende Kopfzeilen, die nur fuer die
+Antwort von damals galten. Der Umschlag (`ResponseEnvelopeMiddleware`) liegt
+**ausserhalb** dieser Middleware: gespeichert wird der nackte Koerper, und der
+Replay wird auf dem Rueckweg mit seiner *eigenen* `X-Request-Id` neu
+eingepackt.
 
 ## Reservieren, dann arbeiten
 
@@ -22,13 +44,24 @@ Schluessel ist also schon vergeben:
 
 | Zustand der bestehenden Zeile | Antwort |
 |---|---|
-| gleicher Nutzer, gleicher Body, Antwort liegt vor | die gespeicherte Antwort, mit 200 |
+| gleicher Nutzer, gleicher Body, Antwort liegt vor | die gespeicherte Antwort, wie sie war |
 | gleicher Nutzer, gleicher Body, Antwort steht aus | 409 - die erste Anfrage laeuft noch |
-| gleicher Nutzer, **anderer** Body | 422 - derselbe Schluessel fuer etwas anderes |
-| **anderer** Nutzer | 422 - der Schluessel ist belegt, mehr erfaehrt er nicht |
+| gleicher Nutzer, **anderer** Body | 409 - derselbe Schluessel fuer etwas anderes |
+| **anderer** Nutzer | 409 - der Schluessel ist belegt, mehr erfaehrt er nicht |
 
-Die Statuscodes folgen dem IETF-Entwurf zum `Idempotency-Key`-Header; BACKEND.md
-schreibt nur den Treffer-Fall (200) vor und sagt zu den uebrigen nichts.
+Die beiden Wiederverwendungs-Faelle standen bis #95 auf 422, dem IETF-Entwurf
+zum `Idempotency-Key`-Header folgend. Der Vertrag des Frontends
+(`contracts/pacts/identity/`) verlangt dort ohne Matcher **409**, und wo Vertrag
+und Invariante kollidieren, gewinnt der Vertrag - der Entwurf ist ein Entwurf,
+der Pact ist die Vorgabe der HTTP-Grenze
+(`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`).
+Fachlich passt 409 ohnehin besser: der Schluessel steht im Konflikt mit einem
+bestehenden Zustand, der Rumpf selbst ist verarbeitbar. BACKEND.md schreibt nur
+den Treffer-Fall (200) vor und sagt zu den uebrigen nichts.
+
+Die drei 409-Faelle sind nicht dasselbe und tragen deshalb unterschiedliche
+`type`-Bezeichner: `request-in-progress` fuer den laufenden Erstversuch,
+`idempotency-key-reused` fuer den belegten Schluessel.
 
 ## Was der `request_hash` soll
 
@@ -37,13 +70,19 @@ diesen Vergleich waere die Spalte Zierde - und ein Client, der einen Schluessel
 versehentlich fuer eine **andere** Anfrage wiederverwendet, bekaeme stillschweigend
 die Antwort der ersten und hielte seinen zweiten Vorgang fuer erledigt.
 
-## Solange es keine Anmeldung gibt, tut diese Middleware nichts
+## Ein Aufruf ohne Anmeldung belegt seinen Schluessel trotzdem
 
-Die Idempotenz haengt an `request.state.user_id`. Gesetzt wird das von der
-JWT-Pipeline aus **Ticket 0012**, die es noch nicht gibt; bis dahin laesst diese
-Middleware jede Anfrage unveraendert durch. Das ist kein Versehen, aber es heisst
-auch: der Weg hier drunter ist bis 0012 ausschliesslich durch Tests belegt, nicht
-durch Betrieb.
+`request.state.user_id` setzt die JWT-Pipeline aus **Ticket 0012**, die es noch
+nicht gibt. Fehlt der Wert, tritt `ANONYMOUS_USER_ID` an seine Stelle, statt die
+Anfrage ungeprueft durchzulassen: die Registrierung hat keinen angemeldeten
+Nutzer und braucht die Idempotenz gerade dort am dringendsten - ein zweites Mal
+abgeschickt entstuende sonst ein zweites Konto. Der Vertrag des Frontends
+verlangt fuer den wiederverwendeten Schluessel eine Antwort; ohne diesen Ersatz
+kaeme die Anfrage hier nie an (#95).
+
+Fuer den Vergleich heisst das: unter dem Ersatz-Nutzer entscheidet allein der
+`request_hash`, ob hinter dem Schluessel dieselbe Anfrage steckt. Genau so ist es
+vor der Anmeldung gemeint - wer der Aufrufer ist, weiss vor ihr niemand.
 
 Der Datenbankzugriff laeuft ueber **dieselbe** `AsyncEngine` wie die Slices. Sie
 wird nicht in den Konstruktor gereicht, sondern bei jeder Anfrage aus `app.state`
@@ -57,7 +96,7 @@ import json
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime
-from typing import Any, final
+from typing import Any, Final, final
 from uuid import UUID
 
 from sqlalchemy import TextClause, text
@@ -66,22 +105,55 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.status import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_CONTENT
+from starlette.status import HTTP_200_OK, HTTP_409_CONFLICT
 from starlette.types import ASGIApp
 
-from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import ProblemDetails
+from src.api.i18n import ResourcesCache, get_language_from_header
+from src.api.problem_details import translated_problem
 from src.contexts.shared_kernel.time_provider import TimeProvider
 
 logger = logging.getLogger(__name__)
+
+ANONYMOUS_USER_ID = UUID(int=0)
+"""Der Nutzer eines Aufrufs, der noch keinen hat.
+
+Die Nil-UUID und kein `NULL` in der Spalte: `user_id` ist `NOT NULL`, und ein
+`NULL` verglichen sich nach SQL-Regeln mit nichts - auch nicht mit sich selbst.
+Ein fester Wert haelt den Vergleich in `_answer_from_existing` genau so, wie er
+fuer angemeldete Nutzer schon funktioniert.
+"""
 
 IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
 IDEMPOTENCY_KEYS_TABLE = "shared_kernel.idempotency_keys"
 IDEMPOTENT_METHODS = frozenset({"POST", "PUT"})
 CACHEABLE_STATUS_CODES = frozenset({200, 201})
 
-KEY_REUSED_TYPE = "https://api.example/errors/idempotency-key-reused"
-REQUEST_IN_PROGRESS_TYPE = "https://api.example/errors/request-in-progress"
+REPLAYED_HEADERS: Final = frozenset({"location", "content-language"})
+"""Die Kopfzeilen, die zur Antwort gehoeren und deshalb mit ihr aufgezeichnet werden.
+
+Kleingeschrieben, weil HTTP-Feldnamen ohne Ruecksicht auf Gross-/Kleinschreibung
+verglichen werden.
+
+Eine Erlaubnisliste und keine Sperrliste: was hier nicht steht, wird nicht
+gespeichert. `Content-Length` und `Content-Type` beschreiben den Koerper von
+damals, `Date` den Zeitpunkt von damals - Tage spaeter wiederholt waeren sie
+falsch. `X-Request-Id` und `Cache-Control` setzt der Umschlag ohnehin neu, und
+zwar fuer *diese* Anfrage.
+
+`Location` und `Content-Language` sind dagegen Aussagen ueber das Ergebnis: wo
+die angelegte Ressource liegt, und in welcher Sprache der Rumpf verfasst ist.
+Beide gehen dem Aufrufer verloren, wenn der Replay sie weglaesst.
+"""
+
+KEY_REUSED_SLUG = "idempotency-key-reused"
+REQUEST_IN_PROGRESS_SLUG = "request-in-progress"
+"""Die Fehlercodes der beiden Idempotenz-Ausgaenge, als nackter Slug.
+
+Kein fertiger URI: das `tag:`-Praefix setzt `problem()` an, an einer Stelle
+fuer die ganze API. Die Zeichenketten stehen ausserdem in
+`PRESENTATION_CODES` (`src/main.py`) und in den i18n-Ressourcen - dort ist
+ebenfalls der Slug gemeint und nicht der URI.
+"""
 
 # So viele Zeichen eines abgelehnten Header-Werts kommen ins Log. Eine UUID hat
 # 36 Zeichen; wer sich in einer vertippt hat, sieht seinen Wert damit noch ganz.
@@ -106,7 +178,7 @@ _CLAIM_KEY: TextClause = text(
 # in einen Zustand, den es laut Reservierung gerade nicht geben kann.
 _FIND_KEY: TextClause = text(
     f"""
-        SELECT user_id, request_hash, response_body
+        SELECT user_id, request_hash, response_body, response_status, response_headers
         FROM {IDEMPOTENCY_KEYS_TABLE}
         WHERE key = :key
     """  # noqa: S608 -- Parameterized via named bindings
@@ -115,7 +187,9 @@ _FIND_KEY: TextClause = text(
 _STORE_RESPONSE: TextClause = text(
     f"""
         UPDATE {IDEMPOTENCY_KEYS_TABLE}
-        SET response_body = :response_body
+        SET response_body = :response_body,
+            response_status = :response_status,
+            response_headers = :response_headers
         WHERE key = :key
     """  # noqa: S608 -- Parameterized via named bindings
 )
@@ -222,50 +296,53 @@ async def find_key(engine: AsyncEngine, key: UUID) -> Mapping[str, Any] | None:
         return found.mappings().first()
 
 
-async def store_response(engine: AsyncEngine, key: UUID, response_body: dict[str, Any]) -> None:
-    """Halte die Antwort an der Reservierung fest."""
+async def store_response(
+    engine: AsyncEngine,
+    key: UUID,
+    response_body: dict[str, Any],
+    response_status: int,
+    response_headers: Mapping[str, str],
+) -> None:
+    """Halte die Antwort an der Reservierung fest - Rumpf, Statuscode und Kopfzeilen."""
     async with engine.begin() as connection:
         await connection.execute(
-            _STORE_RESPONSE, {"key": key, "response_body": json.dumps(response_body)}
+            _STORE_RESPONSE,
+            {
+                "key": key,
+                "response_body": json.dumps(response_body),
+                "response_status": response_status,
+                "response_headers": json.dumps(dict(response_headers)),
+            },
         )
+
+
+def replayable_headers(headers: Mapping[str, str]) -> dict[str, str]:
+    """Waehle aus einer Antwort die Kopfzeilen, die ihre Wiederholung tragen soll."""
+    return {name: value for name, value in headers.items() if name.lower() in REPLAYED_HEADERS}
+
+
+def stored_headers(raw: str | None) -> dict[str, str]:
+    """Lies die aufgezeichneten Kopfzeilen zurueck.
+
+    `None` steht fuer eine Zeile aus der Zeit vor `shared_005`; die kennt keine
+    Kopfzeilen, und der Replay kommt wie frueher ohne sie aus. Ein unlesbarer
+    Wert wird genauso behandelt: eine wiederholte Antwort ohne `Location` ist
+    unvollstaendig, eine verweigerte Antwort waere schlimmer.
+    """
+    if raw is None:
+        return {}
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError as e:
+        logger.warning(f"Gespeicherte Kopfzeilen sind unlesbar: {e}")  # noqa: G004 -- Parse error for debugging
+        return {}
+    return replayable_headers(decoded) if isinstance(decoded, dict) else {}
 
 
 async def release_claim(engine: AsyncEngine, key: UUID) -> None:
     """Gib eine Reservierung frei, zu der es keine wiederholbare Antwort gibt."""
     async with engine.begin() as connection:
         await connection.execute(_RELEASE_CLAIM, {"key": key})
-
-
-def _problem(  # noqa: PLR0913, PLR0917 -- Response builder needs context, status, type, and translated text
-    request: Request,
-    http_status: int,
-    error_type: str,
-    title: str,
-    detail: str,
-    language_tag: str,
-) -> Response:
-    """Baue eine RFC-7807-Antwort - dasselbe Format wie ueberall sonst.
-
-    `language_tag` hat bewusst **keinen** Vorgabewert: `title` und `detail` sind
-    hier bereits uebersetzt, und ein Vorgabewert liesse sich vergessen, ohne dass
-    etwas auffaellt - der Aufrufer bekaeme dann einen englischen Text mit
-    `Content-Language: de-DE`. Wer die Antwort baut, hat die ausgehandelte
-    Sprache ohnehin in der Hand.
-    """
-    problem = ProblemDetails(
-        type=error_type,
-        title=title,
-        status=http_status,
-        detail=detail,
-        instance=request.url.path,
-    )
-    response = JSONResponse(
-        status_code=http_status,
-        content=problem.model_dump(exclude_none=True),
-        media_type="application/problem+json",
-    )
-    response.headers["Content-Language"] = language_tag
-    return response
 
 
 @final
@@ -314,11 +391,9 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             )
             return await call_next(request)
 
-        # Die Idempotenz haengt an der Nutzeridentitaet - die setzt die
-        # JWT-Pipeline aus Ticket 0012, die es noch nicht gibt.
-        if not (user_id := getattr(request.state, "user_id", None)):
-            logger.warning("No user_id in request state, skipping idempotency check")
-            return await call_next(request)
+        # Die Nutzeridentitaet setzt die JWT-Pipeline aus Ticket 0012, die es
+        # noch nicht gibt - und bei der Registrierung gibt es sie nie.
+        user_id: UUID = getattr(request.state, "user_id", None) or ANONYMOUS_USER_ID
 
         engine: AsyncEngine | None = getattr(request.app.state, "engine", None)
         if engine is None:
@@ -376,34 +451,37 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             # beiden bewusst nicht - sonst verriete sie, dass der Schluessel
             # jemand anderem gehoert.
             logger.warning("Idempotency key %s fuer eine abweichende Anfrage verwendet", key)
-            title = translate(resources, "idempotency-key-reused", language=language)
-            detail = translate(resources, "idempotency-key-reused-detail", language=language)
-            return _problem(
+            return translated_problem(
                 request,
-                HTTP_422_UNPROCESSABLE_CONTENT,
-                KEY_REUSED_TYPE,
-                title,
-                detail,
-                language,
+                HTTP_409_CONFLICT,
+                KEY_REUSED_SLUG,
+                resources,
+                language=language,
             )
 
         if existing["response_body"] is None:
             logger.info("Idempotency key %s: die erste Anfrage laeuft noch", key)
-            title = translate(resources, "idempotency-request-in-progress", language=language)
-            detail = translate(
-                resources, "idempotency-request-in-progress-detail", language=language
-            )
-            return _problem(
+            return translated_problem(
                 request,
                 HTTP_409_CONFLICT,
-                REQUEST_IN_PROGRESS_TYPE,
-                title,
-                detail,
-                language,
+                REQUEST_IN_PROGRESS_SLUG,
+                resources,
+                language=language,
+                # Der Slug heisst `request-in-progress`, die Ressourcen fuehren
+                # den Text unter `idempotency-request-in-progress`. Der Slug
+                # steht im Vertrag des Frontends, der Schluessel wird deshalb
+                # genannt statt angeglichen.
+                resource_key="idempotency-request-in-progress",
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)
-        return JSONResponse(content=json.loads(existing["response_body"]), status_code=200)
+        # `or HTTP_200_OK`: eine Zeile aus der Zeit vor `shared_005` hat keinen
+        # aufgezeichneten Status - fuer sie bleibt es beim alten Verhalten.
+        return JSONResponse(
+            content=json.loads(existing["response_body"]),
+            status_code=existing["response_status"] or HTTP_200_OK,
+            headers=stored_headers(existing["response_headers"]),
+        )
 
     async def _process_and_store(
         self,
@@ -438,7 +516,13 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             response_body = None
 
         if response_body is not None:
-            await store_response(engine, key, response_body)
+            await store_response(
+                engine,
+                key,
+                response_body,
+                response.status_code,
+                replayable_headers(response.headers),
+            )
 
         return Response(
             content=raw_body,

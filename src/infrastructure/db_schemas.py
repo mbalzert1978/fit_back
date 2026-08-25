@@ -8,7 +8,7 @@ instead of nested underneath it.
 
 from typing import ClassVar, final
 
-from sqlalchemy import BigInteger, Column, DateTime, String, Text, Uuid
+from sqlalchemy import BigInteger, Column, DateTime, SmallInteger, String, Text, Uuid
 from sqlalchemy.orm import declarative_base
 
 # Base for all ORM models
@@ -38,8 +38,14 @@ class IdempotencyKey(Base):
     request_hash: Column[String] = Column(String(64), nullable=False)
     """SHA-256 hash of (method + path + body) as hex string."""
 
-    response_body: Column[Text] = Column(Text, nullable=False)
-    """Cached response body (JSON string)."""
+    response_body: Column[Text] = Column(Text, nullable=True)
+    """Cached response body (JSON string). NULL = reserved, response still pending."""
+
+    response_status: Column[SmallInteger] = Column(SmallInteger, nullable=True)
+    """HTTP status code of the cached response. NULL = recorded before `shared_005`."""
+
+    response_headers: Column[Text] = Column(Text, nullable=True)
+    """Replayable response headers as a JSON object. NULL = recorded before `shared_005`."""
 
     created_utc: Column[DateTime] = Column(
         DateTime(timezone=True),

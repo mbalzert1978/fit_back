@@ -41,7 +41,7 @@ Zielsystem: **ASP.NET Core 8 Web API, C#, DDD-Schnitt nach Bounded Contexts.**
 
 1. **Nährwerte werden IMMER pro 100 g gespeichert**, als `decimal(8,2)`. Portionen und Mengen werden ausschließlich im Client oder in der Read-Projektion daraus gerechnet. Es wird nie ein bereits skalierter Wert persistiert.
 2. **Rundung ist Präsentationslogik, nicht Domänenlogik.** Das Backend liefert ungerundete Dezimalwerte. Nur die Read-Endpunkte, die aggregierte Tageswerte liefern, runden nach der Nutzereinstellung (siehe Context *Goals*).
-3. **Idempotenz.** Alle `POST`/`PUT`, die Objekte anlegen, akzeptieren den Header `Idempotency-Key` (Guid). Ein bereits verarbeiteter Key liefert die ursprüngliche Antwort mit `200` statt `201`. Speicherung in Tabelle `shared.idempotency_keys` (Key, UserId, RequestHash, ResponseBody, CreatedUtc), TTL 7 Tage.
+3. **Idempotenz.** Alle `POST`/`PUT`, die Objekte anlegen, akzeptieren den Header `Idempotency-Key` (Guid). Ein bereits verarbeiteter Key liefert die ursprüngliche Antwort — mit **ihrem** Statuscode, also `201` für ein Anlegen; die Wiederholung ist vom Erstaufruf nicht zu unterscheiden (`docs/decisions/2026-08-24-1800-idempotenz-replay-wiederholt-den-erstaufruf.md`). Speicherung in Tabelle `shared.idempotency_keys` (Key, UserId, RequestHash, ResponseBody, ResponseStatus, ResponseHeaders, CreatedUtc), TTL 7 Tage.
 4. **Zeit und Datum.** Ein Tagebuch-Tag ist ein `DateOnly` in der Zeitzone des Nutzers (`Identity.User.TimeZoneId`, IANA). Alle Zeitstempel im Transport sind UTC ISO-8601.
 5. **Mandantentrennung.** Jede Anfrage trägt eine Nutzeridentität; jede Repository-Abfrage filtert zwingend auf `UserId`. EF Core Global Query Filter auf `IUserOwned`.
 6. **Fehlerformat.** Immer RFC 7807 `application/problem+json`:
@@ -113,13 +113,13 @@ Zielsystem: **ASP.NET Core 8 Web API, C#, DDD-Schnitt nach Bounded Contexts.**
 | `Id` | `UserId` | |
 | `Email` | `EmailAddress` | eindeutig, case-insensitive normalisiert |
 | `PasswordHash` | `PasswordHash` | Argon2id, kapselt Algorithmus und Verifikation |
-| `DisplayName` | `DisplayName` | 1–60 Zeichen |
-| `TimeZone` | `UserTimeZone` | IANA-Id, gegen `TimeZoneInfo` geprüft, Default `Europe/Berlin` |
+| `DisplayName` | `DisplayName` | 2–60 Zeichen (nachgezogen: [2026-08-21-2200](../decisions/2026-08-21-2200-vertrag-zieht-anzeigename-und-zeitzone-nach.md)) |
+| `TimeZone` | `UserTimeZone` | IANA-Id **oder** fester UTC-Versatz (`+01:00`), Default `Europe/Berlin` (nachgezogen: [2026-08-21-2200](../decisions/2026-08-21-2200-vertrag-zieht-anzeigename-und-zeitzone-nach.md)) |
 | `Locale` | `Locale` (Union: `German`, `English`) | Default `German` |
 | `Status` | `AccountStatus` (Union: `Active`, `Suspended`, `PendingDeletion(DateTimeOffset EffectiveAt)`) | der Fall trägt sein Datum selbst |
 | `CreatedAt` | `DateTimeOffset` | |
 
-Invarianten: E-Mail eindeutig; ein `PendingDeletion`-Konto kann sich nicht mehr anmelden; `DisplayName` nicht leer.
+Invarianten: E-Mail eindeutig; ein `PendingDeletion`-Konto kann sich nicht mehr anmelden; `DisplayName` mindestens 2 Zeichen.
 
 **`RefreshToken` (eigenes Aggregate)** — `Id`, `UserId`, `TokenHash`, `ExpiresUtc`, `RevokedUtc?`, `ReplacedById?`. Rotation: Bei Verwendung wird der alte Token revoked und ein neuer ausgegeben. Wiederverwendung eines revoked Tokens ⇒ alle Tokens des Nutzers revoken (`401`).
 
@@ -584,5 +584,5 @@ Regeln: Operationen werden **in der gesendeten Reihenfolge** verarbeitet; eine f
 - **Rundung:** `Up`/`Down` × beide Faktorensätze über eine Tabelle bekannter Werte; Assertion, dass **nie** eine Nachkommastelle in einer berechneten Ausgabe erscheint.
 - **Zusammenfassen:** zweimal dasselbe Produkt in denselben Slot ⇒ ein Eintrag mit addierten Gramm.
 - **Kopiersemantik:** Produkt nach dem Eintrag ändern ⇒ alter Tagebucheintrag unverändert.
-- **Idempotenz:** derselbe `Idempotency-Key` zweimal ⇒ ein Datensatz, zweite Antwort `200`.
+- **Idempotenz:** derselbe `Idempotency-Key` zweimal ⇒ ein Datensatz, zweite Antwort wie die erste — gleicher Statuscode, gleicher Rumpf, gleiche ergebnistragende Kopfzeilen.
 - **Integrationstests** über `WebApplicationFactory` gegen PostgreSQL in Testcontainers für jeden Endpunkt inklusive der dokumentierten Fehlerfälle.

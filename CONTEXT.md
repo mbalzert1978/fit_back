@@ -67,6 +67,18 @@ _Avoid_: Contract, API-Contract, Schema
 → [Pacts sind die Vorgabe der HTTP-Grenze](docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md),
 [Die Mechanik der Provider-Verifikation](docs/decisions/2026-08-21-1420-mechanik-der-provider-verifikation.md)
 
+**Antwort-Umschlag**:
+Die Form `{data, meta}`, in der jede erfolgreiche Antwort des Hosts nach außen geht. Er entsteht in
+einer Middleware und gehört keinem Endpunkt; Fehlerkörper tragen ihn nicht.
+_Avoid_: Envelope, Wrapper, Response-Hülle
+→ [Der Antwort-Umschlag ist Middleware](docs/decisions/2026-08-21-2215-antwort-umschlag-als-middleware-und-tag-fehlertypen.md)
+
+**Sitzung**:
+Das Paar aus Access- und Refresh-Token samt ihren Lebensdauern, das ein Use Case ausstellt. Sie
+gehört keinem Aggregat: `User` weiß nichts von Tokens.
+_Avoid_: Session-DTO, Token-Paar, Credentials
+→ [`pyjwt` hinter der Naht](docs/decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md)
+
 **Ereignis**:
 Eine Tatsache, die ein Context veröffentlicht, nachdem sie eingetreten ist. Es existiert genau
 einmal, als Vertrag — nicht als Paar aus Domänen-Ereignis und Transport-DTO.

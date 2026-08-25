@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from testcontainers.community.postgres import PostgresContainer
 
 from tests.contracts.account import Account
+from tests.contracts.idempotency_key import IdempotencyKey
 from tests.contracts.provider_verification import Pact, Store
 
 _PACTS = Path(__file__).parents[2] / "contracts/pacts"
@@ -26,6 +27,13 @@ PASSWORD = "geheim123"
 
 They live here because two things need them: the `account` fixture below and
 the state names in the test module, which are composed from these.
+"""
+
+REUSED_KEY = "3f2a1b0c-4d5e-4f60-8a91-b2c3d4e5f607"
+"""The key the reuse interaction sends - fixed in the pact, not generated.
+
+A generated one couldn't be it: the value stands in the request the verifier
+replays, so the state has to seed exactly this one.
 """
 
 
@@ -75,19 +83,32 @@ async def account(postgres_engine: AsyncEngine) -> Account:
     return Account(postgres_engine, email=EMAIL, password=PASSWORD)
 
 
+@pytest_asyncio.fixture
+async def idempotency_key(postgres_engine: AsyncEngine) -> IdempotencyKey:
+    """The reserved key the register pact's reuse interaction runs into."""
+    return IdempotencyKey(postgres_engine, key=REUSED_KEY)
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def app_uses_test_database(
     postgres_service: PostgresContainer,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Set the environment `validate_settings()` reads from at startup.
+    """Set the environment `get_settings()` reads from at startup.
 
     Provider verification boots the real app, which builds its own engine from
     the environment. Without these values it aborts at startup - and a startup
     abort is a setup bug, not a contract violation.
     """
+    # TODO: können wir das nicht auch mittels dependency injection überschreiben,
+    # statt den env zu patchen? Heute nicht: was hier gesetzt wird, liest der
+    # Lifespan (`src/main.py:98`) per direktem `get_settings()`-Aufruf, und
+    # `app.dependency_overrides` greift nur in der Request-Auflösung. Gemessen -
+    # mit Override statt `setenv` bricht der Start ab ("Configuration validation
+    # failed"). Ticket #98 baut die Factory, die es moeglich macht.
     monkeypatch.setenv("DB_HOST", postgres_service.get_container_host_ip())
     monkeypatch.setenv("DB_PORT", str(postgres_service.get_exposed_port(5432)))
     monkeypatch.setenv("DB_NAME", "test")
     monkeypatch.setenv("DB_USER", "test")
     monkeypatch.setenv("DB_PASSWORD", "test")
+    monkeypatch.setenv("JWT_SECRET", "test-geheimnis-mit-mindestens-32-zeichen")

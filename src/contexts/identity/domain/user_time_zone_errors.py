@@ -12,8 +12,22 @@ from typing import ClassVar, final
 
 __all__ = [
     "UserTimeZoneError",
+    "UserTimeZoneIsEmpty",
     "UserTimeZoneUnknown",
 ]
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class UserTimeZoneIsEmpty:
+    """Es wurde gar keine Zeitzone angegeben - nur Leerraum.
+
+    Eigener Fall neben `UserTimeZoneUnknown`: "gar nichts angegeben" und "das
+    kenne ich nicht" sind zwei Auskuenfte, und nur die zweite kann einen Wert
+    nennen.
+    """
+
+    code: ClassVar[str] = "user-time-zone-is-empty"
 
 
 @final
@@ -26,5 +40,5 @@ class UserTimeZoneUnknown:
     candidate: str
 
 
-type UserTimeZoneError = UserTimeZoneUnknown
+type UserTimeZoneError = UserTimeZoneIsEmpty | UserTimeZoneUnknown
 """Teil-Union - zusammengefuehrt zum einen `DomainError` in `errors.py`."""

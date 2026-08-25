@@ -27,6 +27,10 @@ from src.contexts.identity.application.register_user.abstractions.idn_labels imp
 from src.contexts.identity.application.register_user.abstractions.password_hasher import (
     RegisterUserPasswordHasher,
 )
+from src.contexts.identity.application.register_user.abstractions.session_tokens import (
+    IssuedSession,
+    RegisterUserSessionTokens,
+)
 from src.contexts.identity.application.register_user.abstractions.user_store import (
     EmailTaken,
     NewUserRecord,
@@ -39,11 +43,13 @@ __all__ = [
     "AsciiLabel",
     "EmailTaken",
     "IdnLabels",
+    "IssuedSession",
     "LabelEncoding",
     "LabelRejected",
     "NewUserRecord",
     "RegisterUserEventLog",
     "RegisterUserPasswordHasher",
+    "RegisterUserSessionTokens",
     "RegisterUserUserStore",
     "UserInsertion",
     "UserStored",

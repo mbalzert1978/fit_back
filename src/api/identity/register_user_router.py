@@ -8,30 +8,43 @@
 Es fällt hier **keine** Fachentscheidung mehr: welcher Ausgang eintritt, steht
 schon fest, wenn die Pipeline zurückkommt. Die Sprachauswahl ist rein
 präsentativ und beeinflußt das fachliche Ergebnis nicht.
+
+Die Antwortform des Vertrags steht nebenan in
+`src/api/identity/register_user_response.py`; hier bleiben Routing und
+Verdrahtung.
 """
 
 from typing import assert_never, final
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.api.i18n import ResourcesCache, get_language_from_header, translate
 from src.api.identity.dependencies import RegisterUser
-from src.api.problem_details import ProblemDetails
+from src.api.identity.register_user_response import (
+    GrantedSession,
+    RegisteredUser,
+    RegisterUserResponse,
+)
+from src.api.problem_details import ProblemDetails, translated_problem
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
     RegisterUserRequest,
     RegistrationAccepted,
     RegistrationInvalid,
 )
-from src.contexts.shared_kernel.timestamp import Timestamp
 
 __all__ = ["router"]
 
 router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
 
-_PROBLEM_JSON = "application/problem+json"
+_SELF_URL = "/api/v1/identity/me"
+"""Wohin die 201 zeigt: auf das angelegte Konto.
+
+Der Endpunkt selbst entsteht mit #55; der Header zeigt schon dorthin, weil er
+Teil des Vertrags dieser Antwort ist und nicht Teil jenes Endpunkts.
+"""
 
 
 @final
@@ -67,16 +80,18 @@ class RegisterUserBody(BaseModel):
     "/register",
     status_code=status.HTTP_201_CREATED,
     summary="Registriert ein neues Konto",
+    response_model=RegisterUserResponse,
     responses={
-        status.HTTP_400_BAD_REQUEST: {"model": ProblemDetails},
         status.HTTP_409_CONFLICT: {"model": ProblemDetails},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ProblemDetails},
     },
 )
 async def register_user(
     body: RegisterUserBody,
     pipeline: RegisterUser,
     request: Request,
-) -> JSONResponse:
+    response: Response,
+) -> RegisterUserResponse | JSONResponse:
     """Lege ein Konto an.
 
     Vollstaendiges Matching mit `assert_never` als Abschluss: waechst die
@@ -92,36 +107,36 @@ async def register_user(
     outcome = await pipeline.run(body.to_request())
     match outcome:
         case RegistrationAccepted() as accepted:
-            response = JSONResponse(
-                status_code=status.HTTP_201_CREATED,
-                content={
-                    "userId": accepted.user_id,
-                    "email": accepted.email,
-                    "displayName": accepted.display_name,
-                    "locale": accepted.locale,
-                    "timeZoneId": accepted.time_zone_id,
-                    # Nach aussen ISO-8601, intern Unix-Sekunden
-                    # (docs/decisions/2026-08-06-1340-unix-epoch-statt-datetime.md).
-                    "registeredAt": Timestamp(accepted.registered_at_unix)
-                    .to_datetime()
-                    .isoformat(),
-                },
-            )
+            # Der `{data, meta}`-Umschlag kommt aus `ResponseEnvelopeMiddleware`,
+            # ebenso `X-Request-Id` und `Cache-Control`. Hier steht nur, was
+            # dieser Endpunkt zu sagen hat.
             response.headers["Content-Language"] = language
-            return response
+            response.headers["Location"] = _SELF_URL
+            return RegisterUserResponse(
+                user=RegisteredUser(
+                    id=accepted.user_id,
+                    email=accepted.email,
+                    display_name=accepted.display_name,
+                    locale=accepted.locale,
+                    time_zone_id=accepted.time_zone_id,
+                ),
+                session=GrantedSession(
+                    access_token=accepted.access_token,
+                    expires_in=accepted.expires_in,
+                    refresh_token=accepted.refresh_token,
+                    refresh_expires_in=accepted.refresh_expires_in,
+                    token_type="Bearer",  # noqa: S106 -- Schema-Name aus RFC 6750, kein Geheimnis
+                ),
+            )
 
         case EmailAlreadyTaken(email=email):
-            title = translate(resources, "email-already-registered", language=language)
-            detail = translate(
-                resources, "email-already-registered-detail", {"email": email}, language
-            )
-            return _problem(
+            return translated_problem(
                 request,
                 status.HTTP_409_CONFLICT,
                 "email-already-registered",
-                title,
-                detail,
-                language_tag=language,
+                resources,
+                language=language,
+                parameters={"email": email},
             )
 
         case RegistrationInvalid(errors=errors):
@@ -134,44 +149,14 @@ async def register_user(
                     messages.append(text)
                 translated_errors[field] = messages
 
-            title = translate(resources, "validation-failed", language=language)
-            detail = translate(resources, "validation-failed-detail", language=language)
-            return _problem(
+            return translated_problem(
                 request,
-                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
                 "validation-failed",
-                title,
-                detail,
-                translated_errors,
-                language_tag=language,
+                resources,
+                language=language,
+                errors=translated_errors,
             )
 
         case _:
             assert_never(outcome)
-
-
-def _problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, status, type, and text
-    request: Request,
-    http_status: int,
-    error_type: str,
-    title: str,
-    detail: str,
-    errors: dict[str, list[str]] | None = None,
-    language_tag: str = "de-DE",
-) -> JSONResponse:
-    """Baue eine RFC-7807-Antwort im Format des Shared Kernel."""
-    problem = ProblemDetails(
-        type=f"https://api.example/errors/{error_type}",
-        title=title,
-        status=http_status,
-        detail=detail,
-        instance=str(request.url.path),
-        errors=errors,
-    )
-    response = JSONResponse(
-        status_code=http_status,
-        content=problem.model_dump(exclude_none=True),
-        media_type=_PROBLEM_JSON,
-    )
-    response.headers["Content-Language"] = language_tag
-    return response

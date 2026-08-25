@@ -18,7 +18,7 @@ der Draft naturgemäß nicht trifft. Diese wurden mit dem Auftraggeber abgestimm
 | Blob-Speicher (`BlobReference`, Nährwertfotos) | **S3-kompatibel von Anfang an**: lokal der aktiv gepflegte Fork **`pgsty/minio`** (Docker Compose) — das ursprüngliche `minio/minio` ist seit Dezember 2025 im „Maintenance Mode" und wurde am 25.04.2026 als GitHub-Repo archiviert, siehe [`2026-08-05-0956-minio-fork-statt-archiviertem-minio-minio.md`](../decisions/2026-08-05-0956-minio-fork-statt-archiviertem-minio-minio.md) —, AWS S3 (oder kompatibel) in Produktion. Angebunden über einen `BlobStorage`-Port (`Protocol`) in `infrastructure/adapters/`. |
 | Bounded-Context-Grenzen | **`import-linter`** mit Contract-Datei (`.importlinter`) erzwingt: kein Context importiert aus einem anderen Context außer über dessen `application`-Schicht (Application-Services) bzw. über Domain Events; kein Context greift auf ORM-Modelle eines anderen Contexts zu. Läuft als eigener CI-/Lint-Schritt neben `ruff`. |
 | Lokale Infrastruktur & manuelles Testen | **Docker Compose von Beginn an** (Postgres, MinIO, App-Container) — siehe M0. Manuelles/exploratives Testen gegen die laufenden Container erfolgt mit **`curl`** (Auftraggeber-Vorgabe), zusätzlich zu den automatisierten Tests aus Abschnitt 9 des Drafts (pytest, Testcontainers). `curl`-Beispielaufrufe je Endpunkt gehören in die Tickets/README, nicht nur in automatisierte Tests. |
-| Auth | JWT (Access/Refresh) — konkrete Bibliothek (`pyjwt` o.ä.) und Passwort-Hashing (Argon2id via `argon2-cffi`) werden im M1-Ticket zur Auth-Pipeline final gewählt; Argon2id ist durch den Draft (Abschnitt 1, `PasswordHash`) bereits vorgegeben, nicht offen. |
+| Auth | JWT (Access/Refresh) über `pyjwt`, hinter der Naht `RegisterUserSessionTokens`; Passwort-Hashing Argon2id via `argon2-cffi`. Gewählt in [#95](https://github.com/mbalzert1978/fit_back/issues/95), siehe [2026-08-21-2230](../decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md). |
 
 ## Repo-/Code-Layout und Cross-Context-Kommunikation
 
@@ -51,7 +51,6 @@ wo angegeben, die Draft-Spezifikation:
 Diese sind bewusst nicht hier vorweggenommen, weil sie use-case-lokal sind und keine
 Architekturentscheidung mit repo-weiter Tragweite darstellen:
 
-- Konkrete JWT-Bibliothek (M1).
 - Konkretes OCR-Vision-Modell hinter `INutritionOcrAgent`/`OcrAgent`-Port (M5) — der Draft fordert
   explizit nur den Port, die Implementierung ist austauschbar.
 - Konkrete Struktur der `.importlinter`-Contracts je Context-Paar (M0-Ticket, aber Detailarbeit).

@@ -46,7 +46,7 @@ def _record_of(user: User) -> NewUserRecord:
         user_id=str(user.id),
         email=user.email.value,
         password_hash=user.password_hash.value,
-        display_name=user.display_name.text,
+        display_name=user.display_name.value,
         locale=locale_tag(user.locale),
         time_zone_id=user.time_zone.value,
         status=account_status_tag(user.status),

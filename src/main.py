@@ -40,8 +40,9 @@ from src.contexts.identity.domain import (
 )
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
+from src.middleware.response_envelope import ResponseEnvelopeMiddleware
 from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
-from src.settings import validate_settings
+from src.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +91,11 @@ Middleware-Codes warten auf separate Tickets (Idempotency als Union, usw.).
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Lege die Ressourcen des Prozesses an und raeume sie wieder weg."""
-    settings = validate_settings()
-    app.state.settings = settings
+    # Der erste Aufruf liest die Umgebung und prueft sie; ab hier ist
+    # `get_settings` gecacht und liefert genau dieses Objekt weiter - auch der
+    # Dependency `SettingsDep`. Eine unbrauchbare Umgebung stoppt damit den
+    # Start und nicht erst die erste Anfrage.
+    settings = get_settings()
 
     # Lade und validiere i18n Resource-Files beim Start
     app.state.resources = create_resources()
@@ -128,6 +132,11 @@ app = FastAPI(title="Fit-back API", lifespan=lifespan)
 # Ausnahmen muss aussen liegen - sonst sieht er nicht, was weiter innen
 # hochkommt, auch nicht aus der Idempotenz-Pruefung selbst.
 app.add_middleware(IdempotencyKeyMiddleware, time_provider=SystemTimeProvider())
+# Der Umschlag liegt **ausserhalb** der Idempotenz und innerhalb des
+# Auffangpunkts: was die Idempotenz-Middleware ablegt, ist damit der nackte
+# Koerper, und eine wiederholte Anfrage bekommt ihn mit ihrer *eigenen*
+# `requestId` neu eingepackt statt mit der von gestern.
+app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
 app.add_middleware(UnhandledExceptionMiddleware)
 
 # Rate-Limit- und CSRF-Middleware sind hier bewusst nicht verdrahtet: beide kamen

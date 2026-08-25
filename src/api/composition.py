@@ -15,16 +15,19 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import AsyncGenerator
+from typing import Annotated
 
-from fastapi import Request
+from fastapi import Depends, Request
 from sqlalchemy import URL
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
 from src.contexts.shared_kernel.events import EventRegistry
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.infrastructure.outbox import OutboxRelay, OutboxWorker
+from src.settings import Settings, get_settings
 
 __all__ = [
+    "SettingsDep",
     "build_engine",
     "build_event_registry",
     "request_transaction",
@@ -71,6 +74,17 @@ async def request_transaction(request: Request) -> AsyncGenerator[AsyncConnectio
         await connection.begin()
         yield connection
         await connection.commit()
+
+
+type SettingsDep = Annotated[Settings, Depends(get_settings)]
+"""Die gepruefte Konfiguration des Prozesses, als Dependency.
+
+`get_settings` ist gecacht, kostet also nichts je Anfrage und liefert dasselbe
+Objekt, das der Lifespan beim Start geprueft hat. Wer sie so nimmt, kennt weder
+`Request` noch `app.state` - und der Test tauscht sie ueber
+`app.dependency_overrides[get_settings]`, ohne die Umgebung anzufassen
+(https://fastapi.tiangolo.com/advanced/settings/).
+"""
 
 
 @contextlib.asynccontextmanager

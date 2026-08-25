@@ -29,17 +29,23 @@ from typing import final
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
-from src.api.i18n import ResourcesCache, get_language_from_header, translate
-from src.api.problem_details import ProblemDetails
+from src.api.i18n import ResourcesCache, get_language_from_header
+from src.api.problem_details import translated_problem
 
 logger = logging.getLogger(__name__)
 
-UNHANDLED_ERROR_TYPE = "https://api.example/errors/internal-server-error"
+UNHANDLED_ERROR_SLUG = "internal-server-error"
+"""Der Fehlercode dieser Antwort, als nackter Slug.
 
-__all__ = ["UNHANDLED_ERROR_TYPE", "UnhandledExceptionMiddleware"]
+Kein fertiger URI: das `tag:`-Praefix setzt `problem()` an. Dieselbe
+Zeichenkette steht in `PRESENTATION_CODES` (`src/main.py`) und in den
+i18n-Ressourcen.
+"""
+
+__all__ = ["UNHANDLED_ERROR_SLUG", "UnhandledExceptionMiddleware"]
 
 
 @final
@@ -62,22 +68,12 @@ class UnhandledExceptionMiddleware(BaseHTTPMiddleware):
             )
             language = get_language_from_header(request.headers.get("accept-language"))
             resources: ResourcesCache = request.app.state.resources
-            title = translate(resources, "internal-server-error", language=language)
-            detail = translate(resources, "internal-server-error-detail", language=language)
-
-            problem = ProblemDetails(
-                type=UNHANDLED_ERROR_TYPE,
-                title=title,
-                status=HTTP_500_INTERNAL_SERVER_ERROR,
-                # Bewusst nichtssagend: was schiefging, steht im Log, nicht in
-                # der Antwort.
-                detail=detail,
-                instance=request.url.path,
+            # Der Text ist bewusst nichtssagend: was schiefging, steht im Log,
+            # nicht in der Antwort.
+            return translated_problem(
+                request,
+                HTTP_500_INTERNAL_SERVER_ERROR,
+                UNHANDLED_ERROR_SLUG,
+                resources,
+                language=language,
             )
-            response = JSONResponse(
-                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-                content=problem.model_dump(exclude_none=True),
-                media_type="application/problem+json",
-            )
-            response.headers["Content-Language"] = language
-            return response

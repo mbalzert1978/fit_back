@@ -4,12 +4,35 @@ import asyncio
 import os
 import subprocess
 import sys
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
+import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from testcontainers.community.postgres import PostgresContainer
+
+from src.settings import get_settings
+
+
+@pytest.fixture(autouse=True)
+def _frische_settings() -> Generator[None]:
+    """Leere den `get_settings`-Cache um jeden Test herum.
+
+    `get_settings` ist gecacht, der Cache lebt aber so lange wie der Prozess -
+    also ueber Tests hinweg. Ein Test, der die Umgebung per `monkeypatch` setzt
+    und dann die echte App hochfaehrt, bekaeme sonst die Konfiguration des
+    Tests davor. Geleert wird vorher *und* nachher: der letzte Test soll seine
+    Umgebung ebenso wenig hinterlassen.
+    """
+    # TODO: überschreibe mittels dependency injection, statt den Cache zu leeren.
+    # Geht heute nicht: der Lifespan (`src/main.py:98`) ruft `get_settings()` direkt
+    # auf, und `dependency_overrides` greift nur in der Request-Auflösung. Ausserdem
+    # loest das Leeren hier ein zweites Problem, das DI nicht anfasst: der Cache lebt
+    # prozessweit. Beides haengt an Ticket #98.
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest_asyncio.fixture(scope="session")

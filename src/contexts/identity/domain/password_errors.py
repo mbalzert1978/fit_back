@@ -12,6 +12,7 @@ from typing import ClassVar, final
 
 __all__ = [
     "PasswordError",
+    "PasswordTooLong",
     "PasswordTooShort",
 ]
 
@@ -27,5 +28,16 @@ class PasswordTooShort:
     minimum: int
 
 
-type PasswordError = PasswordTooShort
+@final
+@dataclass(frozen=True, slots=True)
+class PasswordTooLong:
+    """Das Passwort ueberschreitet die zulaessige Hoechstlaenge."""
+
+    code: ClassVar[str] = "password-too-long"
+
+    actual_length: int
+    maximum: int
+
+
+type PasswordError = PasswordTooShort | PasswordTooLong
 """Teil-Union - zusammengefuehrt zum einen `DomainError` in `errors.py`."""
