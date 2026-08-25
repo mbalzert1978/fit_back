@@ -138,8 +138,8 @@ type Result[T, E] = Ok[T] | Err[E]
 `Err.map`/`Err.bind` deklarieren ihren Rueckgabetyp als `Err[E]`, nicht als `Result[U, E]`: `Err[E]`
 ist fuer jedes `U` bereits ein gueltiges `Result[U, E]` (die Union haengt im `Err`-Zweig gar nicht
 von `U` ab), das `self` zurueckgeben ist also strukturell korrekt. Deshalb braucht es **kein**
-`# type: ignore` — so ein Kommentar waere ohnehin wirkungslos, da dieser Stack bewusst ohne
-mypy/pyright auskommt (siehe oben) und ihn nie jemand auswertet.
+`# type: ignore`. Der Typechecker dieses Stacks ist `ty`; wo er hier trotzdem meldet, steht die
+Ausnahme als benannte Baseline in `pyproject.toml` statt als Kommentar im Code.
 
 `match` ist der uebliche Weg, ein `Result` zu entpacken — nicht ein manuelles `isinstance`-Paar:
 

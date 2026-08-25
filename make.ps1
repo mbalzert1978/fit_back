@@ -88,6 +88,13 @@ $targetTable = [ordered]@{
         Action      = { Invoke-Step 'format-check' { uv run ruff format --check . } }
     }
 
+    'typecheck' = @{
+        # Issue #97: ruff prueft keine Typen. `ty` (Astral) ist der Typechecker,
+        # konfiguriert samt eingefrorener Baseline in pyproject.toml.
+        Description = 'Typecheck src/ with ty'
+        Action      = { Invoke-Step 'typecheck' { uv run ty check src } }
+    }
+
     'import-lint' = @{
         # Depends on issue #42 (.importlinter contract).
         Description = 'Check bounded-context import boundaries (import-linter)'
@@ -130,10 +137,11 @@ $targetTable = [ordered]@{
     }
 
     'ci' = @{
-        Description = 'lint + format-check + import-lint + complexity + test, in that order'
+        Description = 'lint + format-check + typecheck + import-lint + complexity + test, in that order'
         Action      = {
             Invoke-Target 'lint'
             Invoke-Target 'format-check'
+            Invoke-Target 'typecheck'
             Invoke-Target 'import-lint'
             Invoke-Target 'complexity'
             Invoke-Target 'test'
