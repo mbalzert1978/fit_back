@@ -1,7 +1,7 @@
 """Value Object DisplayName - der Anzeigename des Users, 2-60 Zeichen."""
 
-from dataclasses import dataclass
-from typing import Self, final
+from dataclasses import dataclass, field
+from typing import Final, Self, final
 
 from src.contexts.identity.domain.display_name_errors import (
     DisplayNameError,
@@ -9,7 +9,14 @@ from src.contexts.identity.domain.display_name_errors import (
     DisplayNameTooLong,
     DisplayNameTooShort,
 )
-from src.contexts.shared_kernel import Err, Ok, Result, not_blank_as
+from src.contexts.shared_kernel import (
+    ConstructionKey,
+    Err,
+    Ok,
+    Result,
+    deny_foreign_key,
+    not_blank_as,
+)
 from src.contexts.shared_kernel.validation import ResultRule, chain
 
 __all__ = ["MAXIMUM_LENGTH", "MINIMUM_LENGTH", "DisplayName"]
@@ -52,6 +59,9 @@ _RULES: ResultRule[str, DisplayNameError] = chain(
     fits_maximum_length,
 )
 
+_KEY: Final = ConstructionKey()
+"""Der modul-private Schluessel - nur `parse` und `hydrate` unten haben ihn."""
+
 
 @final
 @dataclass(frozen=True, slots=True)
@@ -59,11 +69,16 @@ class DisplayName:
     """Anzeigename des Users - getrimmt und laengengeprueft."""
 
     value: str
+    key: ConstructionKey = field(repr=False, compare=False, kw_only=True)
+
+    def __post_init__(self) -> None:
+        """Weise jeden Bau ab, der nicht durch `parse` oder `hydrate` ging."""
+        deny_foreign_key(self.key, _KEY)
 
     @classmethod
     def parse(cls, raw: str) -> Result[Self, DisplayNameError]:
         """Pruefe eine moeglicherweise ungueltige Eingabe."""
-        return _RULES(raw).map(cls)
+        return _RULES(raw).map(lambda checked: cls(checked, key=_KEY))
 
     @classmethod
     def hydrate(cls, raw: str) -> DisplayName:

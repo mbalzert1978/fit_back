@@ -4,32 +4,39 @@ from typing import final
 
 from src.contexts.identity.application.register_user.command import RegisterUserCommand
 from src.contexts.identity.domain import (
+    IdnEncoder,
     PasswordHasher,
     User,
-    UserId,
+    UserCreationError,
     UserRegistry,
     UserRegistryError,
-    register,
     user_registered,
 )
-from src.contexts.shared_kernel import AsyncResult, Result, TimeProvider
+from src.contexts.shared_kernel import AsyncResult, TimeProvider
 from src.contexts.shared_kernel.events import EventPublisher
 
-__all__ = ["RegisterUserHandler"]
+__all__ = ["RegisterUserFailure", "RegisterUserHandler"]
+
+
+type RegisterUserFailure = UserCreationError | UserRegistryError
+"""Die beiden Stellen, an denen dieser Use Case erwartet scheitern kann.
+
+Die Wurzel kann ein Feld ablehnen (`UserCreationError`), und der Bestand kann die
+E-Mail schon kennen (`UserRegistryError`). Mehr ist es nicht - und jede Haelfte
+traegt weiterhin ihre eigene, schmale Union.
+"""
 
 
 @final
 class RegisterUserHandler:
-    """Baut die Aggregatwurzel und uebergibt sie dem Nutzerbestand.
+    """Laesst die Wurzel sich selbst bauen und uebergibt sie dem Nutzerbestand.
 
     Kennt weder Request- noch Response-DTO - beides lebt in den Mappern. Faengt
-    nichts ab, entscheidet nichts fachlich und liefert das Domaenen-`Result`
-    unveraendert zurueck: es ist bereits das vollstaendige Ergebnis, ein eigener
-    Outcome-Typ waere nur Zeremonie.
+    nichts ab und entscheidet nichts fachlich: welche Felder gueltig sind, weiss
+    `User.create`, und ob die E-Mail frei ist, weiss der Bestand.
 
-    Der Fehlertyp ist der des einen Ports, der hier fehlschlagen kann
-    (`UserRegistryError`) - nicht der Sammeltyp des Contexts. Was der Handler
-    weitergibt, ist damit genau das, was ankommen kann.
+    Die Ports gehen durch ihn hindurch zur Wurzel, statt dass er selbst mit ihnen
+    arbeitet. Er haelt sie nur, damit die Wurzel sie nicht suchen muss.
     """
 
     def __init__(
@@ -38,33 +45,44 @@ class RegisterUserHandler:
         hasher: PasswordHasher,
         events: EventPublisher,
         clock: TimeProvider,
+        idn: IdnEncoder,
     ) -> None:
         """Nimm die Ports und die Zeitquelle per Dependency Injection entgegen."""
         self._registry = registry
         self._hasher = hasher
         self._events = events
         self._clock = clock
+        self._idn = idn
 
-    def __call__(self, command: RegisterUserCommand) -> AsyncResult[User, UserRegistryError]:
-        """Registriere den Kandidaten und melde die Registrierung."""
-        # `inspect_async` statt eines Match: gemeldet wird nur der aufgenommene
-        # User - eine abgelehnte Registrierung ist nichts, worauf ein anderer
-        # Context reagieren duerfte - und die Meldung selbst aendert am Ergebnis
-        # des Use Case nichts.
-        return AsyncResult(self._registered(command)).inspect_async(self._announce)
+    def __call__(self, command: RegisterUserCommand) -> AsyncResult[User, RegisterUserFailure]:
+        """Baue den Kandidaten, reiche ihn dem Bestand und melde die Aufnahme.
 
-    async def _registered(self, command: RegisterUserCommand) -> Result[User, UserRegistryError]:
-        """Baue den Kandidaten - das Hashen wartet - und reiche ihn dem Bestand."""
-        candidate = register(
-            user_id=UserId.generate(),
-            email=command.email,
-            password_hash=await self._hasher.hash(command.password),
-            display_name=command.display_name,
-            time_zone=command.time_zone,
-            locale=command.locale,
-            registered_at=self._clock.now(),
+        Eine Kette und kein `await` dazwischen: `User.create` ist eine Coroutine
+        ueber einem `Result`, also genau das, was `AsyncResult` umschliesst. Ein
+        abgelehntes Feld laesst `bind_async` gar nicht erst zum Bestand
+        durchlaufen.
+
+        `inspect_async` statt eines Match am Ende: gemeldet wird nur der
+        aufgenommene User - eine abgelehnte Registrierung ist nichts, worauf ein
+        anderer Context reagieren duerfte - und die Meldung selbst aendert am
+        Ergebnis des Use Case nichts.
+        """
+        return (
+            AsyncResult(
+                User.create(
+                    email=command.email,
+                    password=command.password,
+                    display_name=command.display_name,
+                    locale=command.locale,
+                    time_zone=command.time_zone,
+                    idn=self._idn,
+                    hasher=self._hasher,
+                    clock=self._clock,
+                )
+            )
+            .bind_async(self._registry.add)
+            .inspect_async(self._announce)
         )
-        return await self._registry.add(candidate)
 
     async def _announce(self, user: User) -> None:
         """Melde die abgeschlossene Registrierung nach aussen."""

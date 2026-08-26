@@ -33,7 +33,7 @@ from src.contexts.identity.domain.email_errors import (
     EmailNeedsExactlyOneAtSign,
     UnencodableDomainLabel,
 )
-from src.contexts.identity.domain.entities.user import User, register
+from src.contexts.identity.domain.entities.user import User
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.events import user_registered
 from src.contexts.identity.domain.locale_errors import (
@@ -50,6 +50,14 @@ from src.contexts.identity.domain.password_hash_errors import PasswordHashError,
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder, IdnEncoderError
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.ports.user_registry import UserRegistry, UserRegistryError
+from src.contexts.identity.domain.user_creation_errors import (
+    DisplayNameRejected,
+    EmailRejected,
+    LocaleRejected,
+    PasswordRejected,
+    TimeZoneRejected,
+    UserCreationError,
+)
 from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
 from src.contexts.identity.domain.user_time_zone_errors import (
     UserTimeZoneError,
@@ -90,6 +98,7 @@ __all__ = [
     "DisplayName",
     "DisplayNameError",
     "DisplayNameIsEmpty",
+    "DisplayNameRejected",
     "DisplayNameTooLong",
     "DisplayNameTooShort",
     "DomainError",
@@ -110,6 +119,7 @@ __all__ = [
     "EmailLocalPartMissing",
     "EmailLocalPartTooLong",
     "EmailNeedsExactlyOneAtSign",
+    "EmailRejected",
     "English",
     "German",
     "IdnEncoder",
@@ -118,18 +128,22 @@ __all__ = [
     "LocaleError",
     "LocaleIsEmpty",
     "LocaleNotSupported",
+    "LocaleRejected",
     "Password",
     "PasswordError",
     "PasswordHash",
     "PasswordHashError",
     "PasswordHashIsEmpty",
     "PasswordHasher",
+    "PasswordRejected",
     "PasswordTooLong",
     "PasswordTooShort",
     "PendingDeletion",
     "Suspended",
+    "TimeZoneRejected",
     "UnencodableDomainLabel",
     "User",
+    "UserCreationError",
     "UserId",
     "UserIdError",
     "UserIdMalformed",
@@ -143,6 +157,5 @@ __all__ = [
     "hydrate_locale",
     "locale_tag",
     "parse_locale",
-    "register",
     "user_registered",
 ]

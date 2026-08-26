@@ -15,7 +15,7 @@ diese Kette - Transaktionsklammer, Idempotenz, Messung, Logging -, nicht als
 weiterer Absatz in `run`.
 """
 
-from typing import final
+from typing import assert_never, final
 
 from src.contexts.identity.application.register_user.abstractions import (
     IdnLabels,
@@ -34,14 +34,28 @@ from src.contexts.identity.application.register_user.errors import (
     RegisterUserError,
     request_invalid,
 )
-from src.contexts.identity.application.register_user.handler import RegisterUserHandler
+from src.contexts.identity.application.register_user.handler import (
+    RegisterUserFailure,
+    RegisterUserHandler,
+)
 from src.contexts.identity.application.register_user.mappers import to_command, to_response
 from src.contexts.identity.application.register_user.registration import Registration
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.application.register_user.response import RegisterUserResponse
 from src.contexts.identity.application.register_user.session_step import issuing_session
-from src.contexts.identity.application.register_user.validators import build_register_user_rules
-from src.contexts.identity.domain import IdnEncoder, User
+from src.contexts.identity.application.register_user.validators import (
+    build_register_user_rules,
+    to_field_errors,
+)
+from src.contexts.identity.domain import (
+    DisplayNameRejected,
+    EmailAlreadyRegistered,
+    EmailRejected,
+    LocaleRejected,
+    PasswordRejected,
+    TimeZoneRejected,
+    User,
+)
 from src.contexts.shared_kernel import AsyncResult, TimeProvider
 from src.contexts.shared_kernel.behaviors import validating
 from src.contexts.shared_kernel.pipeline import Handler, build_pipeline
@@ -81,24 +95,30 @@ def build_register_user_pipeline(  # noqa: PLR0913, PLR0917 -- Fabrik: je Naht e
         hasher=PasswordHasherAdapter(hasher),
         events=EventPublisherAdapter(events),
         clock=clock,
+        idn=idn,
     )
     return RegisterUserPipeline(
         build_pipeline(
-            issuing_session(_dispatch(handler, idn), sessions),
+            issuing_session(_dispatch(handler), sessions),
             validating(as_async(build_register_user_rules(idn)), request_invalid),
         )
     )
 
 
 def _dispatch(
-    handler: RegisterUserHandler, idn: IdnEncoder
+    handler: RegisterUserHandler,
 ) -> Handler[RegisterUserRequest, User, RegisterUserError]:
-    """Baue den innersten Schritt: Request-Mapper und Handler, sonst nichts.
+    """Baue den innersten Schritt: Request-Mapper, Handler und ein Fehler-Kanal.
 
     `to_command` steht hier und nicht im Handler, weil der Kern-Handler das
-    Request-DTO nicht kennen darf (.rules/python/python-feature-slices.md). Der
-    Aufruf ist infallibel: das Validierungs-Behavior liegt davor, also baut der
-    Mapper mit `hydrate`.
+    Request-DTO nicht kennen darf (.rules/python/python-feature-slices.md). Er
+    parst nichts mehr - das tut die Wurzel selbst -, und deshalb braucht er den
+    IDN-Port hier auch nicht mehr.
+
+    Der `map_err` fuehrt die beiden Haelften des Handler-Fehlers in den **einen**
+    Kanal der Pipeline zusammen: eine von der Wurzel abgelehnte Eingabe ist
+    derselbe Fall wie eine vom Regelwerk abgelehnte, und am Ende steht genau ein
+    Fold.
 
     Die Sitzung kommt eine Schicht weiter aussen dazu
     ([`session_step.py`](./session_step.py)) - sie ist Fachablauf und steht
@@ -106,6 +126,23 @@ def _dispatch(
     """
 
     def run(request: RegisterUserRequest) -> AsyncResult[User, RegisterUserError]:
-        return handler(to_command(request, idn))
+        return handler(to_command(request)).map_err(_as_use_case_error)
 
     return run
+
+
+def _as_use_case_error(rejected: RegisterUserFailure) -> RegisterUserError:
+    """Hebe den Fehler des Handlers in den Fehlerkanal des Use Case."""
+    match rejected:
+        case EmailAlreadyRegistered():
+            return rejected
+        case (
+            EmailRejected()
+            | PasswordRejected()
+            | DisplayNameRejected()
+            | LocaleRejected()
+            | TimeZoneRejected()
+        ):
+            return request_invalid(to_field_errors(rejected))
+        case _:
+            assert_never(rejected)

@@ -1,6 +1,6 @@
 """Value Object UserTimeZone - IANA-Zone oder fester UTC-Versatz."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cache
 from typing import Final, Self, final
@@ -11,7 +11,14 @@ from src.contexts.identity.domain.user_time_zone_errors import (
     UserTimeZoneIsEmpty,
     UserTimeZoneUnknown,
 )
-from src.contexts.shared_kernel import Err, Ok, Result, not_blank_as
+from src.contexts.shared_kernel import (
+    ConstructionKey,
+    Err,
+    Ok,
+    Result,
+    deny_foreign_key,
+    not_blank_as,
+)
 from src.contexts.shared_kernel.validation import ResultRule, any_of, chain
 
 __all__ = ["DEFAULT_TIME_ZONE_ID", "UserTimeZone"]
@@ -125,6 +132,9 @@ def has_a_known_form(candidate: str) -> Result[str, UserTimeZoneError]:
 
 _RULES: ResultRule[str, UserTimeZoneError] = chain(is_not_blank, has_a_known_form)
 
+_KEY: Final = ConstructionKey()
+"""Der modul-private Schluessel - nur `parse` und `hydrate` unten haben ihn."""
+
 
 @final
 @dataclass(frozen=True, slots=True)
@@ -138,11 +148,16 @@ class UserTimeZone:
     """
 
     value: str
+    key: ConstructionKey = field(repr=False, compare=False, kw_only=True)
+
+    def __post_init__(self) -> None:
+        """Weise jeden Bau ab, der nicht durch `parse` oder `hydrate` ging."""
+        deny_foreign_key(self.key, _KEY)
 
     @classmethod
     def parse(cls, raw: str) -> Result[Self, UserTimeZoneError]:
         """Pruefe eine Zeitzonen-Angabe gegen die IANA-Datenbank oder als festen Versatz."""
-        return _RULES(raw).map(cls)
+        return _RULES(raw).map(lambda checked: cls(checked, key=_KEY))
 
     @classmethod
     def hydrate(cls, raw: str) -> UserTimeZone:

@@ -11,6 +11,7 @@ from src.contexts.identity.domain import (
     DisplayName,
     DisplayNameError,
     DisplayNameIsEmpty,
+    DisplayNameRejected,
     DisplayNameTooLong,
     DisplayNameTooShort,
     Email,
@@ -29,15 +30,20 @@ from src.contexts.identity.domain import (
     EmailLocalPartMissing,
     EmailLocalPartTooLong,
     EmailNeedsExactlyOneAtSign,
+    EmailRejected,
     IdnEncoder,
     LocaleError,
     LocaleIsEmpty,
     LocaleNotSupported,
+    LocaleRejected,
     Password,
     PasswordError,
+    PasswordRejected,
     PasswordTooLong,
     PasswordTooShort,
+    TimeZoneRejected,
     UnencodableDomainLabel,
+    UserCreationError,
     UserTimeZone,
     UserTimeZoneError,
     UserTimeZoneIsEmpty,
@@ -46,7 +52,7 @@ from src.contexts.identity.domain import (
 )
 from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
 
-__all__ = ["build_register_user_rules"]
+__all__ = ["build_register_user_rules", "to_field_errors"]
 
 _EMAIL = "email"
 _PASSWORD = "password"  # noqa: S105 -- Feldname des Vertrags, kein Geheimnis
@@ -217,3 +223,34 @@ def build_register_user_rules(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
         locale_must_be_supported,
         time_zone_must_be_known,
     )
+
+
+def to_field_errors(rejected: UserCreationError) -> list[FieldError]:
+    """Uebersetze eine Ablehnung aus `User.create` in die Feldfehler des Vertrags.
+
+    Die Wurzel parst noch einmal, was das Regelwerk oben schon geprueft hat -
+    einmal, um alle Befunde auf einmal zu melden (422), und einmal, weil ein
+    `User` nur aus geprueften Werten entstehen darf. Diese Uebersetzung ist
+    deshalb im Regelbetrieb unerreichbar.
+
+    Trotzdem uebersetzt und nicht behauptet, sie koenne nicht eintreten: die
+    beiden Wege waren schon einmal auseinandergelaufen (`DisplayName`, Vertrag
+    gegen Invariante), und ein `AssertionError` an dieser Stelle machte aus einer
+    stillen Abweichung einen 500er statt eines ehrlichen 422.
+
+    Die Uebersetzer selbst sind dieselben, die auch das Regelwerk benutzt - der
+    Fehlercode eines Falls entsteht damit an genau einer Stelle.
+    """
+    match rejected:
+        case EmailRejected(error=error):
+            return _email_errors(error)
+        case PasswordRejected(error=error):
+            return _password_errors(error)
+        case DisplayNameRejected(error=error):
+            return _display_name_errors(error)
+        case LocaleRejected(error=error):
+            return _locale_errors(error)
+        case TimeZoneRejected(error=error):
+            return _time_zone_errors(error)
+        case _:
+            assert_never(rejected)
