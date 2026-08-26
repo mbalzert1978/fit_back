@@ -15,10 +15,14 @@ erinnert"), und zwar in beiden Gliedern der Kette:
 2. Jeder Fall von `RegisterUserError` hat einen Arm im **einen** Fold des Slice
    (`to_response`) - sonst waere der Kanal breiter als seine Auswertung.
 
-Gelesen wird dafuer das **Modul** von `to_response`, nicht die Funktion allein:
-seit `Result.fold` den `Ok`/`Err`-Split traegt, stehen die Arme in den beiden
-Fold-Armen daneben. Ein Fold bleibt es trotzdem - er ist nur nicht mehr in eine
-`match`-Verschachtelung gefaltet.
+Gelesen wird dafuer `to_response` **plus die Funktionen, die es namentlich
+nennt**: seit `Result.fold` den `Ok`/`Err`-Split traegt, stehen die Arme eine
+Ebene tiefer, in `_accepted` und `_rejected`. Ein Fold bleibt es trotzdem - er
+ist nur nicht mehr in eine `match`-Verschachtelung gefaltet.
+
+Bewusst **nicht** das ganze Modul: dann zaehlte jedes `case X()` irgendwo in der
+Datei als behandelt, auch aus einer Funktion, die der Fold nie ruft. Die Zusage
+waere breiter als ihr Gegenstand.
 
 Waechst die Port-Union, wird hier rot, was sonst gruen bliebe. Die Aufzaehlung
 selbst kommt aus `shared_kernel/coded_error.py`, wie in
@@ -44,13 +48,27 @@ def _namen(*unions: object) -> set[str]:
     return {case.__name__ for case in error_cases(*unions)}
 
 
-def _arme_des_folds() -> set[str]:
-    """Die Klassen, auf die der Fold des Slice matcht - gelesen aus seinem ganzen Modul."""
+def _baum(funktion: object) -> ast.AST:
+    """Der Syntaxbaum einer Funktion, unabhaengig von ihrer Einrueckung."""
+    return ast.parse(textwrap.dedent(inspect.getsource(funktion)))
+
+
+def _genannte_funktionen(funktion: object) -> list[object]:
+    """Die Funktionen desselben Moduls, die `funktion` namentlich nennt - die Arme des Folds."""
     modul = sys.modules[to_response.__module__]
-    baum = ast.parse(textwrap.dedent(inspect.getsource(modul)))
+    genannt = sorted(
+        knoten.id for knoten in ast.walk(_baum(funktion)) if isinstance(knoten, ast.Name)
+    )
+    kandidaten = (getattr(modul, name, None) for name in genannt)
+    return [kandidat for kandidat in kandidaten if inspect.isfunction(kandidat)]
+
+
+def _arme_des_folds() -> set[str]:
+    """Die Klassen, auf die der Fold des Slice matcht - gelesen aus ihm und seinen Armen."""
     return {
         knoten.cls.id
-        for knoten in ast.walk(baum)
+        for funktion in (to_response, *_genannte_funktionen(to_response))
+        for knoten in ast.walk(_baum(funktion))
         if isinstance(knoten, ast.MatchClass) and isinstance(knoten.cls, ast.Name)
     }
 

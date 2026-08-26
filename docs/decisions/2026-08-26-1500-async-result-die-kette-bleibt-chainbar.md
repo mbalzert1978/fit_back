@@ -88,8 +88,36 @@ zuschnappt: **kein Klassen-Typparameter in der Rueckgabe eines uebergebenen Call
 
 - `src/contexts/shared_kernel/result.py` — `AsyncResult` und die `_async`-Arme auf `Ok`/`Err`.
 - `src/contexts/shared_kernel/__init__.py` — `AsyncResult` exportiert.
-- `tests/test_async_result.py` — 40 Tests; `result.py` steht bei 100 % Zeilenabdeckung.
+- `tests/test_async_result.py` — die Verhaltens-Zusagen der Kette.
 
 Nachgezogen in einem eigenen Commit: `UserRegistry.add` liefert die Kette statt einer Coroutine,
 und die drei Stellen, die deshalb zweimal warten mussten, kommen mit einem `await` aus —
 `session_step.py`, `behaviors/validating.py` und `register_user/handler.py`.
+
+## Das vergessene `await` faellt auf, statt still durchzurutschen
+
+Die Kette hat einen Fehlermodus, den die sync-Variante nicht kennt: ein vergessenes `await`. Er
+wird an zwei Stellen gefangen, und beide zusammen decken ihn erst ab.
+
+**Der Typ faengt die Wert-Form.** Wo das Ergebnis als Wert benutzt wird, meldet `ty` eine
+`CoroutineType[...]` gegen den erwarteten Typ — gemessen an einer Minimal-Probe gegen
+`AsyncResult.fold`. Das ist der Regelfall und braucht nichts weiter.
+
+**Die Suite faengt die Wahrheitswert-Form.** `if kette.fold(...)` bleibt fuer jedes Typsystem
+gueltig, weil eine Coroutine ein Objekt ist und Objekte wahr sind. Uebrig bleibt die
+`RuntimeWarning` „coroutine ... was never awaited" — die aber beim **Aufraeumen** anfaellt, nicht
+an der Fundstelle, und ohne Zutun still mitlaeuft. `pyproject.toml` schaltet sie deshalb scharf,
+zusammen mit `pytest.PytestUnraisableExceptionWarning`: ohne die zweite bliebe die erste
+wirkungslos, weil pytest eine Warnung ausserhalb jedes Test-Frames genau dorthin umpackt.
+
+## Ein Kombinator lebt auf allen drei Traegern — oder auf keinem
+
+`Ok`, `Err` und `AsyncResult` muessen deckungsgleich bleiben. Zwei der drei Aenderungen sind der
+Summentyp selbst und nicht zu vermeiden; die dritte ist seit `_then`/`_then_async` eine Zeile —
+und genau deshalb leicht zu vergessen.
+
+Die Deckungsgleichheit wird deshalb **gemessen, nicht erinnert**
+(`.rules/python/python-error-handling.md`): `tests/test_async_result.py` vergleicht die public
+Kombinatoren der drei Traeger in beide Richtungen. Fehlt einer auf `AsyncResult`, bricht die
+Kette dort ab; gibt es einen nur dort, entscheidet die Kette den Ausgang selbst, statt ihn an
+`Ok`/`Err` zu delegieren. Beides wird rot.

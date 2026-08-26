@@ -5,6 +5,8 @@ Gepruefte Zusage: eine Kette bleibt bis zum Schluss chainbar, es steht **ein**
 der sync-Variante.
 """
 
+import inspect
+
 import pytest
 
 from src.contexts.shared_kernel.result import AsyncResult, Err, Ok, Result
@@ -521,3 +523,49 @@ class TestKetteAmStueck:
         )
 
         assert got == Ok(12)
+
+
+# --- Die drei Traeger bleiben deckungsgleich ---------------------------------
+
+
+def _kombinatoren(traeger: type) -> set[str]:
+    """Die public Kombinatoren eines Traegers - Felder und Dunder zaehlen nicht."""
+    return {
+        name
+        for name, member in vars(traeger).items()
+        if not name.startswith("_") and inspect.isfunction(member)
+    }
+
+
+class TestDieDreiTraegerBleibenDeckungsgleich:
+    """Ein Kombinator lebt auf `Ok`, `Err` **und** `AsyncResult` - oder auf keinem.
+
+    Ein neuer Kombinator kostet drei Aenderungen an drei Stellen. Zwei davon
+    sind der Summentyp selbst und nicht zu vermeiden; die dritte ist seit
+    `_then`/`_then_async` eine Zeile - und genau deshalb leicht zu vergessen.
+    Vergessen wird hier rot, statt beim Lesen aufzufallen
+    (`.rules/python/python-error-handling.md`, "Maschinell geprueft, nicht
+    erinnert").
+    """
+
+    def test_jeder_kombinator_von_ok_und_err_liegt_auch_auf_async_result(self) -> None:
+        """Was der fertige Ausgang kann, kann die ausstehende Kette auch."""
+        fehlend = sorted((_kombinatoren(Ok) | _kombinatoren(Err)) - _kombinatoren(AsyncResult))
+
+        assert not fehlend, (
+            f"Diese Kombinatoren fehlen auf `AsyncResult`: {fehlend}. Eine Kette bricht damit "
+            "an dieser Stelle ab - der Aufrufer muesste in der Mitte `await`en, und genau das "
+            "soll die Kette loswerden. Ergaenzen in src/contexts/shared_kernel/result.py, je "
+            "eine Zeile ueber `_then` oder `_then_async`."
+        )
+
+    def test_async_result_erfindet_keinen_kombinator_dazu(self) -> None:
+        """Die Kette delegiert - sie entscheidet den Ausgang nicht selbst."""
+        ueberzaehlig = sorted(_kombinatoren(AsyncResult) - (_kombinatoren(Ok) | _kombinatoren(Err)))
+
+        assert not ueberzaehlig, (
+            f"Diese Kombinatoren gibt es nur auf `AsyncResult`: {ueberzaehlig}. `Ok`/`Err` sind "
+            "der einzige Ort, an dem der Ausgang entschieden wird; ein Kombinator ohne "
+            "Gegenstueck dort trifft die Entscheidung in der Kette. Nachziehen auf `Ok` und "
+            "`Err` in src/contexts/shared_kernel/result.py."
+        )
