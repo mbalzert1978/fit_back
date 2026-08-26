@@ -5,6 +5,8 @@ der Anfrage waere in Laenge und Zeichenvorrat fremdbestimmt.
 
 Fehlerkoerper (`application/problem+json`) laufen an dieser Middleware vorbei; ihr
 `Cache-Control: no-store` setzt `problem()` (`src/api/problem_details.py`) selbst.
+
+Das OpenAPI-Dokument laeuft ebenfalls vorbei - siehe `_is_the_api_description`.
 """
 
 import json
@@ -48,7 +50,7 @@ class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
         """Lass die Anfrage laufen und packe ihr Ergebnis ein, wenn es eines ist."""
         request_id = str(uuid7())
         response = await call_next(request)
-        if not _is_enveloped(response):
+        if not _is_enveloped(request, response):
             response.headers[REQUEST_ID_HEADER] = request_id
             return response
 
@@ -77,8 +79,28 @@ class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
         }
 
 
-def _is_enveloped(response: Response) -> bool:
+def _is_enveloped(request: Request, response: Response) -> bool:
     """Sage, ob diese Antwort einen Umschlag bekommt."""
-    return response.status_code in _SUCCESS and response.headers.get("content-type", "").startswith(
-        _JSON
+    return (
+        response.status_code in _SUCCESS
+        and response.headers.get("content-type", "").startswith(_JSON)
+        and not _is_the_api_description(request)
     )
+
+
+def _is_the_api_description(request: Request) -> bool:
+    """Sage, ob dieser Pfad das OpenAPI-Dokument der App selbst ist.
+
+    Der Umschlag gilt fuer die Antworten **dieser** API, nicht fuer die
+    Beschreibung, in der FastAPI sie ausliefert. Eingepackt waere sie keine
+    Beschreibung mehr: `/docs` sucht `openapi` und `paths` an der Wurzel und
+    faende `data` und `meta`.
+
+    `/docs` und `/redoc` brauchen keinen eigenen Zweig - sie antworten in HTML
+    und scheitern schon an der Pruefung des Content-Type.
+
+    Gelesen wird die Adresse **an der App** und nicht als Literal: wer sie ueber
+    `FastAPI(openapi_url=...)` verschiebt oder mit `None` abschaltet, verschiebt
+    sie damit auch hier. Ein Literal koennte gegen sie driften.
+    """
+    return request.url.path == getattr(request.app, "openapi_url", None)

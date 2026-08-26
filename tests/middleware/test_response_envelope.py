@@ -56,6 +56,20 @@ async def test_der_content_type_beschreibt_den_neuen_koerper() -> None:
     assert typen == ["application/json"]
 
 
+async def test_das_openapi_dokument_bekommt_keinen_umschlag() -> None:
+    """Regression: eingepackt war es keine Beschreibung mehr, und `/docs` blieb leer.
+
+    `/openapi.json` antwortet 200 in `application/json` und erfuellte damit beide
+    Bedingungen des Umschlags. Swagger UI sucht `openapi` und `paths` an der
+    Wurzel und fand `data` und `meta`.
+    """
+    antwort = await _get("/openapi.json")
+
+    assert antwort.status_code == 200
+    assert set(antwort.json()) >= {"openapi", "paths"}
+    assert "data" not in antwort.json()
+
+
 async def test_eine_antwort_ohne_koerper_bekommt_keinen_umschlag() -> None:
     """204 traegt nichts, was man einpacken koennte - die Kennung geht trotzdem mit."""
     antwort = await _get("/nichts")
