@@ -202,3 +202,114 @@ class TestBindAsync:
 
         assert laeufe == []
         assert returned is result
+
+
+class TestFold:
+    """fold fuehrt kontrolliert aus dem Result heraus - der Eliminator."""
+
+    def test_ok_nimmt_den_erfolgs_arm(self) -> None:
+        """Auf Ok laeuft on_ok und sein Rueckgabewert ist das Ergebnis."""
+        result: Result[int, str] = Ok(21)
+
+        assert result.fold(lambda value: value * 2, len) == 42
+
+    def test_err_nimmt_den_fehler_arm(self) -> None:
+        """Auf Err laeuft on_err und sein Rueckgabewert ist das Ergebnis."""
+        result: Result[int, str] = Err("abgelehnt")
+
+        assert result.fold(lambda value: value * 2, len) == 9
+
+    def test_ok_ruft_den_fehler_arm_gar_nicht_erst_auf(self) -> None:
+        """Nur ein Arm laeuft - der andere wird nie ausgewertet."""
+        laeufe: list[str] = []
+        result: Result[int, str] = Ok(1)
+
+        def remember(error: str) -> int:
+            laeufe.append(error)
+            return 0
+
+        assert result.fold(lambda value: value, remember) == 1
+        assert laeufe == []
+
+    def test_err_ruft_den_erfolgs_arm_gar_nicht_erst_auf(self) -> None:
+        """Nur ein Arm laeuft - der andere wird nie ausgewertet."""
+        laeufe: list[int] = []
+        result: Result[int, str] = Err("gescheitert")
+
+        def remember(value: int) -> str:
+            laeufe.append(value)
+            return ""
+
+        assert result.fold(remember, lambda error: error) == "gescheitert"
+        assert laeufe == []
+
+    def test_beide_arme_treffen_sich_in_einem_ergebnistyp(self) -> None:
+        """Der Sinn des Eliminators: zwei Ausgaenge, eine Antwort-Union."""
+        angenommen: Result[int, str] = Ok(7)
+        abgelehnt: Result[int, str] = Err("leer")
+
+        def beschreibe(outcome: Result[int, str]) -> str:
+            return outcome.fold(lambda value: f"ok:{value}", lambda error: f"err:{error}")
+
+        assert beschreibe(angenommen) == "ok:7"
+        assert beschreibe(abgelehnt) == "err:leer"
+
+
+class TestMapErr:
+    """map_err transformiert den Fehler - und laesst den Erfolg in Ruhe."""
+
+    def test_err_transformiert_den_fehler(self) -> None:
+        """Auf Err laeuft die Transformation und ersetzt den Fehlerwert."""
+        result: Result[int, str] = Err("kaputt")
+
+        assert result.map_err(str.upper) == Err("KAPUTT")
+
+    def test_err_darf_den_fehlertyp_wechseln(self) -> None:
+        """Der neue Fehler muss nicht denselben Typ haben wie der alte."""
+        result: Result[int, str] = Err("kaputt")
+
+        assert result.map_err(len) == Err(6)
+
+    def test_ok_ruft_die_transformation_gar_nicht_erst_auf(self) -> None:
+        """Es liegt kein Fehler vor - die Transformation laeuft nicht."""
+        laeufe: list[str] = []
+        result: Result[int, str] = Ok(1)
+
+        def remember(error: str) -> str:
+            laeufe.append(error)
+            return error
+
+        returned = result.map_err(remember)
+
+        assert laeufe == []
+        assert returned is result
+
+
+class TestOrElse:
+    """or_else ist das Gegenstueck zu bind auf dem Fehler-Zweig."""
+
+    def test_err_nimmt_die_alternative(self) -> None:
+        """Auf Err laeuft die Alternative und darf den Ausgang drehen."""
+        result: Result[int, str] = Err("kaputt")
+
+        assert result.or_else(lambda error: Ok(len(error))) == Ok(6)
+
+    def test_err_darf_erneut_scheitern(self) -> None:
+        """Die Alternative darf selbst einen neuen Fehler liefern."""
+        result: Result[int, str] = Err("kaputt")
+
+        assert result.or_else(lambda error: Err(len(error))) == Err(6)
+
+    def test_ok_ruft_die_alternative_gar_nicht_erst_auf(self) -> None:
+        """Es liegt kein Fehler vor - die Alternative laeuft nicht."""
+        laeufe: list[str] = []
+        result: Result[int, str] = Ok(1)
+
+        def remember(error: str) -> Result[int, str]:
+            laeufe.append(error)
+            return Ok(0)
+
+        returned = result.or_else(remember)
+
+        assert laeufe == []
+        assert returned is result

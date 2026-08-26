@@ -15,6 +15,11 @@ erinnert"), und zwar in beiden Gliedern der Kette:
 2. Jeder Fall von `RegisterUserError` hat einen Arm im **einen** Fold des Slice
    (`to_response`) - sonst waere der Kanal breiter als seine Auswertung.
 
+Gelesen wird dafuer das **Modul** von `to_response`, nicht die Funktion allein:
+seit `Result.fold` den `Ok`/`Err`-Split traegt, stehen die Arme in den beiden
+Fold-Armen daneben. Ein Fold bleibt es trotzdem - er ist nur nicht mehr in eine
+`match`-Verschachtelung gefaltet.
+
 Waechst die Port-Union, wird hier rot, was sonst gruen bliebe. Die Aufzaehlung
 selbst kommt aus `shared_kernel/coded_error.py`, wie in
 `test_published_error_vocabulary.py` daneben; die Arme des Folds werden per AST
@@ -23,6 +28,7 @@ gelesen, wie in `tests/test_match_exhaustiveness.py`.
 
 import ast
 import inspect
+import sys
 import textwrap
 
 from src.contexts.identity.application.register_user.errors import RegisterUserError
@@ -39,8 +45,9 @@ def _namen(*unions: object) -> set[str]:
 
 
 def _arme_des_folds() -> set[str]:
-    """Die Klassen, auf die `to_response` matcht - `Ok`/`Err` und ihre Nutzlast."""
-    baum = ast.parse(textwrap.dedent(inspect.getsource(to_response)))
+    """Die Klassen, auf die der Fold des Slice matcht - gelesen aus seinem ganzen Modul."""
+    modul = sys.modules[to_response.__module__]
+    baum = ast.parse(textwrap.dedent(inspect.getsource(modul)))
     return {
         knoten.cls.id
         for knoten in ast.walk(baum)
