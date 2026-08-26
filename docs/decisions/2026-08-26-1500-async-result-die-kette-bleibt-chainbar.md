@@ -90,5 +90,6 @@ zuschnappt: **kein Klassen-Typparameter in der Rueckgabe eines uebergebenen Call
 - `src/contexts/shared_kernel/__init__.py` — `AsyncResult` exportiert.
 - `tests/test_async_result.py` — 40 Tests; `result.py` steht bei 100 % Zeilenabdeckung.
 
-Offen und **bewusst nicht** in diesem Schritt: `session_step.py` traegt sein doppeltes `await`
-weiter. Der Umbau ist jetzt moeglich, aber er gehoert in seinen eigenen Commit.
+Nachgezogen in einem eigenen Commit: `UserRegistry.add` liefert die Kette statt einer Coroutine,
+und die drei Stellen, die deshalb zweimal warten mussten, kommen mit einem `await` aus —
+`session_step.py`, `behaviors/validating.py` und `register_user/handler.py`.

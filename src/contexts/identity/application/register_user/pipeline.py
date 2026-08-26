@@ -42,7 +42,7 @@ from src.contexts.identity.application.register_user.response import RegisterUse
 from src.contexts.identity.application.register_user.session_step import issuing_session
 from src.contexts.identity.application.register_user.validators import build_register_user_rules
 from src.contexts.identity.domain import IdnEncoder, User
-from src.contexts.shared_kernel import Result, TimeProvider
+from src.contexts.shared_kernel import AsyncResult, TimeProvider
 from src.contexts.shared_kernel.behaviors import validating
 from src.contexts.shared_kernel.pipeline import Handler, build_pipeline
 from src.contexts.shared_kernel.validation import as_async
@@ -105,7 +105,7 @@ def _dispatch(
     deshalb nicht in diesem Verdrahtungs-Modul.
     """
 
-    async def run(request: RegisterUserRequest) -> Result[User, RegisterUserError]:
-        return await handler(to_command(request, idn))
+    def run(request: RegisterUserRequest) -> AsyncResult[User, RegisterUserError]:
+        return handler(to_command(request, idn))
 
     return run
