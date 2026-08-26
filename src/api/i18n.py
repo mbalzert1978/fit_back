@@ -14,7 +14,16 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import final
 
-__all__ = ["ResourcesCache", "create_resources", "get_language_from_header", "translate"]
+from fastapi import Request
+
+__all__ = [
+    "ResourcesCache",
+    "create_resources",
+    "get_language_from_header",
+    "language_of",
+    "resources_of",
+    "translate",
+]
 
 SUPPORTED_LANGUAGES = {"de-DE", "en-US"}
 DEFAULT_LANGUAGE = "de-DE"
@@ -193,3 +202,44 @@ def get_language_from_header(accept_language: str | None) -> str:
         ),
         DEFAULT_LANGUAGE,
     )
+
+
+def language_of(request: Request) -> str:
+    """Die ausgehandelte Sprache dieser Anfrage.
+
+    Die eine Stelle, an der `Accept-Language` ausgewertet wird. Vorher stand
+    dieselbe Zeile an vier Stellen nebeneinander - im Router, im
+    Validierungs-Handler und in beiden Middlewares. Vier Kopien sind vier
+    Stellen, an denen die Regel auseinanderlaufen kann.
+
+    **Ohne Zwischenspeicher am `request.state`.** Er war einer zu viel:
+    `get_language_from_header` ist rein und liest einen Header, der sich
+    waehrend einer Anfrage nicht mehr aendert - zweimal gefragt kommt zweimal
+    dasselbe heraus. Ein Speicher haette nur einen Zustand hinzugefuegt, den
+    jemand von aussen anders setzen kann als der Header es sagt.
+    """
+    return get_language_from_header(request.headers.get("accept-language"))
+
+
+def resources_of(request: Request) -> ResourcesCache:
+    """Die beim Start geladenen Ressourcen dieser Anwendung.
+
+    Der Lifespan legt sie in `app.state.resources` ab und prueft sie dort auf
+    Vollstaendigkeit (`src/main.py`); hier werden sie nur geholt. Als Funktion
+    und nicht als Attributzugriff je Aufrufstelle, damit der Ablageort an einer
+    Stelle steht.
+
+    Fehlen sie, bricht der Aufruf **hier** ab statt weiter unten in `translate`.
+    Ohne die Pruefung waere der Fehler ein `AttributeError` auf `State`, der
+    weder die Ursache noch die Stelle nennt, an der man sie behebt. Der Fall
+    bedeutet immer dasselbe: die App lief ohne ihren Lifespan.
+    """
+    resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
+    if resources is None:
+        msg = (
+            "app.state.resources fehlt - die App lief ohne ihren Lifespan. Der Lifespan in "
+            "src/main.py legt sie ueber create_resources() an; ein Test, der seine App selbst "
+            "baut, setzt app.state.resources = create_resources()."
+        )
+        raise AssertionError(msg)
+    return resources

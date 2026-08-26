@@ -7,7 +7,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from src.api.i18n import ResourcesCache, translate
+from src.api.i18n import language_of, resources_of, translate
 
 __all__ = [
     "PROBLEM_JSON_MEDIA_TYPE",
@@ -147,9 +147,7 @@ def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
     request: Request,
     http_status: int,
     slug: str,
-    resources: ResourcesCache,
     *,
-    language: str,
     resource_key: str | None = None,
     parameters: Mapping[str, object] | None = None,
     errors: dict[str, list[str]] | None = None,
@@ -164,7 +162,11 @@ def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
     `<resource_key>-detail`.
 
     `resource_key` faellt auf `slug` zurueck, weil beide fast ueberall
-    deckungsgleich sind. Wo sie es nicht sind, wird der Schluessel genannt statt
+    deckungsgleich sind. Der Rueckfall ist ein `or` und kein `is not None`: ein
+    leerer Schluessel ist kein Schluessel, sondern derselbe Fall wie gar keiner -
+    er wuerde sonst als `""` in die Ressourcen gehen und dort scheitern.
+
+    Wo Slug und Schluessel auseinandergehen, wird der Schluessel genannt statt
     die Ressource umbenannt: der Slug steht im Fehlertyp und damit im Vertrag des
     Frontends (`contracts/pacts/identity/`), der Ressourcenschluessel nicht -
     eine Angleichung waere entweder ein Vertragsbruch oder eine Migration der
@@ -174,13 +176,21 @@ def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
     `parameters` fuellt die Platzhalter beider Vorlagen; ein Titel ohne
     Platzhalter ignoriert sie.
 
-    Zum `noqa`: die Signatur zaehlt acht Argumente, `PLR0913` erlaubt fuenf.
-    Weniger sind es nicht - Anfrage, Status, Slug, Ressourcen und Sprache sind
-    allesamt Pflicht, und `resource_key`, `parameters` und `errors` decken je
-    eine Aufrufstelle ab, die es ohne sie nicht gibt. Nur `positional` ist es
-    gedeckelt: nach dem vierten Argument ist Schluss, `PLR0917` greift nicht.
+    Sprache und Ressourcen kommen aus der **Anfrage** und nicht als Argumente
+    herein. Beide folgen aus ihr, und sie liegt ohnehin schon vor: vorher stand
+    an jeder der sechs Aufrufstellen dasselbe Paar Zeilen davor, das sie aus ihr
+    holte (`language_of`, `resources_of` in `src/api/i18n.py`).
+
+    Zum `noqa`: die Signatur zaehlt sechs Argumente, `PLR0913` erlaubt fuenf. Es
+    waren acht, bevor Sprache und Ressourcen aus der Anfrage kamen. Weniger sind
+    es nicht - Anfrage, Status und Slug sind Pflicht, und `resource_key`,
+    `parameters` und `errors` decken je eine Aufrufstelle ab, die es ohne sie
+    nicht gibt. Nur `positional` ist es gedeckelt: nach dem dritten Argument ist
+    Schluss, `PLR0917` greift nicht.
     """
-    key = resource_key if resource_key is not None else slug
+    key = resource_key or slug
+    language = language_of(request)
+    resources = resources_of(request)
     return problem(
         request,
         http_status,
