@@ -1,7 +1,7 @@
 # `Result` bekommt einen Eliminator: `fold`
 
 **Datum:** 2026-08-26, 11:30
-**Status:** entschieden, in Umsetzung (Issue [#100](https://github.com/mbalzert1978/fit_back/issues/100))
+**Status:** entschieden, umgesetzt (Issue [#100](https://github.com/mbalzert1978/fit_back/issues/100))
 
 ## Der Anlass
 
@@ -71,10 +71,14 @@ allein, weil sie eine Ebene tiefer stehen. Was er zusichert, ist unveraendert: k
   erste Fundstelle, umgestellt.
 - `tests/contexts/identity/test_register_user_error_channel.py` — liest das Modul statt der
   Funktion.
+- `src/contexts/identity/application/register_user/validators/register_user_rules.py` — die
+  restlichen fuenf Fundstellen, umgestellt.
 
-Die fuenf Regeln in
-`src/contexts/identity/application/register_user/validators/register_user_rules.py` stehen noch
-in der zweistufigen Form; sie ziehen im selben Issue nach.
+Alle sieben Fundstellen tragen jetzt den Fold. In den Regeln fiel dabei auch die Doppelung weg:
+statt fuenfmal `case Ok(): return []` gibt es **einen** Erfolgs-Arm `_no_errors`, und jeder
+Fehler-Arm ist eine eigene, gegen ihre Union getypte Funktion (`_email_errors`,
+`_password_errors`, …), die flach matcht. `ty` rechnet die Vollzaehligkeit dort aus, ohne dass
+`pyproject.toml` einen `[[tool.ty.overrides]]`-Block braucht.
 
 ## Was gilt weiter
 
