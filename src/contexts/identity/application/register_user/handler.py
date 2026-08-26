@@ -60,8 +60,7 @@ class RegisterUserHandler:
         # User - eine abgelehnte Registrierung ist nichts, worauf ein anderer
         # Context reagieren duerfte - und die Meldung selbst aendert am Ergebnis
         # des Use Case nichts.
-        registered = await self._registry.add(candidate)
-        return await registered.inspect_async(self._announce)
+        return await self._registry.add(candidate).inspect_async(self._announce)
 
     async def _announce(self, user: User) -> None:
         """Melde die abgeschlossene Registrierung nach aussen."""
