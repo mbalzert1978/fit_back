@@ -110,7 +110,7 @@ filterwarnings = [
 # schreiben.
 #
 # Die Blocks unter [[tool.ty.overrides]] sind eine **Baseline**: der Ist-Stand
-# vom 2026-08-26, 21 Befunde in 9 Dateien, eingefroren, damit das Gate ab
+# vom 2026-08-26, 10 Befunde in 5 Dateien, eingefroren, damit das Gate ab
 # sofort scharf laeuft und jede *neue* Datei voll geprueft wird. Die Liste soll
 # schrumpfen, nicht wachsen - eine neue Zeile hier gehoert begruendet.
 # Hergang und Zaehlung: docs/decisions/2026-08-25-1500-typechecker-ty.md
@@ -119,12 +119,10 @@ filterwarnings = [
 # Ein nicht aufloesbarer Import ist ein echter Fehler, kein Hinweis.
 unresolved-import = "error"
 
-# Protokoll- statt Klassenbezug an der Naht (`UserStoreTransaction` vs.
-# `AsyncConnection`), `TaskGroup.create_task` gegen `Awaitable` statt
-# `Coroutine`, Pydantic-`LaxStr` gegen `str | None`.
+# `TaskGroup.create_task` gegen `Awaitable` statt `Coroutine`, Pydantic-`LaxStr`
+# gegen `str | None`.
 [[tool.ty.overrides]]
 include = [
-    "src/api/identity/dependencies.py",
     "src/contexts/shared_kernel/validation.py",
     "src/settings.py",
 ]
@@ -145,23 +143,3 @@ invalid-return-type = "ignore"
 not-iterable = "ignore"
 type-assertion-failure = "ignore"
 unresolved-attribute = "ignore"
-
-# SQLAlchemy: `Column[int]` vs. `Column[BigInteger]` - die Stubs typisieren die
-# Spalte ueber den Python-Wert, die Annotation nennt den SQL-Typ.
-[[tool.ty.overrides]]
-include = ["src/infrastructure/db_schemas.py"]
-[tool.ty.overrides.rules]
-invalid-assignment = "ignore"
-
-# asyncpg-Verbindung ist `Any | None`; der Worker haelt sie ueber seinen
-# Lebenszyklus, ty sieht das nicht.
-[[tool.ty.overrides]]
-include = ["src/infrastructure/outbox/worker.py"]
-[tool.ty.overrides.rules]
-unresolved-attribute = "ignore"
-
-# `Result`-Typvariable mit `object` statt eines Tuples belegt.
-[[tool.ty.overrides]]
-include = ["src/contexts/identity/infrastructure/persistence/user_store.py"]
-[tool.ty.overrides.rules]
-invalid-type-arguments = "ignore"

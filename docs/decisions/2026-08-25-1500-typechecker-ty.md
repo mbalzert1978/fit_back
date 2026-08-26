@@ -144,6 +144,52 @@ frozen Dataclass; `EVENT_TYPE` und `to_payload` wichen nicht ab. Nebenwirkung: i
 verschwinden acht weitere Befunde (`EventRegistry.register` gegen die Obergrenze `DomainEvent`) —
 der Beleg, dass die Korrektur an der Naht sitzt und nicht am Einzelfall.
 
+### Welle 3 — die SQLAlchemy-Naht (2026-08-26): 21 → 10 Befunde, 9 → 5 Dateien
+
+Drei Blocks entfallen ganz, einer verliert eine Zeile. Diese Welle enthält die **echten Funde**;
+hier war nichts eine Werkzeug-Macke.
+
+**Spalten-Annotationen (`db_schemas.py`, ganzer Block).** `Column` ist in den Stubs über den
+**Python**-Wert generisch (`BigInteger` erbt von `TypeEngine[int]`), nicht über den SQL-Typ. Die
+Annotationen nannten den SQL-Typ und behaupteten damit schlicht Falsches. Bemerkenswert ist die
+Zeile, die `ty` **nicht** beanstandet hat: `Column[Uuid]` war genauso falsch, aber `Uuid` ist über
+einen constrained TypeVar generisch, den `ty` aus der nackten Klassenreferenz nicht auflösen kann —
+es ergibt `Column[Unknown]`, und `Unknown` ist zu allem zuweisbar. Ein Schweigen des Prüfers ist
+also kein Freispruch. Beide Spalten sind mit korrigiert, damit in einer Datei nicht zwei Prinzipien
+stehen. Die Tabellendefinition ist unverändert: die `Column(...)`-Argumente sind zeichengleich, das
+gegen den Postgres-Dialekt kompilierte `CREATE TABLE` ebenso.
+
+**`UserStoreTransaction` (`user_store.py` + `dependencies.py`).** Hier lagen **zwei** unabhängige
+Ursachen übereinander, und die vermutete Folgekette gab es nicht — gemessen, indem zuerst nur die
+eine behoben wurde:
+
+1. Der Rückgabetyp `Result[object]` verletzte die Obergrenze `tuple[Any, ...]` von SQLAlchemys
+   `Result`. Behoben allein: 21 → 20, die beiden `dependencies.py`-Befunde blieben stehen.
+2. `parameters: object` war **kontravariant zu weit**: das Protocol sagte zu, der Aufrufer dürfe
+   alles übergeben, während `AsyncConnection.execute` nur `Mapping[str, Any] | Sequence[…] | None`
+   annimmt. Ein Implementierer, der weniger annimmt als das Protocol verspricht, erfüllt es nicht.
+   `ty` meldete diese Unverträglichkeit an keiner Stelle direkt — sichtbar war sie nur über die
+   beiden Aufrufstellen.
+
+`dependencies.py` selbst blieb unverändert; seine zwei Befunde waren reine Folgefehler.
+
+**Outbox-Worker (`worker.py`, ganzer Block).** Der eingetragene Grund („der Worker hält die
+Verbindung über seinen Lebenszyklus, ty sieht das nicht") war sachlich falsch. `driver_connection`
+ist `Any | None`, und der `None`-Zweig ist **real erreichbar**: steht hinter der Engine keine
+DBAPI-Verbindung, lief das bisher in ein `AttributeError` aus der Tiefe — der Worker startete und
+hörte einfach nicht zu. Jetzt eine Guard-Klausel, die laut meldet und **degradiert weiterläuft**:
+das Polling in `_pump` ist laut Modul-Docstring ohnehin das Sicherheitsnetz für verlorene
+Benachrichtigungen, der Schaden ist also Latenz bis `idle_wait_seconds`, nicht Datenverlust. Ein
+`raise` wäre hier zudem nicht einmal laut — `run_outbox_worker` startet den Worker per
+`asyncio.create_task` und wartet ihn erst beim Shutdown ab; die Exception stürbe still in der Task.
+
+Zwei Nebenfunde, die eigene Tickets verdienen und in dieser Welle bewusst **nicht** angefasst
+wurden: `db_schemas.py` steht noch in der 1.x-Form (`declarative_base()` + `Column()`) statt
+`Mapped`/`mapped_column` — die nicht-`Mapped`-Annotation geht dort nur durch, weil Python 3.14
+Annotationen verzögert auswertet; und `IdempotencyKey` hat außerhalb der eigenen Datei **keinen
+Verwender** (`alembic/env.py` setzt `target_metadata = None`, die Middleware spricht die Tabelle
+über rohe `text(...)`-Statements an), kann also unbemerkt gegen die Migrationen driften.
+
 ## Rückfallebene
 
 `ty` ist Preview (`0.0.74`). Erweist es sich als untragbar, sind `mypy` oder `pyright` die

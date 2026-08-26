@@ -5,6 +5,7 @@ Implementiert **nicht** den Domain-Port `UserRegistry` - das tut
 die Domaene nicht: Primitive hinein, die Ergebnis-Union der Naht heraus.
 """
 
+from collections.abc import Mapping
 from typing import Protocol, final
 
 from sqlalchemy import Result, TextClause, text
@@ -27,8 +28,19 @@ class UserStoreTransaction(Protocol):
     oder gar nicht. Wer hier committen koennte, koennte die beiden trennen.
     """
 
-    async def execute(self, statement: TextClause, parameters: object = None, /) -> Result[object]:
-        """Fuehre ein Statement in der laufenden Transaktion aus."""
+    async def execute(
+        self, statement: TextClause, parameters: Mapping[str, object] | None = None, /
+    ) -> Result[tuple[object, ...]]:
+        """Fuehre ein Statement in der laufenden Transaktion aus.
+
+        `Result` ist hier SQLAlchemys Ergebnis, nicht das des Shared Kernel, und
+        ist ueber den Zeilen-Tupeltyp generisch. Die Naht liest keine Spalte
+        typisiert, sondern fragt nur, ob eine Zeile kam - `tuple[object, ...]`
+        sagt genau das und bleibt zugleich innerhalb der Obergrenze des
+        Typparameters. Fuer `parameters` gilt dasselbe von der anderen Seite:
+        eine Bindungs-Zuordnung, nicht irgendein Objekt - sonst verlangte die
+        Naht mehr, als `AsyncConnection.execute` zusagt.
+        """
         ...
 
 

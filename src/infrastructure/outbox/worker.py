@@ -60,6 +60,23 @@ class OutboxWorker:
 
         async with self._engine.connect() as listening:
             driver_connection = (await listening.get_raw_connection()).driver_connection
+            if driver_connection is None:
+                # Hinter der Verbindung steht keine DBAPI-Verbindung, also gibt
+                # es hier kein LISTEN/NOTIFY. Das ist kein Startfehler: das
+                # Polling in `_pump` ist ohnehin das Sicherheitsnetz (siehe
+                # Modul-Docstring) und stellt weiter zu - nur mit
+                # `idle_wait_seconds` als Zustellverzoegerung statt "sofort".
+                # Verspaetete Zustellung schlaegt gar keine, deshalb laut melden
+                # und degradiert weiterlaufen, statt den Relay abzuschalten.
+                _logger.error(
+                    "Outbox-Worker lauscht nicht auf %s: keine DBAPI-Verbindung hinter der "
+                    "Engine. Zustellung laeuft nur ueber das Polling, bis zu %.0fs verzoegert.",
+                    OUTBOX_CHANNEL,
+                    self._idle_wait_seconds,
+                )
+                await self._pump(wakeup)
+                return
+
             await driver_connection.add_listener(OUTBOX_CHANNEL, on_notify)
             _logger.info("Outbox-Worker lauscht auf %s", OUTBOX_CHANNEL)
             try:

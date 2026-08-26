@@ -1,61 +1,63 @@
-"""ORM models (SQLAlchemy) for cross-context shared tables.
+"""ORM-Modelle (SQLAlchemy) für kontextübergreifend geteilte Tabellen.
 
-Separate top-level package from `shared_kernel`, not a subfolder of it:
-`shared_kernel` (Result[T,E], TimeProvider, ...) must stay free of external
-(SQLAlchemy) dependencies, so its infrastructure counterpart lives here
-instead of nested underneath it.
+Eigenes Top-Level-Paket, kein Unterordner von `shared_kernel`:
+`shared_kernel` (Result[T, E], TimeProvider, ...) muss frei von externen
+(SQLAlchemy-)Abhängigkeiten bleiben, deshalb liegt sein Infrastruktur-Gegenstück
+hier statt darunter verschachtelt.
 """
 
+from datetime import datetime
 from typing import ClassVar, final
+from uuid import UUID
 
 from sqlalchemy import BigInteger, Column, DateTime, SmallInteger, String, Text, Uuid
 from sqlalchemy.orm import declarative_base
 
-# Base for all ORM models
+# Basis für alle ORM-Modelle
 Base = declarative_base()
 
 
 @final
 class IdempotencyKey(Base):
-    """ORM model for idempotency key tracking.
+    """ORM-Modell für die Nachverfolgung von Idempotency-Keys.
 
-    Stores Idempotency-Key headers and their responses for deduplication.
-    TTL: 7 days (cleanup via scheduled job, Ticket 0046).
+    Speichert Idempotency-Key-Header und ihre Antworten zur Deduplizierung.
+    TTL: 7 Tage (Aufräumen per geplantem Job, Ticket 0046).
     """
 
     __tablename__ = "idempotency_keys"
     __table_args__: ClassVar = {"schema": "shared_kernel"}
 
-    id: Column[BigInteger] = Column(BigInteger, primary_key=True, autoincrement=True)
-    """Synthetic primary key (BIGSERIAL)."""
+    id: Column[int] = Column(BigInteger, primary_key=True, autoincrement=True)
+    """Synthetischer Primärschlüssel (BIGSERIAL)."""
 
-    key: Column[Uuid] = Column(Uuid, nullable=False, unique=True)
-    """Idempotency-Key value (UUID)."""
+    key: Column[UUID] = Column(Uuid, nullable=False, unique=True)
+    """Wert des Idempotency-Key (UUID)."""
 
-    user_id: Column[Uuid] = Column(Uuid, nullable=False, index=False)
-    """Owner of the idempotency key (FK to identity.users.id)."""
+    user_id: Column[UUID] = Column(Uuid, nullable=False, index=False)
+    """Eigentümer des Idempotency-Key (FK auf identity.users.id)."""
 
-    request_hash: Column[String] = Column(String(64), nullable=False)
-    """SHA-256 hash of (method + path + body) as hex string."""
+    request_hash: Column[str] = Column(String(64), nullable=False)
+    """SHA-256-Hash aus (Methode + Pfad + Body) als Hex-String."""
 
-    response_body: Column[Text] = Column(Text, nullable=True)
-    """Cached response body (JSON string). NULL = reserved, response still pending."""
+    response_body: Column[str] = Column(Text, nullable=True)
+    """Gecachter Response-Body (JSON-String). NULL = reserviert, Antwort steht noch aus."""
 
-    response_status: Column[SmallInteger] = Column(SmallInteger, nullable=True)
-    """HTTP status code of the cached response. NULL = recorded before `shared_005`."""
+    response_status: Column[int] = Column(SmallInteger, nullable=True)
+    """HTTP-Statuscode der gecachten Antwort. NULL = vor `shared_005` erfasst."""
 
-    response_headers: Column[Text] = Column(Text, nullable=True)
-    """Replayable response headers as a JSON object. NULL = recorded before `shared_005`."""
+    response_headers: Column[str] = Column(Text, nullable=True)
+    """Wiederabspielbare Response-Header als JSON-Objekt. NULL = vor `shared_005` erfasst."""
 
-    created_utc: Column[DateTime] = Column(
+    created_utc: Column[datetime] = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default="now()",
     )
-    """Creation timestamp in UTC."""
+    """Erstellungszeitpunkt in UTC."""
 
     def __repr__(self) -> str:
-        """Provide string representation for debugging."""
+        """Liefert eine String-Repräsentation für das Debugging."""
         return (
             f"<IdempotencyKey(key={self.key!r}, user_id={self.user_id!r}, "
             f"created_utc={self.created_utc!r})>"
