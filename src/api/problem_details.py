@@ -13,6 +13,7 @@ __all__ = [
     "PROBLEM_JSON_MEDIA_TYPE",
     "PROBLEM_TYPE_PREFIX",
     "ProblemDetails",
+    "ProblemResponse",
     "problem",
     "problem_type",
     "translated_problem",
@@ -98,6 +99,27 @@ class ProblemDetails(BaseModel):
     }
 
 
+@final
+class ProblemResponse(JSONResponse):
+    """Die HTTP-Antwort, die einen `ProblemDetails`-Koerper traegt.
+
+    Eine eigene Klasse und kein `JSONResponse` mit `media_type=`-Argument: der
+    Media-Type gehoert zur Form und nicht zur Aufrufstelle. Damit steht in der
+    Signatur eines Endpunkts, **welche** Antwort er im Fehlerfall liefert,
+    statt nur "irgendein JSON".
+
+    Warum ueberhaupt eine Response und nicht das nackte `ProblemDetails`-Modell:
+    FastAPI nimmt den Media-Type aus der `response_class` der **Route** und
+    nicht aus dem einzelnen Rueckgabewert (`fastapi/routing.py`, Zweig fuer
+    Nicht-Response-Rueckgaben). Ein zurueckgegebenes Modell traege deshalb
+    `application/json` - und damit nicht mehr, was RFC 7807 und der Vertrag des
+    Frontends verlangen (`contracts/pacts/identity/`). Die `response_class` der
+    Route umzustellen scheidet aus: sie gilt auch fuer die 201.
+    """
+
+    media_type = PROBLEM_JSON_MEDIA_TYPE
+
+
 def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, status, type, and text
     request: Request,
     http_status: int,
@@ -107,7 +129,7 @@ def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, st
     errors: dict[str, list[str]] | None = None,
     *,
     language_tag: str,
-) -> JSONResponse:
+) -> ProblemResponse:
     """Baue eine RFC-7807-Antwort im Format des Shared Kernel.
 
     `language_tag` hat bewusst **keinen** Vorgabewert: `title` und `detail` sind
@@ -124,10 +146,9 @@ def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, st
         instance=str(request.url.path),
         errors=errors,
     )
-    response = JSONResponse(
+    response = ProblemResponse(
         status_code=http_status,
         content=details.model_dump(exclude_none=True),
-        media_type=PROBLEM_JSON_MEDIA_TYPE,
     )
     response.headers["Content-Language"] = language_tag
     # Die Umschlag-Middleware setzt denselben Header, aber nur auf 2xx -
@@ -151,7 +172,7 @@ def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
     resource_key: str | None = None,
     parameters: Mapping[str, object] | None = None,
     errors: dict[str, list[str]] | None = None,
-) -> JSONResponse:
+) -> ProblemResponse:
     """Baue eine RFC-7807-Antwort samt ihren beiden Uebersetzungen.
 
     Die eine Stelle, an der eine Fehlerantwort dieser API **entsteht**. Vorher

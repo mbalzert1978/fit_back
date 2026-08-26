@@ -15,14 +15,14 @@ dasselbe Muster wie `to_response` im Slice
 (`.rules/python/python-error-handling.md`, "Jeder `match` ist vollstaendig").
 """
 
-from collections.abc import Mapping
-from typing import assert_never
+from collections.abc import Callable, Mapping
+from functools import partial
+from typing import Annotated, assert_never
 
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
+from fastapi import Depends, Request, status
 
 from src.api.i18n import language_of, resources_of, translate
-from src.api.problem_details import translated_problem
+from src.api.problem_details import ProblemResponse, translated_problem
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
     RegisterUserFailure,
@@ -30,10 +30,28 @@ from src.contexts.identity.application.register_user import (
 )
 from src.contexts.shared_kernel.validation import FieldErrorDetail
 
-__all__ = ["to_problem"]
+__all__ = ["Problems", "to_problem"]
 
 
-def to_problem(request: Request, rejected: RegisterUserFailure) -> JSONResponse:
+def _problems(request: Request) -> Callable[[RegisterUserFailure], ProblemResponse]:
+    """Binde `to_problem` an die laufende Anfrage.
+
+    Damit steht die Anfrage nicht mehr in der Signatur des Endpunkts. Er
+    beantwortet eine Ablehnung, ohne zu wissen, dass dafuer Pfad und
+    `Accept-Language` der Anfrage gebraucht werden - beides steckt hier drin.
+
+    Ein `partial` und keine Klasse: gebunden wird genau ein Argument, und
+    `to_problem` bleibt die gewoehnliche Funktion, die sich ohne FastAPI
+    aufrufen laesst.
+    """
+    return partial(to_problem, request)
+
+
+type Problems = Annotated[Callable[[RegisterUserFailure], ProblemResponse], Depends(_problems)]
+"""Die Fehlerformen dieses Endpunkts, fertig an die Anfrage gebunden."""
+
+
+def to_problem(request: Request, rejected: RegisterUserFailure) -> ProblemResponse:
     """Beantworte einen abgelehnten Registrierungsversuch als `problem+json`.
 
     Waechst die Fehlerhaelfte der Pipeline um einen Ausgang, faellt genau hier

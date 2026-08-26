@@ -156,6 +156,27 @@ async def test_vergebene_adresse_wird_zu_409(client: AsyncClient) -> None:
     assert problem["instance"] == "/api/v1/identity/register"
 
 
+async def test_ein_abgelehnter_versuch_traegt_kein_location(client: AsyncClient) -> None:
+    """`Location` gehoert zur 201 und nur zu ihr.
+
+    Geprueft wird die Leitung, nicht der Zweig im Endpunkt: ein `Location` auf
+    dem 409 zeigte auf ein Konto, das dieser Aufruf nicht angelegt hat.
+
+    Die Kopfzeilen der 201 kommen aus einer Dependency, und eine Dependency
+    laeuft vor dem Endpunkt - also auch vor einer Ablehnung. Dass der Endpunkt
+    sie trotzdem erst im 201-Zweig setzt, faengt dieser Test **nicht**: FastAPI
+    verwirft die Kopfzeilen der eingespritzten `Response`, sobald ein Endpunkt
+    selbst eine `Response` zurueckgibt. Der Zweig steht dort aus einem anderen
+    Grund - siehe `_created_headers` in `register_user_response.py`.
+    """
+    await client.post("/api/v1/identity/register", json=_VALID_BODY)
+
+    response = await client.post("/api/v1/identity/register", json=_VALID_BODY)
+
+    assert response.status_code == 409
+    assert "location" not in response.headers
+
+
 async def test_ungueltige_eingabe_wird_zu_422_mit_feldfehlern(client: AsyncClient) -> None:
     """422 als problem+json, Feldnamen in der Schreibweise der Schnittstelle."""
     response = await client.post(

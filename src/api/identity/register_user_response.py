@@ -11,15 +11,18 @@ sich Pfad, Statuscodes oder Verdrahtung aendern. Die Modellnamen sind Teil des
 veroeffentlichten OpenAPI-Schemas und bleiben deshalb, wie sie heissen.
 """
 
-from typing import Literal, Self, final
+from collections.abc import Callable
+from functools import partial
+from typing import Annotated, Literal, Self, final
 
-from fastapi import Request, Response
+from fastapi import Depends, Request, Response
 from pydantic import BaseModel, Field
 
 from src.api.i18n import language_of
 from src.contexts.identity.application.register_user import RegistrationAccepted
 
 __all__ = [
+    "CreatedHeaders",
     "GrantedSession",
     "RegisterUserResponse",
     "RegisteredUser",
@@ -102,6 +105,26 @@ class RegisterUserResponse(BaseModel):
                 token_type="Bearer",  # noqa: S106 -- Schema-Name aus RFC 6750, kein Geheimnis
             ),
         )
+
+
+def _created_headers(response: Response, request: Request) -> Callable[[], None]:
+    """Binde `apply_created_headers` an Anfrage und Antwort dieses Aufrufs.
+
+    Damit stehen `Request` und `Response` nicht mehr in der Signatur des
+    Endpunkts. Er sagt nur noch, **wann** die Kopfzeilen der 201 gelten - womit
+    sie gesetzt werden, steckt hier drin.
+
+    Zurueckgegeben wird ein Aufruf und nicht direkt gesetzt: eine Dependency
+    laeuft **vor** dem Endpunkt und damit auch dann, wenn die Registrierung
+    abgelehnt wird. Ein `Location` auf den 409 zu setzen und darauf zu bauen,
+    dass FastAPI ihn spaeter verwirft, waere ein stiller Verlass auf ein
+    Innenleben. So entscheidet der Endpunkt selbst, im Zweig, der die 201 baut.
+    """
+    return partial(apply_created_headers, response, request)
+
+
+type CreatedHeaders = Annotated[Callable[[], None], Depends(_created_headers)]
+"""Die Kopfzeilen der 201, fertig gebunden - aufzurufen im 201-Zweig."""
 
 
 def apply_created_headers(response: Response, request: Request) -> None:

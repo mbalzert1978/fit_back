@@ -16,14 +16,13 @@ Wie Anfrage und Antworten aussehen, steht nebenan und nicht hier:
 
 from typing import assert_never
 
-from fastapi import APIRouter, Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, status
 
 from src.api.identity.dependencies import RegisterUser
 from src.api.identity.register_user_body import RegisterUserBody
-from src.api.identity.register_user_problem import to_problem
-from src.api.identity.register_user_response import RegisterUserResponse, apply_created_headers
-from src.api.problem_details import ProblemDetails
+from src.api.identity.register_user_problem import Problems
+from src.api.identity.register_user_response import CreatedHeaders, RegisterUserResponse
+from src.api.problem_details import ProblemDetails, ProblemResponse
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
     RegistrationAccepted,
@@ -48,10 +47,20 @@ router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
 async def register_user(
     body: RegisterUserBody,
     pipeline: RegisterUser,
-    request: Request,
-    response: Response,
-) -> RegisterUserResponse | JSONResponse:
+    created: CreatedHeaders,
+    problems: Problems,
+) -> RegisterUserResponse | ProblemResponse:
     """Lege ein Konto an.
+
+    Weder `Request` noch `Response` stehen in der Signatur. Beide werden hier
+    gebraucht - fuer `instance` des Fehlerkoerpers, fuer die ausgehandelte
+    Sprache, fuer `Location` -, aber keine dieser Verwendungen ist eine
+    Entscheidung dieses Endpunkts. Sie stecken in `created` und `problems`, zwei
+    Dependencies, die bereits an die laufende Anfrage gebunden sind.
+
+    Der Rueckgabetyp nennt beide Formen dieser Route: die 201 als Modell, die
+    Ablehnung als `ProblemResponse`. Kein `JSONResponse` - das sagte nur "JSON"
+    und liesse jeden beliebigen Koerper zu.
 
     Vollstaendiges Matching mit `assert_never` als Abschluss: waechst die
     Response-Union um einen Ausgang, faellt genau hier auf, dass die HTTP-Antwort
@@ -62,11 +71,11 @@ async def register_user(
     outcome = await pipeline.run(body.to_request())
     match outcome:
         case RegistrationAccepted() as accepted:
-            apply_created_headers(response, request)
+            created()
             return RegisterUserResponse.to_response(accepted)
 
         case EmailAlreadyTaken() | RegistrationInvalid() as rejected:
-            return to_problem(request, rejected)
+            return problems(rejected)
 
         case _:
             assert_never(outcome)
