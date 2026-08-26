@@ -20,6 +20,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_agenten-instruktionen-ueber-refine-prompt.md](exp_agenten-instruktionen-ueber-refine-prompt.md) — jeder Agenten-Prompt laeuft vor dem Start durch `refine-prompt`, auf jeder Ebene
 - [exp_alembic-ini-path-separator-windows.md](exp_alembic-ini-path-separator-windows.md) — `path_separator = os` bricht unter Windows still, wenn `version_locations` mit `":"` authored ist
 - [exp_alembic-multi-schema-pitfalls.md](exp_alembic-multi-schema-pitfalls.md) — Revision-IDs global eindeutig halten, `alembic upgrade heads` (Plural) verwenden
+- [exp_baseline-begruendung-ist-eine-vermutung.md](exp_baseline-begruendung-ist-eine-vermutung.md) — die beim Einfrieren notierte Begruendung ist eine Vermutung; beim Abbau wird die Ursache neu gemessen
 - [exp_beauftragtes-nicht-als-befund-buchen.md](exp_beauftragtes-nicht-als-befund-buchen.md) — vor „out of scope"/„Regression" pruefen, ob der Nutzer die Aenderung beauftragt hat
 - [exp_brief-traegt-die-form-nicht-die-loesung.md](exp_brief-traegt-die-form-nicht-die-loesung.md) — Agenten-Brief beschreibt WAS gelten muss, nie WIE zu loesen ist
 - [exp_entwickler-agent-delegiert-nicht-in-den-worktree.md](exp_entwickler-agent-delegiert-nicht-in-den-worktree.md) — Delegieren bleibt erlaubt, aber nur mit weitergereichter `cd`-Anweisung und eigenem Arbeitspaket
@@ -37,6 +38,7 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_maschinelle-absicherung-statt-review-regel.md](exp_maschinelle-absicherung-statt-review-regel.md) — mechanisch entscheidbare Architektur-Regeln gehoeren in einen Linter-Contract, nicht in ein LLM-Review
 - [exp_parallele-agenten-brauchen-eigene-worktrees.md](exp_parallele-agenten-brauchen-eigene-worktrees.md) — parallele Agenten im selben Working Tree halten fremde Aenderungen fuer eigene Fehler und raeumen destruktiv auf
 - [exp_pipeline-artefakte-gitignore.md](exp_pipeline-artefakte-gitignore.md) — Pipeline-Arbeitsdateien (Task.md) von Anfang an gitignored halten
+- [exp_kovarianz-braucht-final-nicht-frozen.md](exp_kovarianz-braucht-final-nicht-frozen.md) — `frozen=True` macht einen PEP-695-Generic nicht kovariant; erst `Final[T]` am Feld, und kein Klassenparameter in Callback-Position
 - [exp_lint-fix-kann-bedeutung-kippen.md](exp_lint-fix-kann-bedeutung-kippen.md) — eine mechanisch korrekte Lint-Korrektur kann den gerenderten Text still veraendern (`D301`, `D400`)
 - [exp_powershell-set-content-bom.md](exp_powershell-set-content-bom.md) — PowerShell `Set-Content -Encoding utf8` schreibt eine BOM, bricht TOML-Parser
 - [exp_pruefkommando-muss-messen-was-es-behauptet.md](exp_pruefkommando-muss-messen-was-es-behauptet.md) — eine leere Ausgabe belegt nichts, solange nicht gezeigt ist, dass das Kommando greifen kann (Git-Pathspec-Glob)
@@ -47,9 +49,12 @@ zugehoerige Decision-Doc statt es zu duplizieren.
 - [exp_registrierung-ueber-den-vertragstyp.md](exp_registrierung-ueber-den-vertragstyp.md) — an einer Registry wird ueber den Vertragstyp registriert, nie ueber einen String
 - [exp_reviewer-gegen-veralteten-main-diffen.md](exp_reviewer-gegen-veralteten-main-diffen.md) — waehrend eines Gates auf `main` committen erzeugt Phantom-Findings; gegen die Merge-Base diffen oder vorher mergen
 - [exp_review-agent-null-findings-ist-kein-freibrief.md](exp_review-agent-null-findings-ist-kein-freibrief.md) — APPROVE mit 0 Findings ist ein Rohbefund; gruene Matrix und selbst geschlossene Zweifelsfaelle sind Warnsignale
+- [exp_schweigen-des-typpruefers-ist-kein-freispruch.md](exp_schweigen-des-typpruefers-ist-kein-freispruch.md) — ein Typpruefer schweigt auch dort, wo er nichts weiss (`Unknown`), und sein Gruen deckt nur seine eigene Regelmenge
 - [exp_security-gate-triage-teamlead.md](exp_security-gate-triage-teamlead.md) — generische Security-Findings ohne Spezifikations-Basis selbst triagieren
 - [exp_spec-prueft-ergebnis-nicht-implementierung.md](exp_spec-prueft-ergebnis-nicht-implementierung.md) — viele Eingabefaelle rechtfertigen keine tiefere Testebene; fremde Bibliotheken werden nie mitgetestet
 - [exp_startquittung-ist-kein-fortschritt.md](exp_startquittung-ist-kein-fortschritt.md) — Hintergrund-Kinder eines Subagenten sterben an der Turn-Grenze; Fortschritt wird an Git gemessen, nicht an Tool-Quittungen
+- [exp_standard-ausnahme-am-ort-markieren.md](exp_standard-ausnahme-am-ort-markieren.md) — muss ein Standard an genau einer Stelle brechen, aendert man nicht die Regel: die Stelle markiert sich selbst als Ausnahme
+- [exp_subagenten-mechanismus-behauptung-nachmessen.md](exp_subagenten-mechanismus-behauptung-nachmessen.md) — richtige Arbeit und richtige Begruendung sind zwei Behauptungen; die Erklaerung eines Subagenten vor dem Weiterreichen falsifizieren
 - [exp_subprocess-python-literal-vs-sys-executable.md](exp_subprocess-python-literal-vs-sys-executable.md) — `subprocess.run(["python", ...])` loest ueber PATH auf, nicht zum aktiven Venv - `sys.executable` verwenden
 - [exp_sqlalchemy-list-bind-needs-any.md](exp_sqlalchemy-list-bind-needs-any.md) — Python-list als SQL-Bind-Param braucht `= ANY(:param)`, nicht `IN (:param)`
 - [exp_uv-sync-all-extras.md](exp_uv-sync-all-extras.md) — `uv sync` installiert Extras nicht automatisch, `--all-extras` noetig
