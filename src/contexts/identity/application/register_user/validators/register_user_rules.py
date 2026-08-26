@@ -49,7 +49,15 @@ from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
 __all__ = ["build_register_user_rules"]
 
 _EMAIL = "email"
-"""Feldname des API-Vertrags - als Konstante, weil ihn fuenfzehn Arme wiederholen."""
+_PASSWORD = "password"  # noqa: S105 -- Feldname des Vertrags, kein Geheimnis
+_DISPLAY_NAME = "displayName"
+_LOCALE = "locale"
+_TIME_ZONE_ID = "timeZoneId"
+"""Die Feldnamen des API-Vertrags - je einmal benannt, weil jeder Arm sie wiederholt.
+
+Sie stehen bewusst als Konstanten und nicht als Literal im Arm: ein umbenanntes
+Feld ist eine Vertragsaenderung, und die soll an genau einer Stelle passieren.
+"""
 
 
 def _no_errors(_: object, /) -> list[FieldError]:
@@ -106,7 +114,7 @@ def _password_errors(error: PasswordError) -> list[FieldError]:
         case PasswordTooShort(actual_length=actual, minimum=minimum):
             return [
                 FieldError(
-                    "password",
+                    _PASSWORD,
                     PasswordTooShort.code,
                     {"actual_length": actual, "minimum": minimum},
                 )
@@ -114,7 +122,7 @@ def _password_errors(error: PasswordError) -> list[FieldError]:
         case PasswordTooLong(actual_length=actual, maximum=maximum):
             return [
                 FieldError(
-                    "password",
+                    _PASSWORD,
                     PasswordTooLong.code,
                     {"actual_length": actual, "maximum": maximum},
                 )
@@ -127,11 +135,11 @@ def _display_name_errors(error: DisplayNameError) -> list[FieldError]:
     """Uebersetze den Fehler des Anzeigenamen-Parsers in den Feldfehler des Vertrags."""
     match error:
         case DisplayNameIsEmpty():
-            return [FieldError("displayName", DisplayNameIsEmpty.code, {})]
+            return [FieldError(_DISPLAY_NAME, DisplayNameIsEmpty.code, {})]
         case DisplayNameTooShort(actual_length=actual, minimum=minimum):
             return [
                 FieldError(
-                    "displayName",
+                    _DISPLAY_NAME,
                     DisplayNameTooShort.code,
                     {"actual_length": actual, "minimum": minimum},
                 )
@@ -139,7 +147,7 @@ def _display_name_errors(error: DisplayNameError) -> list[FieldError]:
         case DisplayNameTooLong(actual_length=actual, maximum=maximum):
             return [
                 FieldError(
-                    "displayName",
+                    _DISPLAY_NAME,
                     DisplayNameTooLong.code,
                     {"actual_length": actual, "maximum": maximum},
                 )
@@ -152,9 +160,9 @@ def _locale_errors(error: LocaleError) -> list[FieldError]:
     """Uebersetze den Fehler des Sprach-Parsers in den Feldfehler des Vertrags."""
     match error:
         case LocaleIsEmpty():
-            return [FieldError("locale", LocaleIsEmpty.code, {})]
+            return [FieldError(_LOCALE, LocaleIsEmpty.code, {})]
         case LocaleNotSupported(candidate=candidate):
-            return [FieldError("locale", LocaleNotSupported.code, {"candidate": candidate})]
+            return [FieldError(_LOCALE, LocaleNotSupported.code, {"candidate": candidate})]
         case _:
             assert_never(error)
 
@@ -163,9 +171,9 @@ def _time_zone_errors(error: UserTimeZoneError) -> list[FieldError]:
     """Uebersetze den Fehler des Zeitzonen-Parsers in den Feldfehler des Vertrags."""
     match error:
         case UserTimeZoneIsEmpty():
-            return [FieldError("timeZoneId", UserTimeZoneIsEmpty.code, {})]
+            return [FieldError(_TIME_ZONE_ID, UserTimeZoneIsEmpty.code, {})]
         case UserTimeZoneUnknown(candidate=candidate):
-            return [FieldError("timeZoneId", UserTimeZoneUnknown.code, {"candidate": candidate})]
+            return [FieldError(_TIME_ZONE_ID, UserTimeZoneUnknown.code, {"candidate": candidate})]
         case _:
             assert_never(error)
 
