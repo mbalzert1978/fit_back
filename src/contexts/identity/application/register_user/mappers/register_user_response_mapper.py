@@ -1,4 +1,4 @@
-"""Response-Mapper: Ergebnis -> public Response-Union. Eine Richtung, kein Hinweg."""
+"""Response-Mapper: Ergebnis der Pipeline -> public Response-Union."""
 
 from typing import assert_never
 
@@ -21,36 +21,7 @@ __all__ = ["to_response"]
 
 
 def to_response(outcome: Result[Registration, RegisterUserError]) -> RegisterUserResponse:
-    """Uebersetze den Ausgang der Pipeline in die public Antwort.
-
-    Hier wird gematcht statt `map`/`bind` verkettet, und das ist Absicht: aus
-    einem `Result` werden drei **verschiedene** Response-Typen. Die Kette kaeme da
-    durchaus heraus - `map` plus `map_err` und eine Extraktion aus dem
-    `Result[Response, Response]` am Ende. Sie traegt bis dorthin aber eine
-    Unterscheidung weiter, die der naechste Schritt ohnehin einebnet, und verteilt
-    die Response-Erzeugung auf zwei Funktionen plus einen Einsammelschritt, statt
-    sie an **einer** Stelle zu halten. `assert_never` bliebe in beiden Formen
-    erhalten - in der Kette waende es im `map_err` ueber die Fehler-Union; es
-    spricht fuer keine der beiden.
-
-    **Der eine Fold des Slice.** Bis Stufe 3 gab es zwei - einen fuer die
-    Feldfehler aus der Validierung, einen fuer den Domaenenfehler aus dem
-    Handler -, verbunden durch ein `if` in der Pipeline. Seit die Validierung
-    das erste Behavior der Kette ist, tragen beide Wege denselben Fehlertyp
-    (`RegisterUserError`) und muenden hier.
-
-    **Drei Arme, alle erreichbar**, und `assert_never` dahinter. Das ist der
-    Unterschied zum frueheren Stand: dort standen zweiundzwanzig Arme, von denen
-    einer je vorkam, weil die Validierung alles andere vorher abfing und
-    `to_command` infallibel baut. Ein Abschlusszweig hinter lauter
-    unerreichbaren Armen kann "neu dazugekommen" nicht mehr von "gibt es laengst,
-    hat nur niemand behandelt" unterscheiden; hinter drei erreichbaren kann er
-    es.
-
-    Damit entfaellt auch die zweite Abschrift der Code-und-Parameter-Tabelle aus
-    `validators/register_user_rules.py`: die Feldfehler kommen als Werte an,
-    nicht als Faelle, die hier noch einmal benannt werden muessten.
-    """
+    """Uebersetze den Ausgang der Pipeline in die public Antwort."""
     match outcome:
         case Ok(value=Registration(user=user, session=session)):
             return RegistrationAccepted(
@@ -65,9 +36,13 @@ def to_response(outcome: Result[Registration, RegisterUserError]) -> RegisterUse
                 refresh_token=session.refresh_token,
                 refresh_expires_in=session.refresh_expires_in,
             )
-        case Err(error=RequestInvalid(errors=errors)):
-            return RegistrationInvalid(group_by_field(errors))
-        case Err(error=EmailAlreadyRegistered(email=email)):
-            return EmailAlreadyTaken(email.value)
+        case Err(error=error):
+            match error:
+                case RequestInvalid(errors=errors):
+                    return RegistrationInvalid(group_by_field(errors))
+                case EmailAlreadyRegistered(email=email):
+                    return EmailAlreadyTaken(email.value)
+                case _:
+                    assert_never(error)
         case _:
             assert_never(outcome)

@@ -106,7 +106,7 @@ def test_ein_platzhalter_ohne_nutzlast_faellt_auf() -> None:
 
 
 def test_ein_fall_ohne_code_faellt_auf() -> None:
-    """Der Laufzeit-Ersatz fuer den Typpruefer, den dieser Stack nicht hat."""
+    """Ein Fehlerfall ohne `code` laesst die Startpruefung scheitern."""
     with pytest.raises(ValueError, match="ohne `code`") as caught:
         verify_error_codes_complete(FakeResources({}), [Uncoded])
 

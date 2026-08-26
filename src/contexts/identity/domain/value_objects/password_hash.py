@@ -1,7 +1,7 @@
 """Value Object PasswordHash - das Ergebnis des Hashers, nie ein roher String."""
 
 from dataclasses import dataclass
-from typing import final
+from typing import Self, final
 
 from src.contexts.identity.domain.password_hash_errors import PasswordHashError, PasswordHashIsEmpty
 from src.contexts.shared_kernel import Err, Ok, Result, not_blank
@@ -21,7 +21,7 @@ class PasswordHash:
     value: str
 
     @classmethod
-    def parse(cls, raw: str) -> Result[PasswordHash, PasswordHashError]:
+    def parse(cls, raw: str) -> Result[Self, PasswordHashError]:
         """Pruefe, dass der Hasher ueberhaupt einen Wert geliefert hat."""
         return not_blank(raw).map_err(lambda _: PasswordHashIsEmpty()).map(cls)
 

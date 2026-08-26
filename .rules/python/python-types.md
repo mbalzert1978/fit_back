@@ -1,8 +1,8 @@
 # Python Types
 
 > Uebersetzt `csharp-types.md` sinngemaess. Ziel:
-> **100 % annotierter Code**, durchgesetzt ueber ruffs `ANN`-Regelsatz (nicht ueber einen
-> Typchecker — es wird kein mypy/pyright eingefuehrt).
+> **100 % annotierter Code**, durchgesetzt ueber ruffs `ANN`-Regelsatz; geprueft werden die
+> Annotationen von **ty** (Issue #97), nicht von mypy/pyright.
 
 ## Variablendeklarationen
 
@@ -29,9 +29,8 @@ def build(customer_id, amount):  # fehlende ANN — von ruff geflaggt
 ## `@final` als Standard fuer Klassen
 
 Klassen sind standardmaessig mit `@typing.final` markiert. `@final` nur weglassen, wenn Vererbung
-bewusst vorgesehen ist. Ohne Typchecker (mypy/pyright) wird `@final` hier **nicht** durchgesetzt —
-es bleibt trotzdem Pflicht als dokumentierte Absicht fuer Leser:innen und fuer den Tag, an dem ein
-Typchecker dazukommt.
+bewusst vorgesehen ist. `ty` setzt `@final` durch; unabhaengig davon bleibt es Pflicht als
+dokumentierte Absicht fuer Leser:innen.
 
 Do:
 ```python

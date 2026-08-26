@@ -138,8 +138,8 @@ type Result[T, E] = Ok[T] | Err[E]
 `Err.map`/`Err.bind` deklarieren ihren Rueckgabetyp als `Err[E]`, nicht als `Result[U, E]`: `Err[E]`
 ist fuer jedes `U` bereits ein gueltiges `Result[U, E]` (die Union haengt im `Err`-Zweig gar nicht
 von `U` ab), das `self` zurueckgeben ist also strukturell korrekt. Deshalb braucht es **kein**
-`# type: ignore` — so ein Kommentar waere ohnehin wirkungslos, da dieser Stack bewusst ohne
-mypy/pyright auskommt (siehe oben) und ihn nie jemand auswertet.
+`# type: ignore`. Der Typechecker dieses Stacks ist `ty`; wo er hier trotzdem meldet, steht die
+Ausnahme als benannte Baseline in `pyproject.toml` statt als Kommentar im Code.
 
 `match` ist der uebliche Weg, ein `Result` zu entpacken — nicht ein manuelles `isinstance`-Paar:
 
@@ -240,8 +240,9 @@ Der Grund ist eine Eigenschaft der Sprache, die man leicht falsch erinnert: **Py
 Vollzaehligkeit zur Laufzeit nicht.** Passt kein Zweig, faellt der `match` still durch — in einer
 Funktion mit Rueckgabewert heisst das `None`, und der Fehler taucht irgendwo weiter oben als
 `AttributeError` auf einem `NoneType` auf, weit weg von seiner Ursache. In C# meldet das der
-Compiler; dieses Repo faehrt bewusst ohne Typpruefer, also muss der Code es selbst tun. Ein
-aufgezaehlter `match` "ohne Auffangzweig" ist deshalb **kein** Wachposten — er ist die Luecke.
+Compiler; hier meldet es `ty` — aber nur, wo die Fallmenge geschlossen ist und die Einengung
+im Muster ankommt. Ein aufgezaehlter `match` "ohne Auffangzweig" ist deshalb **kein**
+Wachposten — er ist die Luecke.
 
 Der Abschluss ist [`typing.assert_never`](https://docs.python.org/3/library/typing.html#typing.assert_never),
 das Gegenstueck zu C#s `_ => throw new UnreachableException()`:
@@ -260,9 +261,14 @@ def locale_tag(locale: Locale) -> str:
 ```
 
 `assert_never` ist der stdlib-Weg und traegt doppelt: zur Laufzeit wirft es einen `AssertionError`
-mit dem unerwarteten Wert, und kaeme je ein Typpruefer dazu, meldete er einen nicht behandelten Fall
-schon beim Pruefen statt erst im Betrieb. Ein selbstgebauter `raise RuntimeError("unreachable")`
-kann das zweite nicht.
+mit dem unerwarteten Wert, und `ty` meldet einen nicht behandelten Fall schon beim Pruefen statt
+erst im Betrieb. Ein selbstgebauter `raise RuntimeError("unreachable")` kann das zweite nicht.
+
+**Damit `ty` die Zusage einloesen kann, wird in zwei Stufen gematcht** — erst der Ausgang
+(`Ok` / `Err`), dann der Fehlerwert selbst. Steht der Fehlerfall verschachtelt im Muster
+(`case Err(error=EmailIsEmpty())`), traegt `ty` die Einengung nicht ins Typargument von `Err`
+hinein; der Restfall bleibt `Err[EmailError]` statt `Never`, und `assert_never` ist wieder nur
+Laufzeitschutz.
 
 **Immer `assert_never`, auch wo der Rest nicht streng `Never` ist.** Es gibt Faelle, die typmaessig
 gueltig sind und trotzdem nie ankommen, weil eine Stufe davor sie ausschliesst — `to_response` im

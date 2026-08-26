@@ -1,8 +1,8 @@
 # Python Rules — Index
 
 Alle Dateien sind sinngemaesse Uebersetzungen frueherer C#-Vorlagen (nicht mehr Teil dieses Repos)
-fuer diesen Stack: **uv** + **ruff** (inkl. `ANN`-Regeln), **kein** mypy/pyright,
-`requires-python = ">=3.14"`.
+fuer diesen Stack: **uv** + **ruff** (inkl. `ANN`-Regeln) + **ty** als Typechecker (Issue #97,
+kein mypy/pyright), `requires-python = ">=3.14"`.
 
 Empfohlene Lesereihenfolge fuer Neueinsteiger:innen: erst die Querschnittsregeln (1-6), dann die
 Architektur-Klammer (7), dann die Spezialthemen (8-12).

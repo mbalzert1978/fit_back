@@ -13,7 +13,7 @@ fuer Fall.
 from dataclasses import dataclass
 from functools import partial
 from ipaddress import ip_address
-from typing import final
+from typing import Self, final
 
 from src.contexts.identity.domain.email_errors import (
     EmailAddressLiteralInvalid,
@@ -259,7 +259,7 @@ class Email:
     value: str
 
     @classmethod
-    def parse(cls, raw: str, idn: IdnEncoder) -> Result[Email, EmailError]:
+    def parse(cls, raw: str, idn: IdnEncoder) -> Result[Self, EmailError]:
         """Normalisiere und pruefe eine moeglicherweise ungueltige Eingabe.
 
         `domain_is_valid` steht nicht in `_RULES`, weil sie als einzige den

@@ -39,9 +39,10 @@ und wie das maschinell abgesichert wird — steht in
 [python-error-handling.md](./python-error-handling.md) („Jeder `match` ist vollstaendig") und gilt
 dort wie hier, ohne Ausnahme.
 
-Python hat **keine** Compile-Zeit-Exhaustivitaetspruefung ohne Typchecker (mypy/pyright pruefen
-`match` gegen ein `TypeAlias`/`Union` und melden fehlende Faelle) — dieser Stack nutzt bewusst nur
-**ruff**, das das nicht kann. Der werfende Arm ist deshalb der **einzige** Schutz: eine neue
+Python hat **keine** Compile-Zeit-Exhaustivitaetspruefung ohne Typchecker. `ty` prueft `match`
+gegen eine Union, meldet aber in diesem Repo an mehreren Stellen noch falsch (siehe die
+`type-assertion-failure`-Baseline in `pyproject.toml`). Der werfende Arm bleibt deshalb der
+**verlaessliche** Schutz: eine neue
 Variante scheitert **laut zur Laufzeit**, nicht beim Linten. Das ist dieselbe Garantie wie C#s
 `_ => throw new UnreachableException()` unter `TreatWarningsAsErrors` — dort erzwingt der
 Compiler den Arm, hier erzwingt ihn Konvention plus Tests.

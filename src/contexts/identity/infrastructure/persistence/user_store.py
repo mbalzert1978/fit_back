@@ -1,10 +1,6 @@
-"""Erfuellt die Naht `RegisterUserUserStore` ueber `identity.users`.
+"""Erfuellt die Naht `RegisterUserUserStore` ueber `identity.users`."""
 
-Implementiert **nicht** den Domain-Port `UserRegistry` - das tut
-`application/register_user/adapters/user_registry_adapter.py`. Dieses Modul kennt
-die Domaene nicht: Primitive hinein, die Ergebnis-Union der Naht heraus.
-"""
-
+from collections.abc import Mapping
 from typing import Protocol, final
 
 from sqlalchemy import Result, TextClause, text
@@ -22,21 +18,20 @@ __all__ = ["PostgresUserStore", "UserStoreTransaction"]
 class UserStoreTransaction(Protocol):
     """Der Ausfuehrungskanal in der laufenden Transaktion des Vorgangs.
 
-    Genau eine Methode, kein `commit`: der Nutzer-Datensatz und das
-    `UserRegistered`-Ereignis in der Outbox muessen gemeinsam sichtbar werden
-    oder gar nicht. Wer hier committen koennte, koennte die beiden trennen.
+    Kein `commit`: Nutzer-Datensatz und `UserRegistered`-Ereignis muessen gemeinsam
+    sichtbar werden oder gar nicht.
     """
 
-    async def execute(self, statement: TextClause, parameters: object = None, /) -> Result[object]:
+    async def execute(
+        self, statement: TextClause, parameters: Mapping[str, object] | None = None, /
+    ) -> Result[tuple[object, ...]]:
         """Fuehre ein Statement in der laufenden Transaktion aus."""
         ...
 
 
-# `ON CONFLICT DO NOTHING RETURNING id`: ein einziges Statement entscheidet die
-# Eindeutigkeit und meldet sie zurueck. Kein vorheriges SELECT (das waere im
-# Moment seiner Beantwortung schon veraltet) und kein abgefangener
-# IntegrityError - eine verletzte Constraint bricht die Transaktion in Postgres
-# ab, sodass danach nicht einmal mehr eine Nachfrage moeglich waere.
+# `ON CONFLICT DO NOTHING RETURNING id`: kein vorheriges SELECT (im Moment seiner
+# Beantwortung schon veraltet) und kein abgefangener IntegrityError - eine verletzte
+# Constraint bricht die Transaktion in Postgres ab.
 _INSERT_USER: TextClause = text("""
     INSERT INTO identity.users (
         id, email, password_hash, display_name, locale, time_zone_id, status, registered_at
@@ -73,6 +68,5 @@ class PostgresUserStore:
                 "registered_at": record.registered_at,
             },
         )
-        # Keine zurueckgegebene Zeile heisst: der Constraint hat den Einfuegen
-        # verhindert, die Adresse ist vergeben.
-        return UserStored() if written.first() is not None else EmailTaken()
+        email_was_free = written.first() is not None
+        return UserStored() if email_was_free else EmailTaken()

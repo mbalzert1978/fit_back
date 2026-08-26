@@ -5,8 +5,5 @@
       "Bash(git commit -m ' *)",
       "Bash(git checkout:*)"
     ]
-  },
-  "enabledPlugins": {
-    "ponytail@ponytail": true
   }
 }

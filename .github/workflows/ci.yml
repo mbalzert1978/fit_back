@@ -20,6 +20,6 @@ jobs:
       - name: Sync dependencies
         run: uv sync --all-extras
 
-      - name: Run CI (lint + format-check + import-lint + test)
+      - name: Run CI (lint + format-check + typecheck + import-lint + complexity + test)
         shell: pwsh
         run: ./make.ps1 ci

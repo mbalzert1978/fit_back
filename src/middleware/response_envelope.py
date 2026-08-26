@@ -1,27 +1,10 @@
 """Der Antwort-Umschlag: `{data, meta}` fuer jede erfolgreiche Antwort des Hosts.
 
-Eine Middleware und kein Router-Baustein. Der Umschlag ist eine Zusage der API
-als Ganzes, nicht die eines Endpunkts: der naechste Endpunkt bekommt ihn ohne
-eigene Zeile, und keiner kann ihn vergessen oder anders bauen (Ticket #95).
+Die `X-Request-Id` entsteht hier und wird nicht vom Aufrufer uebernommen - ein Wert aus
+der Anfrage waere in Laenge und Zeichenvorrat fremdbestimmt.
 
-Drei Dinge tut sie, und nur diese drei:
-
-1. **Die Anfrage-Kennung.** `X-Request-Id` geht an *jede* Antwort - auch an die
-   fehlerhafte, denn genau die will man spaeter im Log wiederfinden. Sie entsteht
-   **hier** und wird nicht vom Aufrufer uebernommen: ein Wert aus der Anfrage
-   waere in Laenge und Zeichenvorrat fremdbestimmt und landete ungeprueft im Log
-   und im Antwortkoerper.
-2. **Der Umschlag, nur um 2xx.** Fehlerkoerper sind `application/problem+json`
-   nach RFC 7807 und im Vertrag **nicht** eingepackt - ein Umschlag darum waere
-   ein zweites Format fuer dieselbe Sache.
-3. **`Cache-Control: no-store` auf 2xx.** Diese API antwortet mit Kontodaten und
-   Token; ein Zwischenspeicher hat davon nichts zu behalten. Fuer Fehlerkoerper
-   gilt dasselbe - die setzt `problem()` (`src/api/problem_details.py`) selbst,
-   weil sie an dieser Middleware vorbeilaufen.
-
-Was sie nicht anfasst: Antworten ohne Koerper (204, 304), Weiterleitungen und
-alles, was nicht `application/json` ist. Ein Umschlag um einen Datei-Download
-waere kaputt, nicht einheitlich.
+Fehlerkoerper (`application/problem+json`) laufen an dieser Middleware vorbei; ihr
+`Cache-Control: no-store` setzt `problem()` (`src/api/problem_details.py`) selbst.
 """
 
 import json
@@ -32,8 +15,10 @@ from uuid import uuid7
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp
 
 from src.contexts.shared_kernel.time_provider import TimeProvider
+from src.middleware.streamed_body import read_streamed_body
 
 __all__ = ["API_VERSION", "REQUEST_ID_HEADER", "ResponseEnvelopeMiddleware"]
 
@@ -52,9 +37,9 @@ _BODY_HEADERS = frozenset({b"content-length", b"content-type"})
 class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
     """Legt `{data, meta}` um jede erfolgreiche JSON-Antwort."""
 
-    def __init__(self, app: Callable[..., object], time_provider: TimeProvider) -> None:
+    def __init__(self, app: ASGIApp, time_provider: TimeProvider) -> None:
         """Nimm die Zeitquelle entgegen - `meta.timestamp` kommt aus ihr, nicht aus `utcnow`."""
-        super().__init__(app)  # type: ignore[arg-type]
+        super().__init__(app)
         self._clock = time_provider
 
     async def dispatch(
@@ -67,19 +52,14 @@ class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
             response.headers[REQUEST_ID_HEADER] = request_id
             return response
 
-        body = json.loads(await _body_of(response))
+        body = json.loads(await read_streamed_body(response))
         wrapped = JSONResponse(
             status_code=response.status_code,
             content={"data": body, "meta": self._meta(request_id)},
         )
-        # Die Kopfzeilen der urspruenglichen Antwort bleiben, bis auf die, die
-        # den alten Koerper beschreiben: Laenge und Typ gelten nach dem
-        # Einpacken nicht mehr, und `JSONResponse` hat beide fuer den neuen
-        # bereits gesetzt.
-        #
-        # Angehaengt und nicht gesetzt: `headers[name] = value` loescht
-        # vorhandene Vorkommen desselben Namens. Ein Endpunkt mit zwei
-        # `Set-Cookie` verloere so das erste, still.
+        # Angehaengt und nicht gesetzt: `headers[name] = value` loescht vorhandene
+        # Vorkommen desselben Namens - ein Endpunkt mit zwei `Set-Cookie` verloere das
+        # erste, still.
         for name, value in response.raw_headers:
             if name.lower() not in _BODY_HEADERS:
                 wrapped.raw_headers.append((name, value))
@@ -92,27 +72,13 @@ class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
         return {
             "apiVersion": API_VERSION,
             "requestId": request_id,
-            # `Z` statt `+00:00`: beides ist ISO 8601, aber die kurze Form ist
-            # die, die der Vertrag zeigt.
+            # `Z` statt `+00:00`: die kurze Form ist die, die der Pact zeigt.
             "timestamp": self._clock.utc_now().isoformat().replace("+00:00", "Z"),
         }
 
 
 def _is_enveloped(response: Response) -> bool:
     """Sage, ob diese Antwort einen Umschlag bekommt."""
-    # Eine Antwort ohne Koerper (204) traegt auch keinen `Content-Type` und
-    # faellt damit schon ueber die zweite Bedingung heraus.
     return response.status_code in _SUCCESS and response.headers.get("content-type", "").startswith(
         _JSON
     )
-
-
-async def _body_of(response: Response) -> bytes:
-    """Lies den Koerper der Antwort einmal vollstaendig ein.
-
-    `BaseHTTPMiddleware` reicht jede nachgelagerte Antwort als
-    `_StreamingResponse` weiter - auch die, die weiter innen ein `JSONResponse`
-    war. Ihr Koerper steht nur ueber `body_iterator` zur Verfuegung, und nur
-    genau einmal; deshalb wird er hier eingesammelt und danach neu aufgebaut.
-    """
-    return b"".join([chunk async for chunk in response.body_iterator])  # type: ignore[attr-defined]

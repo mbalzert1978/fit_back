@@ -1,7 +1,7 @@
 # Python Async Patterns
 
 > Uebersetzt `csharp-async.md` sinngemaess. Zielstack: **uv** + **ruff**
-> (inkl. `ANN`-Regeln fuer vollstaendige Typannotationen). Kein mypy/pyright.
+> (inkl. `ANN`-Regeln fuer vollstaendige Typannotationen) + **ty** als Typechecker.
 
 ## No Blocking
 

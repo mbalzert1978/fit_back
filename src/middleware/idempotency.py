@@ -1,94 +1,18 @@
 """Idempotency-Key-Middleware fuer POST/PUT (Ticket 0006, BACKEND.md Abschnitt 0.3).
 
-Ein bereits verarbeiteter Schluessel liefert die urspruengliche Antwort statt
-eines zweiten Datensatzes. Abgelegt wird
-`(key, user_id, request_hash, response_body, response_status, response_headers,
-created_utc)` in `shared_kernel.idempotency_keys`.
+Bewusste Abweichungen, jeweils mit Entscheidung dahinter:
 
-## Der Replay wiederholt den Erstaufruf, nicht nur seinen Rumpf
-
-Gespeichert wird nicht bloss der Koerper, sondern auch der Statuscode und die
-Kopfzeilen aus `REPLAYED_HEADERS`. Ein Replay, der den Rumpf des Erstaufrufs
-unter einem anderen Statuscode und ohne dessen `Location` ausliefert, ist keine
-Wiederholung - der Aufrufer, der die Antwort verloren hat, bekaeme etwas
-anderes als der, dessen erste Anfrage ankam. Genau diese Gleichheit ist der
-Sinn eines Idempotency-Keys.
-
-Damit weicht die Middleware von `docs/Draft/BACKEND.md` Abschnitt 0.3 ab, der
-woertlich `200` statt `201` fuer den Treffer vorschreibt; siehe
-`docs/decisions/2026-08-24-1800-idempotenz-replay-wiederholt-den-erstaufruf.md`.
-Der Pact prueft den Doppelaufruf nicht - es ist also kein Vertragsbruch.
-
-Die Kopfzeilen wandern **selektiv** mit, ueber eine benannte Erlaubnisliste.
-Blind alles zu speichern hiesse, `Content-Length` und `Date` des Erstaufrufs
-Tage spaeter erneut auszuliefern - beschreibende Kopfzeilen, die nur fuer die
-Antwort von damals galten. Der Umschlag (`ResponseEnvelopeMiddleware`) liegt
-**ausserhalb** dieser Middleware: gespeichert wird der nackte Koerper, und der
-Replay wird auf dem Rueckweg mit seiner *eigenen* `X-Request-Id` neu
-eingepackt.
-
-## Reservieren, dann arbeiten
-
-Die Zeile entsteht **bevor** die Anfrage verarbeitet wird, nicht danach - als
-Reservierung mit `response_body IS NULL`. Das ist der Kern des Verfahrens und
-nicht bloss eine Umstellung der Reihenfolge:
-
-Wer zuerst schreibt, hat den Schluessel. Das entscheidet der Unique-Index, in
-einem Statement (`ON CONFLICT DO NOTHING RETURNING`) - nicht eine vorgelagerte
-Abfrage. Ein `SELECT`, das fragt, was der `INSERT` ohnehin entscheidet, oeffnet
-das Wettrennen erst, das es verhindern soll: zwischen Frage und Antwort passt
-jede zweite Anfrage (`docs/reflections/exp_keine-vorpruefung-wo-die-gegenseite-entscheidet.md`).
-
-Daraus ergeben sich vier Ausgaenge, wenn die Reservierung scheitert - der
-Schluessel ist also schon vergeben:
-
-| Zustand der bestehenden Zeile | Antwort |
-|---|---|
-| gleicher Nutzer, gleicher Body, Antwort liegt vor | die gespeicherte Antwort, wie sie war |
-| gleicher Nutzer, gleicher Body, Antwort steht aus | 409 - die erste Anfrage laeuft noch |
-| gleicher Nutzer, **anderer** Body | 409 - derselbe Schluessel fuer etwas anderes |
-| **anderer** Nutzer | 409 - der Schluessel ist belegt, mehr erfaehrt er nicht |
-
-Die beiden Wiederverwendungs-Faelle standen bis #95 auf 422, dem IETF-Entwurf
-zum `Idempotency-Key`-Header folgend. Der Vertrag des Frontends
-(`contracts/pacts/identity/`) verlangt dort ohne Matcher **409**, und wo Vertrag
-und Invariante kollidieren, gewinnt der Vertrag - der Entwurf ist ein Entwurf,
-der Pact ist die Vorgabe der HTTP-Grenze
-(`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`).
-Fachlich passt 409 ohnehin besser: der Schluessel steht im Konflikt mit einem
-bestehenden Zustand, der Rumpf selbst ist verarbeitbar. BACKEND.md schreibt nur
-den Treffer-Fall (200) vor und sagt zu den uebrigen nichts.
-
-Die drei 409-Faelle sind nicht dasselbe und tragen deshalb unterschiedliche
-`type`-Bezeichner: `request-in-progress` fuer den laufenden Erstversuch,
-`idempotency-key-reused` fuer den belegten Schluessel.
-
-## Was der `request_hash` soll
-
-Er vergleicht, ob hinter demselben Schluessel dieselbe Anfrage steckt. Ohne
-diesen Vergleich waere die Spalte Zierde - und ein Client, der einen Schluessel
-versehentlich fuer eine **andere** Anfrage wiederverwendet, bekaeme stillschweigend
-die Antwort der ersten und hielte seinen zweiten Vorgang fuer erledigt.
-
-## Ein Aufruf ohne Anmeldung belegt seinen Schluessel trotzdem
-
-`request.state.user_id` setzt die JWT-Pipeline aus **Ticket 0012**, die es noch
-nicht gibt. Fehlt der Wert, tritt `ANONYMOUS_USER_ID` an seine Stelle, statt die
-Anfrage ungeprueft durchzulassen: die Registrierung hat keinen angemeldeten
-Nutzer und braucht die Idempotenz gerade dort am dringendsten - ein zweites Mal
-abgeschickt entstuende sonst ein zweites Konto. Der Vertrag des Frontends
-verlangt fuer den wiederverwendeten Schluessel eine Antwort; ohne diesen Ersatz
-kaeme die Anfrage hier nie an (#95).
-
-Fuer den Vergleich heisst das: unter dem Ersatz-Nutzer entscheidet allein der
-`request_hash`, ob hinter dem Schluessel dieselbe Anfrage steckt. Genau so ist es
-vor der Anmeldung gemeint - wer der Aufrufer ist, weiss vor ihr niemand.
-
-Der Datenbankzugriff laeuft ueber **dieselbe** `AsyncEngine` wie die Slices. Sie
-wird nicht in den Konstruktor gereicht, sondern bei jeder Anfrage aus `app.state`
-gelesen: die Middleware-Kette baut Starlette auf, **bevor** der Lifespan laeuft,
-in dem die Engine entsteht
-(`docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md`).
+- Der Replay wiederholt Statuscode und `REPLAYED_HEADERS` des Erstaufrufs, nicht nur
+  dessen Rumpf. `docs/Draft/BACKEND.md` Abschnitt 0.3 schreibt woertlich `200` vor;
+  siehe `docs/decisions/2026-08-24-1800-idempotenz-replay-wiederholt-den-erstaufruf.md`.
+- Die Wiederverwendungs-Faelle antworten mit 409 statt mit dem 422 des IETF-Entwurfs,
+  weil der Pact 409 ohne Matcher verlangt
+  (`docs/decisions/2026-08-21-1330-pacts-sind-die-vorgabe-der-http-grenze.md`).
+- Reserviert wird vor der Verarbeitung, in einem Statement, ohne vorgelagertes SELECT
+  (`docs/reflections/exp_keine-vorpruefung-wo-die-gegenseite-entscheidet.md`).
+- Die `AsyncEngine` kommt bei jeder Anfrage aus `app.state` und nicht aus dem
+  Konstruktor: Starlette baut die Middleware-Kette vor dem Lifespan auf
+  (`docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md`).
 """
 
 import hashlib
@@ -99,7 +23,7 @@ from datetime import datetime
 from typing import Any, Final, final
 from uuid import UUID
 
-from sqlalchemy import TextClause, text
+from sqlalchemy import RowMapping, TextClause, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -111,16 +35,15 @@ from starlette.types import ASGIApp
 from src.api.i18n import ResourcesCache, get_language_from_header
 from src.api.problem_details import translated_problem
 from src.contexts.shared_kernel.time_provider import TimeProvider
+from src.middleware.streamed_body import read_streamed_body
 
 logger = logging.getLogger(__name__)
 
 ANONYMOUS_USER_ID = UUID(int=0)
 """Der Nutzer eines Aufrufs, der noch keinen hat.
 
-Die Nil-UUID und kein `NULL` in der Spalte: `user_id` ist `NOT NULL`, und ein
-`NULL` verglichen sich nach SQL-Regeln mit nichts - auch nicht mit sich selbst.
-Ein fester Wert haelt den Vergleich in `_answer_from_existing` genau so, wie er
-fuer angemeldete Nutzer schon funktioniert.
+Die Nil-UUID und kein `NULL`: ein `NULL` verglichen sich nach SQL-Regeln mit nichts,
+auch nicht mit sich selbst.
 """
 
 IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
@@ -131,37 +54,21 @@ CACHEABLE_STATUS_CODES = frozenset({200, 201})
 REPLAYED_HEADERS: Final = frozenset({"location", "content-language"})
 """Die Kopfzeilen, die zur Antwort gehoeren und deshalb mit ihr aufgezeichnet werden.
 
-Kleingeschrieben, weil HTTP-Feldnamen ohne Ruecksicht auf Gross-/Kleinschreibung
-verglichen werden.
-
-Eine Erlaubnisliste und keine Sperrliste: was hier nicht steht, wird nicht
-gespeichert. `Content-Length` und `Content-Type` beschreiben den Koerper von
-damals, `Date` den Zeitpunkt von damals - Tage spaeter wiederholt waeren sie
-falsch. `X-Request-Id` und `Cache-Control` setzt der Umschlag ohnehin neu, und
-zwar fuer *diese* Anfrage.
-
-`Location` und `Content-Language` sind dagegen Aussagen ueber das Ergebnis: wo
-die angelegte Ressource liegt, und in welcher Sprache der Rumpf verfasst ist.
-Beide gehen dem Aufrufer verloren, wenn der Replay sie weglaesst.
+Eine Erlaubnisliste, kleingeschrieben, weil HTTP-Feldnamen ohne Ruecksicht auf
+Gross-/Kleinschreibung verglichen werden.
 """
 
 KEY_REUSED_SLUG = "idempotency-key-reused"
 REQUEST_IN_PROGRESS_SLUG = "request-in-progress"
 """Die Fehlercodes der beiden Idempotenz-Ausgaenge, als nackter Slug.
 
-Kein fertiger URI: das `tag:`-Praefix setzt `problem()` an, an einer Stelle
-fuer die ganze API. Die Zeichenketten stehen ausserdem in
-`PRESENTATION_CODES` (`src/main.py`) und in den i18n-Ressourcen - dort ist
-ebenfalls der Slug gemeint und nicht der URI.
+Kein fertiger URI: das `tag:`-Praefix setzt `problem()` an, an einer Stelle fuer die
+ganze API.
 """
 
-# So viele Zeichen eines abgelehnten Header-Werts kommen ins Log. Eine UUID hat
-# 36 Zeichen; wer sich in einer vertippt hat, sieht seinen Wert damit noch ganz.
+# Eine UUID hat 36 Zeichen; wer sich in einer vertippt hat, sieht seinen Wert noch ganz.
 LOGGED_KEY_MAX_LENGTH = 64
 
-# Reservierung und Entscheidung in einem Statement: gibt es die Zeile schon,
-# kommt nichts zurueck - und genau das ist die Auskunft "ein anderer war
-# schneller". Ohne vorgelagertes SELECT gibt es dazwischen kein Zeitfenster.
 _CLAIM_KEY: TextClause = text(
     f"""
         INSERT INTO {IDEMPOTENCY_KEYS_TABLE}
@@ -172,10 +79,8 @@ _CLAIM_KEY: TextClause = text(
     """  # noqa: S608 -- Parameterized via named bindings
 )
 
-# Bewusst nur ueber `key` gesucht, nicht ueber `(key, user_id)`: der
-# Unique-Index steht auf `key` allein. Wuerde hier nach `user_id` gefiltert,
-# faende die Abfrage bei einem fremden Schluessel nichts - und der Ablauf liefe
-# in einen Zustand, den es laut Reservierung gerade nicht geben kann.
+# Nur ueber `key` gesucht, nicht ueber `(key, user_id)`: der Unique-Index steht auf
+# `key` allein, ein fremder Schluessel muss hier gefunden werden.
 _FIND_KEY: TextClause = text(
     f"""
         SELECT user_id, request_hash, response_body, response_status, response_headers
@@ -194,10 +99,7 @@ _STORE_RESPONSE: TextClause = text(
     """  # noqa: S608 -- Parameterized via named bindings
 )
 
-# Gibt die Reservierung wieder frei. Noetig, wenn die Anfrage keine Antwort
-# hinterlaesst, die sich wiederholen liesse - sonst blockierte ein einziger
-# Fehlschlag den Schluessel dauerhaft, und der Client koennte den Vorgang nie
-# erneut versuchen.
+# Ohne Freigabe blockierte ein einziger Fehlschlag den Schluessel dauerhaft.
 _RELEASE_CLAIM: TextClause = text(
     f"""
         DELETE FROM {IDEMPOTENCY_KEYS_TABLE}
@@ -207,57 +109,21 @@ _RELEASE_CLAIM: TextClause = text(
 
 
 def calculate_request_hash(method: str, path: str, body: str) -> str:
-    """Berechne einen SHA256-Hash aus Methode, Pfad und Body.
-
-    Args:
-        method: HTTP-Methode (POST, PUT, etc.)
-        path: Request-Pfad
-        body: Request-Body als String
-
-    Returns:
-        SHA256-Hash als hexadezimaler String
-
-    """
+    """Berechne einen SHA256-Hash aus Methode, Pfad und Body."""
     request_string = f"{method}:{path}:{body}"
     return hashlib.sha256(request_string.encode()).hexdigest()
 
 
 def is_idempotent_method(method: str) -> bool:
-    """Prüfe, ob die HTTP-Methode idempotent behandelt werden soll.
-
-    Args:
-        method: HTTP-Methode
-
-    Returns:
-        True für POST und PUT, False sonst
-
-    """
+    """Prüfe, ob die HTTP-Methode idempotent behandelt werden soll."""
     return method.upper() in IDEMPOTENT_METHODS
 
 
 def format_key_for_log(key_header: str) -> str:
     """Bereite einen abgelehnten Idempotency-Key so auf, dass er sich gefahrlos loggen laesst.
 
-    Der Wert ist ungeprueft und beliebig lang; ungekuerzt geloggt macht ihn eine
-    einzige Anfrage zu Log-Flooding. Zur Diagnose traegt hinter den ersten
-    Zeichen nichts mehr bei - ausser der Laenge des Originals, die deshalb hinter
-    der Kuerzung steht.
-
-    Der Wert geht durch `repr` und steht damit in Anfuehrungszeichen; die
-    Kuerzungs-Marke steht **ausserhalb** davon. Was vom Aufrufer kommt, endet
-    also am schliessenden Anfuehrungszeichen - ein Wert, der selbst wie eine
-    Marke aussieht, kann keine vortaeuschen, weil `repr` die Anfuehrungszeichen
-    darin maskiert. Dasselbe `repr` haelt Steuerzeichen davon ab, roh ins Log zu
-    geraten.
-
-    Args:
-        key_header: Der abgelehnte Header-Wert
-
-    Returns:
-        Den Wert in Anfuehrungszeichen, solange er `LOGGED_KEY_MAX_LENGTH` nicht
-        ueberschreitet; sonst seinen Anfang in Anfuehrungszeichen, gefolgt von
-        der Kuerzungs-Marke mit der Laenge des Originals.
-
+    `repr` maskiert Steuerzeichen und Anfuehrungszeichen; die Kuerzungs-Marke steht
+    ausserhalb davon, damit kein Wert eine vortaeuschen kann.
     """
     if len(key_header) <= LOGGED_KEY_MAX_LENGTH:
         return repr(key_header)
@@ -289,7 +155,7 @@ async def claim_key(
         return claimed.first() is not None
 
 
-async def find_key(engine: AsyncEngine, key: UUID) -> Mapping[str, Any] | None:
+async def find_key(engine: AsyncEngine, key: UUID) -> RowMapping | None:
     """Lies die bestehende Zeile zu einem Schluessel."""
     async with engine.connect() as connection:
         found = await connection.execute(_FIND_KEY, {"key": key})
@@ -324,10 +190,8 @@ def replayable_headers(headers: Mapping[str, str]) -> dict[str, str]:
 def stored_headers(raw: str | None) -> dict[str, str]:
     """Lies die aufgezeichneten Kopfzeilen zurueck.
 
-    `None` steht fuer eine Zeile aus der Zeit vor `shared_005`; die kennt keine
-    Kopfzeilen, und der Replay kommt wie frueher ohne sie aus. Ein unlesbarer
-    Wert wird genauso behandelt: eine wiederholte Antwort ohne `Location` ist
-    unvollstaendig, eine verweigerte Antwort waere schlimmer.
+    Fehlende oder unlesbare Kopfzeilen ergeben einen Replay ohne sie: unvollstaendig,
+    aber besser als eine verweigerte Antwort.
     """
     if raw is None:
         return {}
@@ -347,11 +211,7 @@ async def release_claim(engine: AsyncEngine, key: UUID) -> None:
 
 @final
 class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
-    """Middleware für Idempotency-Key-Behandlung.
-
-    Wertet den Idempotency-Key-Header aus und liefert bei Duplikaten
-    die ursprüngliche Antwort mit Status 200 statt 201/neue Verarbeitung.
-    """
+    """Liefert bei einem wiederverwendeten Idempotency-Key die urspruengliche Antwort."""
 
     def __init__(
         self,
@@ -361,13 +221,8 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
     ) -> None:
         """Initialisiere die Middleware.
 
-        Args:
-            app: Die ASGI-App
-            time_provider: TimeProvider fuer den `created_utc`-Zeitstempel
-            ttl_days: TTL in Tagen (Standard: 7). Der Cleanup-Job dazu ist
-                nicht Teil von Ticket 0006 - der Wert liegt hier als
-                Konfiguration bereit, bis es ihn gibt.
-
+        `ttl_days` liegt als Konfiguration bereit, bis es den Cleanup-Job gibt - der ist
+        nicht Teil von Ticket 0006.
         """
         super().__init__(app)
         self.time_provider = time_provider
@@ -391,8 +246,8 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             )
             return await call_next(request)
 
-        # Die Nutzeridentitaet setzt die JWT-Pipeline aus Ticket 0012, die es
-        # noch nicht gibt - und bei der Registrierung gibt es sie nie.
+        # Die Nutzeridentitaet setzt die JWT-Pipeline aus Ticket 0012, die es noch nicht
+        # gibt - und bei der Registrierung gibt es sie nie.
         user_id: UUID = getattr(request.state, "user_id", None) or ANONYMOUS_USER_ID
 
         engine: AsyncEngine | None = getattr(request.app.state, "engine", None)
@@ -413,9 +268,8 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                 engine, idempotency_key, user_id, request_hash, self.time_provider.utc_now()
             )
         except SQLAlchemyError as e:
-            # Die Datenbank ist der Schiedsrichter; ist sie nicht erreichbar,
-            # gibt es kein Urteil. Die Anfrage deshalb abzulehnen waere schlimmer
-            # als sie ohne Idempotenz laufen zu lassen.
+            # Ohne erreichbare Datenbank gibt es kein Urteil; die Anfrage abzulehnen waere
+            # schlimmer, als sie ohne Idempotenz laufen zu lassen.
             logger.warning(f"Error claiming idempotency key: {e}")  # noqa: G004 -- DB error details for diagnostics
             return await call_next(request)
 
@@ -440,16 +294,14 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         resources: ResourcesCache = request.app.state.resources
         existing = await find_key(engine, key)
         if existing is None:
-            # Zwischen Reservierung und Abfrage geloescht (TTL-Bereinigung).
-            # Ein Vorgang ohne Absicherung ist besser als ein abgelehnter.
+            # Zwischen Reservierung und Abfrage geloescht (TTL-Bereinigung); ein Vorgang
+            # ohne Absicherung ist besser als ein abgelehnter.
             logger.warning("Idempotency key %s verschwand zwischen Claim und Abfrage", key)
             return await call_next(request)
 
         if existing["user_id"] != user_id or existing["request_hash"] != request_hash:
-            # Fremder Nutzer und abweichender Body sind derselbe Fall: der
-            # Schluessel steht fuer etwas anderes. Die Antwort unterscheidet die
-            # beiden bewusst nicht - sonst verriete sie, dass der Schluessel
-            # jemand anderem gehoert.
+            # Fremder Nutzer und abweichender Body bekommen bewusst dieselbe Antwort -
+            # sonst verriete sie, dass der Schluessel jemand anderem gehoert.
             logger.warning("Idempotency key %s fuer eine abweichende Anfrage verwendet", key)
             return translated_problem(
                 request,
@@ -467,16 +319,14 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                 REQUEST_IN_PROGRESS_SLUG,
                 resources,
                 language=language,
-                # Der Slug heisst `request-in-progress`, die Ressourcen fuehren
-                # den Text unter `idempotency-request-in-progress`. Der Slug
-                # steht im Vertrag des Frontends, der Schluessel wird deshalb
-                # genannt statt angeglichen.
+                # Der Slug steht im Pact und wird deshalb nicht an den
+                # Ressourcen-Schluessel angeglichen.
                 resource_key="idempotency-request-in-progress",
             )
 
         logger.info("Idempotency key %s gefunden, gespeicherte Antwort wird geliefert", key)
         # `or HTTP_200_OK`: eine Zeile aus der Zeit vor `shared_005` hat keinen
-        # aufgezeichneten Status - fuer sie bleibt es beim alten Verhalten.
+        # aufgezeichneten Status.
         return JSONResponse(
             content=json.loads(existing["response_body"]),
             status_code=existing["response_status"] or HTTP_200_OK,
@@ -494,8 +344,6 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
         except Exception:
-            # Ohne Antwort ist die Reservierung wertlos und wuerde den
-            # Schluessel dauerhaft blockieren.
             await release_claim(engine, key)
             raise
 
@@ -503,11 +351,9 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
             await release_claim(engine, key)
             return response
 
-        # `call_next` liefert eine Streaming-Antwort: der Body ist ein noch nicht
-        # gelesener Iterator, kein `.body`. Er muss hier eingesammelt werden - und
-        # weil er sich nur einmal lesen laesst, geht anschliessend eine neue
-        # Antwort mit denselben Bytes hinaus.
-        raw_body = b"".join([chunk async for chunk in response.body_iterator])
+        # Der Strom laesst sich nur einmal lesen, deshalb geht unten eine neue Antwort
+        # mit denselben Bytes hinaus.
+        raw_body = await read_streamed_body(response)
         try:
             response_body = json.loads(raw_body.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:

@@ -2,9 +2,7 @@
 
 Python erzwingt Vollzaehligkeit zur Laufzeit nicht: passt kein Zweig, faellt der
 `match` still durch und die Funktion liefert `None`. Der Fehler schlaegt dann
-weit weg von seiner Ursache als `AttributeError` auf einem `NoneType` auf. Ein
-Typpruefer wuerde das melden - dieses Repo faehrt bewusst ohne einen, also
-uebernimmt dieser Test die Aufgabe.
+weit weg von seiner Ursache als `AttributeError` auf einem `NoneType` auf.
 
 Geprueft wird der **letzte** Zweig: er wirft (`raise`) oder ruft `assert_never`.
 Beides beendet den `match` laut. Ein aufgezaehlter `match`, der einfach aufhoert,
