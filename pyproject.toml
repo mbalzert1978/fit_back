@@ -110,7 +110,7 @@ filterwarnings = [
 # schreiben.
 #
 # Die Blocks unter [[tool.ty.overrides]] sind eine **Baseline**: der Ist-Stand
-# vom 2026-08-26, 28 Befunde in 12 Dateien, eingefroren, damit das Gate ab
+# vom 2026-08-26, 21 Befunde in 9 Dateien, eingefroren, damit das Gate ab
 # sofort scharf laeuft und jede *neue* Datei voll geprueft wird. Die Liste soll
 # schrumpfen, nicht wachsen - eine neue Zeile hier gehoert begruendet.
 # Hergang und Zaehlung: docs/decisions/2026-08-25-1500-typechecker-ty.md
@@ -119,23 +119,12 @@ filterwarnings = [
 # Ein nicht aufloesbarer Import ist ein echter Fehler, kein Hinweis.
 unresolved-import = "error"
 
-# `assert_never` in den Exhaustivitaets-Zweigen: ty rechnet den Rest-Typ nicht
-# auf `Never` herunter, solange der Union-Zweig ein generisches `Err[E]` ist.
-[[tool.ty.overrides]]
-include = [
-    "src/contexts/identity/application/register_user/mappers/register_user_response_mapper.py",
-    "src/contexts/identity/application/register_user/validators/register_user_rules.py",
-]
-[tool.ty.overrides.rules]
-type-assertion-failure = "ignore"
-
 # Protokoll- statt Klassenbezug an der Naht (`UserStoreTransaction` vs.
-# `AsyncConnection`), `DomainEvent` vs. konkretes Event, `TaskGroup.create_task`
-# gegen `Awaitable` statt `Coroutine`, Pydantic-`LaxStr` gegen `str | None`.
+# `AsyncConnection`), `TaskGroup.create_task` gegen `Awaitable` statt
+# `Coroutine`, Pydantic-`LaxStr` gegen `str | None`.
 [[tool.ty.overrides]]
 include = [
     "src/api/identity/dependencies.py",
-    "src/contexts/identity/application/register_user/handler.py",
     "src/contexts/shared_kernel/validation.py",
     "src/settings.py",
 ]

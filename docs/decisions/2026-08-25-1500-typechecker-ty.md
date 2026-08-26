@@ -52,6 +52,8 @@ Nach Ursache gebündelt — so und nicht nach Datei sind die Overrides in `pypro
   nicht auf `Never` herunter, solange der Union-Zweig ein generisches `Err[E]` ist. Damit ist
   `ty` **kein** Ersatz für den werfenden Arm der Exhaustivitäts-Prüfung — siehe die angepasste
   Stelle in `.rules/python/python-control-flow.md`.
+  **Nur halb richtig** — siehe „Abbau der Baseline", Welle 2: es lag an der *verschachtelten*
+  Form des Musters, nicht am `Err[E]` an sich.
 - **Nähte und Protokolle (4 Dateien, `invalid-argument-type`).** `UserStoreTransaction` gegen
   `AsyncConnection`, `DomainEvent` gegen ein konkretes Event, `TaskGroup.create_task` gegen
   `Awaitable` statt `Coroutine`, Pydantics `LaxStr` gegen `str | None`. Hier stecken die
@@ -104,6 +106,43 @@ sechs Value Objects geben nun `Result[Self, E]` statt `Result[<Konkret>, E]` zur
 
 Verhalten unverändert: `Final[X]` ist für `dataclasses` ein gewöhnliches Feld; `fields`, `__slots__`,
 `__eq__`, `match`/`case` und `FrozenInstanceError` bleiben, wie sie waren.
+
+### Welle 2 — Exhaustivität und die Event-Naht (2026-08-26): 28 → 21 Befunde, 12 → 9 Dateien
+
+Zwei weitere Blocks entfallen; auch hier war die eingetragene Begründung in beiden Fällen die
+falsche.
+
+**`assert_never` (2 Dateien, ganzer Block entfallen).** Nicht `Err[E]` an sich war das Hindernis,
+sondern das *verschachtelte* Muster: aus `case Err(error=EmailIsEmpty())` trägt `ty` die Einengung
+nicht in das Typargument von `Err` hinein, der Restfall bleibt `Err[EmailError]`. Das Muster ist
+jetzt zweistufig — erst der Ausgang, dann der Fehlerwert selbst:
+
+```python
+case Err(error=error):
+    match error:
+        case EmailIsEmpty():
+            ...
+        case _:
+            assert_never(error)
+```
+
+Über einer flachen Union von Fehlerklassen rechnet `ty` die Vollzähligkeit aus. Die
+Exhaustivitäts-Prüfung ist damit an diesen Stellen **statisch belegt statt bloß behauptet** — das
+ist der eigentliche Gewinn, nicht die gestrichene Baseline-Zeile. Preis: eine Einrückungsebene und
+ein zweites `assert_never` je Funktion. Bei der E-Mail-Regel mit fünfzehn Armen zahlt sich das
+aus, weil das wiederholte `Err(error=…)` entfällt; bei den kurzen Regeln ist es ein Nullsummen-
+Tausch. Die Fallmenge ist unverändert (29 Fehlerklassen vorher wie nachher), ebenso jeder
+`FieldError`.
+
+**`DomainEvent` (1 Zeile aus dem Nähte-Block).** `DomainEvent` verlangte `occurred_at` als
+schreibbares Attribut. Ein `@dataclass(frozen=True)` wie `UserRegistered` gibt diese Zusage nicht
+ab — und soll sie nicht abgeben: ein Ereignis *ist* geschehen, sein Zeitpunkt steht fest. Im
+Protocol steht jetzt eine nur lesende `@property`; ein gewöhnliches Feld erfüllt sie, umgekehrt
+gilt das nicht. `user_registered.py` und `handler.py` blieben unverändert — der Vertrag war zu
+scharf gefordert, nicht das Ereignis zu schwach. Gemessen mit fünf Protokoll-Varianten gegen eine
+frozen Dataclass; `EVENT_TYPE` und `to_payload` wichen nicht ab. Nebenwirkung: in `tests/`
+verschwinden acht weitere Befunde (`EventRegistry.register` gegen die Obergrenze `DomainEvent`) —
+der Beleg, dass die Korrektur an der Naht sitzt und nicht am Einzelfall.
 
 ## Rückfallebene
 

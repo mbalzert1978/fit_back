@@ -50,6 +50,14 @@ def to_response(outcome: Result[Registration, RegisterUserError]) -> RegisterUse
     Damit entfaellt auch die zweite Abschrift der Code-und-Parameter-Tabelle aus
     `validators/register_user_rules.py`: die Feldfehler kommen als Werte an,
     nicht als Faelle, die hier noch einmal benannt werden muessten.
+
+    **Zwei Stufen statt einer**, und das ist keine Ziererei: erst der Ausgang,
+    dann der Fehlerwert selbst. Stuenden die Fehlerfaelle wie zuvor verschachtelt
+    im Muster (`case Err(error=RequestInvalid())`), traegt `ty` die Einengung
+    nicht ins Typargument von `Err` hinein - der Restfall bliebe fuer den Pruefer
+    `Err[RegisterUserError]` statt `Never`, und `assert_never` waere nur noch
+    Laufzeitschutz. Auf dem Fehlerwert selbst gematcht, rechnet `ty` die
+    Vollzaehligkeit aus; beide `assert_never` sind damit **statisch** belegt.
     """
     match outcome:
         case Ok(value=Registration(user=user, session=session)):
@@ -65,9 +73,13 @@ def to_response(outcome: Result[Registration, RegisterUserError]) -> RegisterUse
                 refresh_token=session.refresh_token,
                 refresh_expires_in=session.refresh_expires_in,
             )
-        case Err(error=RequestInvalid(errors=errors)):
-            return RegistrationInvalid(group_by_field(errors))
-        case Err(error=EmailAlreadyRegistered(email=email)):
-            return EmailAlreadyTaken(email.value)
+        case Err(error=error):
+            match error:
+                case RequestInvalid(errors=errors):
+                    return RegistrationInvalid(group_by_field(errors))
+                case EmailAlreadyRegistered(email=email):
+                    return EmailAlreadyTaken(email.value)
+                case _:
+                    assert_never(error)
         case _:
             assert_never(outcome)

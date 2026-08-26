@@ -13,6 +13,15 @@ ueber fuenf verschiedene Fehlertypen spannen und wurde dabei erst zu
 sind frozen Dataclasses und keine `Exception`. Steht die Fallunterscheidung in
 der Regel, bleibt der konkrete Typ erhalten und die Annotation stimmt.
 
+**Jede Regel matcht in zwei Stufen**: erst den Ausgang (`Ok` / `Err`), dann den
+Fehlerwert selbst. Das ist keine Ziererei, sondern der Preis dafuer, dass die
+Vollzaehligkeit hier **statisch** gilt und nicht nur zur Laufzeit: stuenden die
+Fehlerfaelle verschachtelt im Muster (`case Err(error=EmailIsEmpty())`), traegt
+`ty` die Einengung nicht ins Typargument von `Err` hinein - der Restfall bliebe
+fuer den Pruefer `Err[EmailError]` statt `Never` und `assert_never` nur noch
+Behauptung. Auf dem Fehlerwert selbst gematcht, rechnet `ty` die Erschoepfung
+aus; beide `assert_never` je Regel sind damit belegt.
+
 Jede Regel delegiert die Pruefung selbst an die `parse`-Factory ihres Value
 Object und implementiert sie damit nicht ein zweites Mal. Die Feldnamen sind die
 des API-Vertrags (camelCase), weil sie unveraendert im `errors`-Objekt landen.
@@ -91,48 +100,56 @@ def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- C
         match outcome:
             case Ok():
                 return []
-            case Err(error=EmailIsEmpty()):
-                return [FieldError(_EMAIL, EmailIsEmpty.code, {})]
-            case Err(error=EmailHasWhitespace()):
-                return [FieldError(_EMAIL, EmailHasWhitespace.code, {})]
-            case Err(error=EmailNeedsExactlyOneAtSign(at_sign_count=count)):
-                return [
-                    FieldError(
-                        _EMAIL,
-                        EmailNeedsExactlyOneAtSign.code,
-                        {"at_sign_count": count},
-                    )
-                ]
-            case Err(error=EmailLocalPartMissing()):
-                return [FieldError(_EMAIL, EmailLocalPartMissing.code, {})]
-            case Err(error=EmailDomainMissing()):
-                return [FieldError(_EMAIL, EmailDomainMissing.code, {})]
-            case Err(error=EmailLocalPartTooLong(maximum=maximum)):
-                return [FieldError(_EMAIL, EmailLocalPartTooLong.code, {"maximum": maximum})]
-            case Err(error=EmailLocalPartHasInvalidCharacters(invalid_characters=invalid)):
-                return [
-                    FieldError(
-                        _EMAIL,
-                        EmailLocalPartHasInvalidCharacters.code,
-                        {"invalid_characters": "".join(invalid)},
-                    )
-                ]
-            case Err(error=EmailLocalPartHasMisplacedDot()):
-                return [FieldError(_EMAIL, EmailLocalPartHasMisplacedDot.code, {})]
-            case Err(error=EmailDomainTooLong(maximum=maximum)):
-                return [FieldError(_EMAIL, EmailDomainTooLong.code, {"maximum": maximum})]
-            case Err(error=EmailDomainHasEmptyLabel()):
-                return [FieldError(_EMAIL, EmailDomainHasEmptyLabel.code, {})]
-            case Err(error=EmailDomainLabelTooLong(maximum=maximum)):
-                return [FieldError(_EMAIL, EmailDomainLabelTooLong.code, {"maximum": maximum})]
-            case Err(error=EmailDomainLabelHasEdgeHyphen()):
-                return [FieldError(_EMAIL, EmailDomainLabelHasEdgeHyphen.code, {})]
-            case Err(error=EmailDomainLabelHasInvalidCharacters()):
-                return [FieldError(_EMAIL, EmailDomainLabelHasInvalidCharacters.code, {})]
-            case Err(error=EmailAddressLiteralInvalid()):
-                return [FieldError(_EMAIL, EmailAddressLiteralInvalid.code, {})]
-            case Err(error=UnencodableDomainLabel(reason=reason)):
-                return [FieldError(_EMAIL, UnencodableDomainLabel.code, {"reason": reason})]
+            case Err(error=error):
+                match error:
+                    case EmailIsEmpty():
+                        return [FieldError(_EMAIL, EmailIsEmpty.code, {})]
+                    case EmailHasWhitespace():
+                        return [FieldError(_EMAIL, EmailHasWhitespace.code, {})]
+                    case EmailNeedsExactlyOneAtSign(at_sign_count=count):
+                        return [
+                            FieldError(
+                                _EMAIL,
+                                EmailNeedsExactlyOneAtSign.code,
+                                {"at_sign_count": count},
+                            )
+                        ]
+                    case EmailLocalPartMissing():
+                        return [FieldError(_EMAIL, EmailLocalPartMissing.code, {})]
+                    case EmailDomainMissing():
+                        return [FieldError(_EMAIL, EmailDomainMissing.code, {})]
+                    case EmailLocalPartTooLong(maximum=maximum):
+                        return [
+                            FieldError(_EMAIL, EmailLocalPartTooLong.code, {"maximum": maximum})
+                        ]
+                    case EmailLocalPartHasInvalidCharacters(invalid_characters=invalid):
+                        return [
+                            FieldError(
+                                _EMAIL,
+                                EmailLocalPartHasInvalidCharacters.code,
+                                {"invalid_characters": "".join(invalid)},
+                            )
+                        ]
+                    case EmailLocalPartHasMisplacedDot():
+                        return [FieldError(_EMAIL, EmailLocalPartHasMisplacedDot.code, {})]
+                    case EmailDomainTooLong(maximum=maximum):
+                        return [FieldError(_EMAIL, EmailDomainTooLong.code, {"maximum": maximum})]
+                    case EmailDomainHasEmptyLabel():
+                        return [FieldError(_EMAIL, EmailDomainHasEmptyLabel.code, {})]
+                    case EmailDomainLabelTooLong(maximum=maximum):
+                        return [
+                            FieldError(_EMAIL, EmailDomainLabelTooLong.code, {"maximum": maximum})
+                        ]
+                    case EmailDomainLabelHasEdgeHyphen():
+                        return [FieldError(_EMAIL, EmailDomainLabelHasEdgeHyphen.code, {})]
+                    case EmailDomainLabelHasInvalidCharacters():
+                        return [FieldError(_EMAIL, EmailDomainLabelHasInvalidCharacters.code, {})]
+                    case EmailAddressLiteralInvalid():
+                        return [FieldError(_EMAIL, EmailAddressLiteralInvalid.code, {})]
+                    case UnencodableDomainLabel(reason=reason):
+                        return [FieldError(_EMAIL, UnencodableDomainLabel.code, {"reason": reason})]
+                    case _:
+                        assert_never(error)
             case _:
                 assert_never(outcome)
 
@@ -145,22 +162,26 @@ def password_length_is_in_range(request: RegisterUserRequest) -> list[FieldError
     match outcome:
         case Ok():
             return []
-        case Err(error=PasswordTooShort(actual_length=actual, minimum=minimum)):
-            return [
-                FieldError(
-                    "password",
-                    PasswordTooShort.code,
-                    {"actual_length": actual, "minimum": minimum},
-                )
-            ]
-        case Err(error=PasswordTooLong(actual_length=actual, maximum=maximum)):
-            return [
-                FieldError(
-                    "password",
-                    PasswordTooLong.code,
-                    {"actual_length": actual, "maximum": maximum},
-                )
-            ]
+        case Err(error=error):
+            match error:
+                case PasswordTooShort(actual_length=actual, minimum=minimum):
+                    return [
+                        FieldError(
+                            "password",
+                            PasswordTooShort.code,
+                            {"actual_length": actual, "minimum": minimum},
+                        )
+                    ]
+                case PasswordTooLong(actual_length=actual, maximum=maximum):
+                    return [
+                        FieldError(
+                            "password",
+                            PasswordTooLong.code,
+                            {"actual_length": actual, "maximum": maximum},
+                        )
+                    ]
+                case _:
+                    assert_never(error)
         case _:
             assert_never(outcome)
 
@@ -171,24 +192,28 @@ def display_name_must_be_wellformed(request: RegisterUserRequest) -> list[FieldE
     match outcome:
         case Ok():
             return []
-        case Err(error=DisplayNameIsEmpty()):
-            return [FieldError("displayName", DisplayNameIsEmpty.code, {})]
-        case Err(error=DisplayNameTooShort(actual_length=actual, minimum=minimum)):
-            return [
-                FieldError(
-                    "displayName",
-                    DisplayNameTooShort.code,
-                    {"actual_length": actual, "minimum": minimum},
-                )
-            ]
-        case Err(error=DisplayNameTooLong(actual_length=actual, maximum=maximum)):
-            return [
-                FieldError(
-                    "displayName",
-                    DisplayNameTooLong.code,
-                    {"actual_length": actual, "maximum": maximum},
-                )
-            ]
+        case Err(error=error):
+            match error:
+                case DisplayNameIsEmpty():
+                    return [FieldError("displayName", DisplayNameIsEmpty.code, {})]
+                case DisplayNameTooShort(actual_length=actual, minimum=minimum):
+                    return [
+                        FieldError(
+                            "displayName",
+                            DisplayNameTooShort.code,
+                            {"actual_length": actual, "minimum": minimum},
+                        )
+                    ]
+                case DisplayNameTooLong(actual_length=actual, maximum=maximum):
+                    return [
+                        FieldError(
+                            "displayName",
+                            DisplayNameTooLong.code,
+                            {"actual_length": actual, "maximum": maximum},
+                        )
+                    ]
+                case _:
+                    assert_never(error)
         case _:
             assert_never(outcome)
 
@@ -199,10 +224,14 @@ def locale_must_be_supported(request: RegisterUserRequest) -> list[FieldError]:
     match outcome:
         case Ok():
             return []
-        case Err(error=LocaleIsEmpty()):
-            return [FieldError("locale", LocaleIsEmpty.code, {})]
-        case Err(error=LocaleNotSupported(candidate=candidate)):
-            return [FieldError("locale", LocaleNotSupported.code, {"candidate": candidate})]
+        case Err(error=error):
+            match error:
+                case LocaleIsEmpty():
+                    return [FieldError("locale", LocaleIsEmpty.code, {})]
+                case LocaleNotSupported(candidate=candidate):
+                    return [FieldError("locale", LocaleNotSupported.code, {"candidate": candidate})]
+                case _:
+                    assert_never(error)
         case _:
             assert_never(outcome)
 
@@ -213,10 +242,20 @@ def time_zone_must_be_known(request: RegisterUserRequest) -> list[FieldError]:
     match outcome:
         case Ok():
             return []
-        case Err(error=UserTimeZoneIsEmpty()):
-            return [FieldError("timeZoneId", UserTimeZoneIsEmpty.code, {})]
-        case Err(error=UserTimeZoneUnknown(candidate=candidate)):
-            return [FieldError("timeZoneId", UserTimeZoneUnknown.code, {"candidate": candidate})]
+        case Err(error=error):
+            match error:
+                case UserTimeZoneIsEmpty():
+                    return [FieldError("timeZoneId", UserTimeZoneIsEmpty.code, {})]
+                case UserTimeZoneUnknown(candidate=candidate):
+                    return [
+                        FieldError(
+                            "timeZoneId",
+                            UserTimeZoneUnknown.code,
+                            {"candidate": candidate},
+                        )
+                    ]
+                case _:
+                    assert_never(error)
         case _:
             assert_never(outcome)
 

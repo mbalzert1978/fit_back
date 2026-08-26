@@ -51,8 +51,18 @@ class DomainEvent(Protocol):
     EVENT_TYPE: ClassVar[str]
     """Der Name auf der Leitung - die einzige Stelle, an der er als String steht."""
 
-    occurred_at: Timestamp
-    """Wann das Ereignis fachlich eingetreten ist."""
+    @property
+    def occurred_at(self) -> Timestamp:
+        """Wann das Ereignis fachlich eingetreten ist.
+
+        Lesend und nicht als schreibbares Attribut: ein Ereignis *ist*
+        geschehen, sein Zeitpunkt steht damit fest. Ein Attribut verlangte von
+        jedem Ereignis zusaetzlich die Zusage, dass man ihn ueberschreiben darf
+        - die geben eingefrorene Vertraege wie `UserRegistered` nicht ab, und
+        sie sollen sie auch nicht abgeben. Ein gewoehnliches Feld erfuellt eine
+        Nur-Lese-Zusage; umgekehrt gilt das nicht.
+        """
+        ...
 
     def to_payload(self) -> Mapping[str, JsonValue]:
         """Flache, JSON-faehige Nutzlast fuer den Transport.
