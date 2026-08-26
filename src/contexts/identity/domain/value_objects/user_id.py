@@ -1,7 +1,7 @@
 """Value Object UserId - die validierte Identitaet der Aggregatwurzel User."""
 
 from dataclasses import dataclass
-from typing import final
+from typing import Self, final
 from uuid import UUID, uuid7
 
 from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
@@ -43,7 +43,7 @@ class UserId:
         return cls(uuid7())
 
     @classmethod
-    def parse(cls, raw: str) -> Result[UserId, UserIdError]:
+    def parse(cls, raw: str) -> Result[Self, UserIdError]:
         """Lies eine Identitaet aus einem moeglicherweise ungueltigen Rohwert."""
         return _RULE(raw).map(cls)
 

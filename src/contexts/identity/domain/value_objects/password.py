@@ -1,7 +1,7 @@
 """Value Object Password - das noch ungehashte, laengengeprueft Klartext-Passwort."""
 
 from dataclasses import dataclass, field
-from typing import final
+from typing import Self, final
 
 from src.contexts.identity.domain.password_errors import (
     PasswordError,
@@ -50,7 +50,7 @@ class Password:
     value: str = field(repr=False)
 
     @classmethod
-    def parse(cls, raw: str) -> Result[Password, PasswordError]:
+    def parse(cls, raw: str) -> Result[Self, PasswordError]:
         """Pruefe eine moeglicherweise ungueltige Eingabe.
 
         `.map(cls)` erst am Ende - sonst muesste ein ungueltiges `Password`

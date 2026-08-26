@@ -46,6 +46,8 @@ Nach Ursache gebündelt — so und nicht nach Datei sind die Overrides in `pypro
 - **`Result` + `Self` (7 Dateien, alle `invalid-return-type`).** `Result[T, E]` ist
   `Ok[T] | Err[E]`. In `classmethod parse(cls) -> Result[Self, E]` engt `ty` `Ok[Self@parse]`
   nicht auf die Klasse ein. Preview-Lücke von `ty`, kein Fehler im Modell.
+  **Diese Einschätzung war falsch** — siehe „Abbau der Baseline", Welle 1: es war ein Fehler im
+  Modell, und zwar in `result.py` selbst.
 - **`assert_never`-Zweige (2 Dateien, `type-assertion-failure`).** `ty` rechnet den Rest-Typ
   nicht auf `Never` herunter, solange der Union-Zweig ein generisches `Err[E]` ist. Damit ist
   `ty` **kein** Ersatz für den werfenden Arm der Exhaustivitäts-Prüfung — siehe die angepasste
@@ -76,6 +78,32 @@ eingeholt wird. Eine **neue** Zeile dort gehört begründet.
 
 Belegt, dass das Gate trotz Baseline greift: die Beispieldatei aus dem Issue, in `src/` gelegt,
 ergibt weiterhin ihre vier Befunde.
+
+## Abbau der Baseline
+
+Die Baseline wird Welle für Welle abgebaut, indem die Dateien tatsächlich typkorrekt werden. Jede
+Welle ist ein eigener Commit und zieht diesen Abschnitt und die Zählung in `pyproject.toml` nach.
+
+### Welle 1 — `Result`-Kovarianz und `Self` (2026-08-26): 37 → 28 Befunde, 18 → 12 Dateien
+
+Der erste Override-Block ist **ersatzlos entfallen** (7 Dateien, `invalid-return-type`). Er war als
+Preview-Lücke von `ty` eingetragen; das war eine Fehldiagnose. `Ok`/`Err` waren in ihrem
+Typparameter **invariant**, aus zwei Gründen gleichzeitig — beide mussten weg, einer allein wirkte
+nicht:
+
+- Die Felder `value`/`error` waren gewöhnliche Dataclass-Felder. `frozen=True` zählt für die
+  Varianzberechnung nicht; erst `Final[…]` markiert sie nachweislich als nur lesbar.
+- `Err.bind`, `Err.bind_async` und `Ok.or_else` führten den Klassen-Typparameter im Rückgabetyp
+  ihrer Fortsetzung, also in kontravarianter Position. Jetzt tragen sie dort einen freien
+  Typparameter — diese drei Methoden rufen die Fortsetzung ohnehin nie auf.
+
+Damit passt `Err[EmailAlreadyRegistered]` wieder in eine Kette, die `Err[RegisterUserError]`
+verspricht. `pipeline.py` wurde still, ohne selbst angefasst zu werden. Die `parse`-Methoden der
+sechs Value Objects geben nun `Result[Self, E]` statt `Result[<Konkret>, E]` zurück — die für einen
+`classmethod parse` ohnehin richtigere Signatur.
+
+Verhalten unverändert: `Final[X]` ist für `dataclasses` ein gewöhnliches Feld; `fields`, `__slots__`,
+`__eq__`, `match`/`case` und `FrozenInstanceError` bleiben, wie sie waren.
 
 ## Rückfallebene
 

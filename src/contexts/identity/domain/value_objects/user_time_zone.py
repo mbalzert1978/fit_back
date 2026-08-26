@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cache
-from typing import Final, final
+from typing import Final, Self, final
 from zoneinfo import available_timezones
 
 from src.contexts.identity.domain.user_time_zone_errors import (
@@ -140,7 +140,7 @@ class UserTimeZone:
     value: str
 
     @classmethod
-    def parse(cls, raw: str) -> Result[UserTimeZone, UserTimeZoneError]:
+    def parse(cls, raw: str) -> Result[Self, UserTimeZoneError]:
         """Pruefe eine Zeitzonen-Angabe gegen die IANA-Datenbank oder als festen Versatz."""
         return _RULES(raw).map(cls)
 

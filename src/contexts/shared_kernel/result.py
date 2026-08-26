@@ -1,8 +1,17 @@
-"""Result[T, E] — Basistyp für Operationen mit Erfolgs- oder Fehlschlag-Ausgang."""
+"""Result[T, E] — Basistyp für Operationen mit Erfolgs- oder Fehlschlag-Ausgang.
+
+`Ok` und `Err` sind kovariant in ihrem Typparameter: eine Regel, die einen engeren
+Fehlerfall liefert, passt damit in eine Kette, die den Obertyp verspricht. Zwei Details
+tragen das und waeren sonst als Willkuer zu lesen. `Final` auf den Feldern, weil nur ein
+nachweislich nur lesbares Feld kovariant sein darf. Und die freien Typparameter in
+`Err.bind`, `Err.bind_async` und `Ok.or_else`: sie beschreiben eine Fortsetzung, die
+genau diese drei Methoden ohnehin nie aufrufen - stuende dort der Klassen-Typparameter,
+saesse er in einer Argument-Position und waere invariant.
+"""
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import final
+from typing import Final, final
 
 
 @final
@@ -10,7 +19,7 @@ from typing import final
 class Ok[T]:
     """Erfolgreicher Ausgang mit Wert."""
 
-    value: T
+    value: Final[T]
 
     def map[U](self, f: Callable[[T], U]) -> Ok[U]:
         """Transformiere den erfolgreichen Wert via Funktion."""
@@ -35,7 +44,7 @@ class Ok[T]:
         """Ignoriere die Fehler-Transformation (es liegt kein Fehler vor)."""
         return self
 
-    def or_else[E](self, _: Callable[[E], Result[T, E]], /) -> Ok[T]:
+    def or_else[U, F](self, _: Callable[[F], Result[U, F]], /) -> Ok[T]:
         """Nimm die Alternative nicht (es liegt kein Fehler vor)."""
         return self
 
@@ -59,17 +68,17 @@ class Ok[T]:
 class Err[E]:
     """Fehlschlag-Ausgang mit Fehler."""
 
-    error: E
+    error: Final[E]
 
     def map[T, U](self, _: Callable[[T], U], /) -> Err[E]:
         """Ignoriere den Fehler (Transformation auf Erfolgs-Wert nicht möglich)."""
         return self
 
-    def bind[T, U](self, _: Callable[[T], Result[U, E]], /) -> Err[E]:
+    def bind[T, U, F](self, _: Callable[[T], Result[U, F]], /) -> Err[E]:
         """Ignoriere den Fehler (Verkettung nicht möglich)."""
         return self
 
-    async def bind_async[T, U](self, _: Callable[[T], Awaitable[Result[U, E]]], /) -> Err[E]:
+    async def bind_async[T, U, F](self, _: Callable[[T], Awaitable[Result[U, F]]], /) -> Err[E]:
         """Verkette nichts - die uebergebene Coroutine wird nie erzeugt und nie erwartet.
 
         Das ist die Abkuerzung, von der die Behavior-Kette lebt: liegt ein Fehler

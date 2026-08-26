@@ -1,7 +1,7 @@
 """Value Object DisplayName - der Anzeigename des Users, 2-60 Zeichen."""
 
 from dataclasses import dataclass
-from typing import final
+from typing import Self, final
 
 from src.contexts.identity.domain.display_name_errors import (
     DisplayNameError,
@@ -61,7 +61,7 @@ class DisplayName:
     value: str
 
     @classmethod
-    def parse(cls, raw: str) -> Result[DisplayName, DisplayNameError]:
+    def parse(cls, raw: str) -> Result[Self, DisplayNameError]:
         """Pruefe eine moeglicherweise ungueltige Eingabe."""
         return _RULES(raw).map(cls)
 
