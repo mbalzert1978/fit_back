@@ -1,7 +1,13 @@
 # Jeder `match` ist vollstaendig — Abschlusszweig wirft `assert_never`
 
 **Datum:** 2026-08-07, 11:20
-**Status:** entschieden, umgesetzt
+**Status:** entschieden, umgesetzt — Regel gilt weiter, Begruendung teilweise abgeloest
+
+> **Teilweise abgeloest am 2026-08-26 durch**
+> [`2026-08-26-0900-typpruefer-begruendung-abgeloest.md`](./2026-08-26-0900-typpruefer-begruendung-abgeloest.md).
+> Die Regel unten gilt unveraendert. Ueberholt ist allein die Aussage, dieses Repo habe keinen
+> Typpruefer: seit Issue #97 laeuft `ty` als Gate. Der zweite Nutzen von `assert_never`, hier
+> noch im Konjunktiv gefuehrt, ist damit eingetreten.
 
 ## Der Anlass
 
