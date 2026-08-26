@@ -1,20 +1,17 @@
-"""Collect-all-Regeln gegen das public Request-DTO (.rules/python/python-rule-pattern.md).
+"""Uebersetzt die Ablehnungen der Wurzel in die Feldfehler des API-Vertrags.
 
-Die Feldnamen sind die des API-Vertrags (camelCase), weil sie unveraendert im
-`errors`-Objekt landen.
+Steht hier am Rand und nicht in der Domaene, weil die Feldnamen die des Vertrags
+sind (camelCase) - sie landen unveraendert im `errors`-Objekt.
 """
 
 from typing import assert_never
 
-from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.domain import (
-    DisplayName,
     DisplayNameError,
     DisplayNameIsEmpty,
     DisplayNameRejected,
     DisplayNameTooLong,
     DisplayNameTooShort,
-    Email,
     EmailAddressLiteralInvalid,
     EmailDomainHasEmptyLabel,
     EmailDomainLabelHasEdgeHyphen,
@@ -31,12 +28,10 @@ from src.contexts.identity.domain import (
     EmailLocalPartTooLong,
     EmailNeedsExactlyOneAtSign,
     EmailRejected,
-    IdnEncoder,
     LocaleError,
     LocaleIsEmpty,
     LocaleNotSupported,
     LocaleRejected,
-    Password,
     PasswordError,
     PasswordRejected,
     PasswordTooLong,
@@ -44,15 +39,14 @@ from src.contexts.identity.domain import (
     TimeZoneRejected,
     UnencodableDomainLabel,
     UserCreationError,
-    UserTimeZone,
+    UserRejected,
     UserTimeZoneError,
     UserTimeZoneIsEmpty,
     UserTimeZoneUnknown,
-    parse_locale,
 )
-from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
+from src.contexts.shared_kernel.validation import FieldError
 
-__all__ = ["build_register_user_rules", "to_field_errors"]
+__all__ = ["to_field_errors"]
 
 _EMAIL = "email"
 _PASSWORD = "password"  # noqa: S105 -- Feldname des Vertrags, kein Geheimnis
@@ -64,11 +58,6 @@ _TIME_ZONE_ID = "timeZoneId"
 Sie stehen bewusst als Konstanten und nicht als Literal im Arm: ein umbenanntes
 Feld ist eine Vertragsaenderung, und die soll an genau einer Stelle passieren.
 """
-
-
-def _no_errors(_: object, /) -> list[FieldError]:
-    """Der Erfolgs-Arm jeder Regel: ein geparster Wert meldet nichts."""
-    return []
 
 
 def _email_errors(error: EmailError) -> list[FieldError]:  # noqa: C901, PLR0911, PLR0912 -- Exhaustive match over 15+ email error types
@@ -184,64 +173,9 @@ def _time_zone_errors(error: UserTimeZoneError) -> list[FieldError]:
             assert_never(error)
 
 
-def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
-    """Reiche der E-Mail-Regel den IDN-Port per Closure, den sonst keine Regel braucht."""
-
-    def email_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:
-        """Die E-Mail-Adresse muss wohlgeformt sein."""
-        return Email.parse(request.email, idn).fold(_no_errors, _email_errors)
-
-    return email_must_be_wellformed
-
-
-def password_length_is_in_range(request: RegisterUserRequest) -> list[FieldError]:
-    """Das Passwort muss zwischen Mindest- und Hoechstlaenge liegen."""
-    return Password.parse(request.password).fold(_no_errors, _password_errors)
-
-
-def display_name_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:
-    """Der Anzeigename muss nicht leer, nicht zu kurz und nicht zu lang sein."""
-    return DisplayName.parse(request.display_name).fold(_no_errors, _display_name_errors)
-
-
-def locale_must_be_supported(request: RegisterUserRequest) -> list[FieldError]:
-    """Die Sprache muss eine der unterstuetzten sein."""
-    return parse_locale(request.locale).fold(_no_errors, _locale_errors)
-
-
-def time_zone_must_be_known(request: RegisterUserRequest) -> list[FieldError]:
-    """Die Zeitzone muss eine bekannte IANA-Id oder ein fester UTC-Versatz sein."""
-    return UserTimeZone.parse(request.time_zone_id).fold(_no_errors, _time_zone_errors)
-
-
-def build_register_user_rules(idn: IdnEncoder) -> Rule[RegisterUserRequest]:
-    """Setze das Regelwerk des Use Case zusammen."""
-    return all_of(
-        email_rule(idn),
-        password_length_is_in_range,
-        display_name_must_be_wellformed,
-        locale_must_be_supported,
-        time_zone_must_be_known,
-    )
-
-
-def to_field_errors(rejected: UserCreationError) -> list[FieldError]:
-    """Uebersetze eine Ablehnung aus `User.create` in die Feldfehler des Vertrags.
-
-    Die Wurzel parst noch einmal, was das Regelwerk oben schon geprueft hat -
-    einmal, um alle Befunde auf einmal zu melden (422), und einmal, weil ein
-    `User` nur aus geprueften Werten entstehen darf. Diese Uebersetzung ist
-    deshalb im Regelbetrieb unerreichbar.
-
-    Trotzdem uebersetzt und nicht behauptet, sie koenne nicht eintreten: die
-    beiden Wege waren schon einmal auseinandergelaufen (`DisplayName`, Vertrag
-    gegen Invariante), und ein `AssertionError` an dieser Stelle machte aus einer
-    stillen Abweichung einen 500er statt eines ehrlichen 422.
-
-    Die Uebersetzer selbst sind dieselben, die auch das Regelwerk benutzt - der
-    Fehlercode eines Falls entsteht damit an genau einer Stelle.
-    """
-    match rejected:
+def _rejection_errors(rejection: UserCreationError) -> list[FieldError]:
+    """Uebersetze eine einzelne Ablehnung der Wurzel in die Feldfehler des Vertrags."""
+    match rejection:
         case EmailRejected(error=error):
             return _email_errors(error)
         case PasswordRejected(error=error):
@@ -253,4 +187,12 @@ def to_field_errors(rejected: UserCreationError) -> list[FieldError]:
         case TimeZoneRejected(error=error):
             return _time_zone_errors(error)
         case _:
-            assert_never(rejected)
+            assert_never(rejection)
+
+
+def to_field_errors(rejected: UserRejected) -> list[FieldError]:
+    """Uebersetze **alle** Befunde aus `User.create` in die Feldfehler des Vertrags.
+
+    Der einzige Weg, auf dem ein 422 entsteht.
+    """
+    return [error for rejection in rejected.rejections for error in _rejection_errors(rejection)]

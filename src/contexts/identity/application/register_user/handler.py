@@ -7,9 +7,9 @@ from src.contexts.identity.domain import (
     IdnEncoder,
     PasswordHasher,
     User,
-    UserCreationError,
     UserRegistry,
     UserRegistryError,
+    UserRejected,
     user_registered,
 )
 from src.contexts.shared_kernel import AsyncResult, TimeProvider
@@ -18,12 +18,11 @@ from src.contexts.shared_kernel.events import EventPublisher
 __all__ = ["RegisterUserFailure", "RegisterUserHandler"]
 
 
-type RegisterUserFailure = UserCreationError | UserRegistryError
+type RegisterUserFailure = UserRejected | UserRegistryError
 """Die beiden Stellen, an denen dieser Use Case erwartet scheitern kann.
 
-Die Wurzel kann ein Feld ablehnen (`UserCreationError`), und der Bestand kann die
-E-Mail schon kennen (`UserRegistryError`). Mehr ist es nicht - und jede Haelfte
-traegt weiterhin ihre eigene, schmale Union.
+Ausgeschrieben und nicht ueber einen Sammeltyp gebildet: jede Haelfte traegt
+weiterhin ihre eigene, schmale Union.
 """
 
 
@@ -57,28 +56,19 @@ class RegisterUserHandler:
     def __call__(self, command: RegisterUserCommand) -> AsyncResult[User, RegisterUserFailure]:
         """Baue den Kandidaten, reiche ihn dem Bestand und melde die Aufnahme.
 
-        Eine Kette und kein `await` dazwischen: `User.create` ist eine Coroutine
-        ueber einem `Result`, also genau das, was `AsyncResult` umschliesst. Ein
-        abgelehntes Feld laesst `bind_async` gar nicht erst zum Bestand
-        durchlaufen.
-
         `inspect_async` statt eines Match am Ende: gemeldet wird nur der
-        aufgenommene User - eine abgelehnte Registrierung ist nichts, worauf ein
-        anderer Context reagieren duerfte - und die Meldung selbst aendert am
-        Ergebnis des Use Case nichts.
+        aufgenommene User, und die Meldung aendert am Ergebnis nichts.
         """
         return (
-            AsyncResult(
-                User.create(
-                    email=command.email,
-                    password=command.password,
-                    display_name=command.display_name,
-                    locale=command.locale,
-                    time_zone=command.time_zone,
-                    idn=self._idn,
-                    hasher=self._hasher,
-                    clock=self._clock,
-                )
+            User.create(
+                email=command.email,
+                password=command.password,
+                display_name=command.display_name,
+                locale=command.locale,
+                time_zone=command.time_zone,
+                idn=self._idn,
+                hasher=self._hasher,
+                clock=self._clock,
             )
             .bind_async(self._registry.add)
             .inspect_async(self._announce)

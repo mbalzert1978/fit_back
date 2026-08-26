@@ -1,9 +1,8 @@
-"""`User.create` - die Wurzel baut ihre Value Objects selbst und darf ablehnen.
+"""`User.create` - die Wurzel baut ihre Value Objects selbst und sammelt ihre Befunde.
 
-Der Weg durch die Pipeline kommt hier nie an: das Regelwerk davor faengt jede
-ungueltige Eingabe ab und meldet sie gesammelt als 422. Genau deshalb steht der
-Test hier direkt an der Wurzel - sonst waere die Fehlbarkeit von `create` eine
-Zusage, die niemand nachrechnet.
+Hier steht die einzige Pruefung der Registrierung. Deshalb misst dieser Test nicht
+nur, **dass** abgelehnt wird, sondern auch **wieviel** auf einmal und **in welcher
+Reihenfolge** - das uebernimmt der Rand unveraendert in den 422 des Vertrags.
 """
 
 from datetime import UTC, datetime
@@ -31,6 +30,7 @@ from src.contexts.identity.domain import (
     PasswordTooShort,
     TimeZoneRejected,
     User,
+    UserRejected,
     UserTimeZoneUnknown,
 )
 from src.contexts.shared_kernel import Err, FakeTimeProvider, Ok
@@ -106,20 +106,42 @@ async def test_ein_ungueltiges_feld_wird_mit_seinem_namen_abgelehnt(
 ) -> None:
     """Beleg: der Fehler sagt, **welches** Feld gescheitert ist - nicht nur, dass eines.
 
-    Das ist der Grund fuer die fuenf Huellen in `user_creation_errors.py`: eine
-    flache Union der Parser-Fehler liesse die Zuordnung zum Feld nur erraten.
+    Der Grund fuer die fuenf Huellen in `user_creation_errors.py`: eine flache
+    Union der Parser-Fehler liesse die Zuordnung zum Feld nur erraten.
     """
-    assert await _create(**abweichend) == Err(erwartet)
+    assert await _create(**abweichend) == Err(UserRejected((erwartet,)))
 
 
 @pytest.mark.asyncio
-async def test_der_erste_fehler_in_feldreihenfolge_gewinnt() -> None:
-    """Beleg: bei mehreren ungueltigen Feldern meldet `create` genau einen Fall.
+async def test_alle_ungueltigen_felder_werden_auf_einmal_gemeldet() -> None:
+    """Beleg: die Wurzel sammelt ihre Befunde, statt beim ersten abzubrechen.
 
-    Alle Befunde auf einmal ist die Aufgabe des Regelwerks vor der Pipeline
-    (422 mit `errors`); die Wurzel braucht nur den ersten Grund, ueberhaupt
-    nicht zu entstehen.
+    Solange `create` das leistet, braucht der Slice kein zweites Regelwerk davor.
     """
     abgelehnt = await _create(email="   ", password="zu-kurz", locale="fr")
 
-    assert abgelehnt == Err(EmailRejected(EmailIsEmpty()))
+    assert abgelehnt == Err(
+        UserRejected(
+            (
+                EmailRejected(EmailIsEmpty()),
+                PasswordRejected(PasswordTooShort(7, 10)),
+                LocaleRejected(LocaleNotSupported("fr")),
+            )
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_die_reihenfolge_der_befunde_ist_die_feldreihenfolge() -> None:
+    """Beleg: gemeldet wird in der Reihenfolge der Felder, nicht nach Zufall."""
+    abgelehnt = await _create(display_name="a", time_zone="Europe/Nirgendwo", password="kurz")
+
+    match abgelehnt:
+        case Err(error=UserRejected(rejections=befunde)):
+            assert [type(befund) for befund in befunde] == [
+                PasswordRejected,
+                DisplayNameRejected,
+                TimeZoneRejected,
+            ]
+        case _:
+            pytest.fail(f"erwartet war eine Ablehnung, gekommen ist: {abgelehnt}")

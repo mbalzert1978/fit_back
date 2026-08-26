@@ -10,6 +10,7 @@ So sind es fuenf Faelle, einer je Feld, und der `match` darueber ist wieder eine
 Aussage statt einer Pflichtuebung (.rules/python/python-feature-slices.md).
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import final
 
@@ -26,6 +27,13 @@ __all__ = [
     "PasswordRejected",
     "TimeZoneRejected",
     "UserCreationError",
+    "UserRejected",
+    "display_name_rejection",
+    "email_rejection",
+    "locale_rejection",
+    "password_rejection",
+    "time_zone_rejection",
+    "user_rejected",
 ]
 
 
@@ -77,3 +85,46 @@ type UserCreationError = (
 Kommt ein Feld zur Wurzel dazu, erzwingt das eine Aenderung an dieser Zeile und
 damit an jedem `match` darueber.
 """
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class UserRejected:
+    """Die Wurzel ist nicht entstanden - hier stehen **alle** Gruende, nicht der erste.
+
+    Ein eigener Fall und keine nackte Liste: `case list()` neben
+    `case EmailAlreadyRegistered()` waere eine Aussage ueber die Datenstruktur
+    statt ueber die Fachlichkeit.
+    """
+
+    rejections: tuple[UserCreationError, ...]
+
+
+def user_rejected(rejections: Sequence[UserCreationError]) -> UserRejected:
+    """Fasse die gesammelten Ablehnungen zum einen Fehler von `User.create` zusammen."""
+    return UserRejected(tuple(rejections))
+
+
+def email_rejection(error: EmailError) -> list[UserCreationError]:
+    """Hebe den E-Mail-Fehler in die Sammelform der Kette."""
+    return [EmailRejected(error)]
+
+
+def password_rejection(error: PasswordError) -> list[UserCreationError]:
+    """Hebe den Passwort-Fehler in die Sammelform der Kette."""
+    return [PasswordRejected(error)]
+
+
+def display_name_rejection(error: DisplayNameError) -> list[UserCreationError]:
+    """Hebe den Anzeigenamen-Fehler in die Sammelform der Kette."""
+    return [DisplayNameRejected(error)]
+
+
+def locale_rejection(error: LocaleError) -> list[UserCreationError]:
+    """Hebe den Sprach-Fehler in die Sammelform der Kette."""
+    return [LocaleRejected(error)]
+
+
+def time_zone_rejection(error: UserTimeZoneError) -> list[UserCreationError]:
+    """Hebe den Zeitzonen-Fehler in die Sammelform der Kette."""
+    return [TimeZoneRejected(error)]

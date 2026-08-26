@@ -5,12 +5,13 @@ from typing import Final, final
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.user_creation_errors import (
-    DisplayNameRejected,
-    EmailRejected,
-    LocaleRejected,
-    PasswordRejected,
-    TimeZoneRejected,
-    UserCreationError,
+    UserRejected,
+    display_name_rejection,
+    email_rejection,
+    locale_rejection,
+    password_rejection,
+    time_zone_rejection,
+    user_rejected,
 )
 from src.contexts.identity.domain.value_objects.account_status import AccountStatus, Active
 from src.contexts.identity.domain.value_objects.display_name import DisplayName
@@ -21,8 +22,8 @@ from src.contexts.identity.domain.value_objects.password_hash import PasswordHas
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import UserTimeZone
 from src.contexts.shared_kernel import (
+    AsyncResult,
     ConstructionKey,
-    Err,
     Ok,
     Result,
     TimeProvider,
@@ -34,6 +35,15 @@ __all__ = ["User"]
 
 _KEY: Final = ConstructionKey()
 """Der modul-private Schluessel - nur `create` unten hat ihn."""
+
+
+type _CheckedFields = tuple[tuple[tuple[tuple[Email, Password], DisplayName], Locale], UserTimeZone]
+"""Was die `zip_all`-Kette unten aufgetuermt hat - je ein Paar je Schritt.
+
+Ein Alias und keine Klasse: entpackt wird die Form genau einmal, in `_assembled`.
+Ein Buendel-Typ mit fuenf benannten Feldern waere derselbe Inhalt ein zweites
+Mal, nur mit Konstruktor.
+"""
 
 
 @final
@@ -73,7 +83,7 @@ class User:
         self.registered_at = registered_at
 
     @classmethod
-    async def create(  # noqa: PLR0913 -- Aggregate factory: five fields and three ports
+    def create(  # noqa: PLR0913 -- Aggregate factory: five fields and three ports
         cls,
         *,
         email: str,
@@ -84,74 +94,62 @@ class User:
         idn: IdnEncoder,
         hasher: PasswordHasher,
         clock: TimeProvider,
-    ) -> Result[User, UserCreationError]:
+    ) -> AsyncResult[User, UserRejected]:
         """Lege einen neuen, aktiven User aus Rohwerten an.
 
         Rohwerte und keine fertigen Value Objects: sonst entstuenden die VOs eine
         Schicht weiter aussen, und der Aufrufer entschiede, welche Regeln sie
-        gesehen haben. So kommt niemand an einen `User`, ohne dass jede Invariante
-        dieser Wurzel gelaufen ist - und die VOs verlassen die Domaene nie.
+        gesehen haben.
+
+        `zip_all` und nicht `zip`: die Wurzel **sammelt** ihre Ablehnungen. Damit
+        ist sie die einzige Stelle, an der eine Registrierung geprueft wird -
+        frueher lief dieselbe Pruefung ein zweites Mal als Behavior vor der
+        Pipeline, nur damit alle Befunde auf einmal gemeldet werden konnten.
+
+        Kein `async def`, sondern ein `AsyncResult`: damit ist die Wurzel selbst
+        schon ein Kettenglied, an das der Aufrufer den Bestand haengt.
+
+        Die einzige Invariante, die hier *nicht* entschieden werden kann - die
+        Eindeutigkeit der E-Mail - gehoert dem `UserRegistry`-Port.
+        """
+        return (
+            Email.parse(email, idn)
+            .map_err(email_rejection)
+            .zip_all(Password.parse(password).map_err(password_rejection))
+            .zip_all(DisplayName.parse(display_name).map_err(display_name_rejection))
+            .zip_all(parse_locale(locale).map_err(locale_rejection))
+            .zip_all(UserTimeZone.parse(time_zone).map_err(time_zone_rejection))
+            .map_err(user_rejected)
+            .bind_async(lambda fields: cls._assembled(fields, hasher, clock))
+        )
+
+    @classmethod
+    async def _assembled(
+        cls, fields: _CheckedFields, hasher: PasswordHasher, clock: TimeProvider
+    ) -> Result[User, UserRejected]:
+        """Setze die Wurzel aus den gepruefen Feldern zusammen.
+
+        Eigener Schritt, weil das Hashen wartet: eine `zip_all`-Kette ist
+        synchron. Der Aufruf scheitert nicht mehr - `Ok` ist der einzige Ausgang
+        -, traegt die Fehlerform aber weiter, damit die Kette einen Typ behaelt.
 
         Identitaet, Hash und Zeitpunkt entstehen **hier** und werden nicht
-        hereingereicht: sie gehoeren zum Anlegen, nicht zur Eingabe. Die drei
-        Ports dafuer kommen per Dependency Injection, damit die Wurzel weder eine
-        Uhr noch ein Hash-Verfahren kennt.
-
-        Fehlbar, seit die Wurzel selbst parst: `Active` als Anfangsstatus steht
-        weiterhin fest, aber ein Feld kann seine Regel verfehlen. Die einzige
-        Invariante, die hier *nicht* entschieden werden kann - die Eindeutigkeit
-        der E-Mail - gehoert nach wie vor dem `UserRegistry`-Port.
+        hereingereicht: sie gehoeren zum Anlegen, nicht zur Eingabe.
         """
-        # Alle fuenf laufen, dann gewinnt der erste Fehler. Ein `bind` je Feld
-        # waere fail-fast, verschraenkte die fuenf aber ineinander; die Parser
-        # sind rein und billig, und ein flacher `match` bleibt lesbar
-        # (.rules/python/python-error-handling.md).
-        match (
-            Email.parse(email, idn),
-            Password.parse(password),
-            DisplayName.parse(display_name),
-            parse_locale(locale),
-            UserTimeZone.parse(time_zone),
-        ):
-            case (Err(error=rejected), *_):
-                return Err(EmailRejected(rejected))
-
-            case (_, Err(error=rejected), *_):
-                return Err(PasswordRejected(rejected))
-
-            case (_, _, Err(error=rejected), *_):
-                return Err(DisplayNameRejected(rejected))
-
-            case (_, _, _, Err(error=rejected), _):
-                return Err(LocaleRejected(rejected))
-
-            case (_, _, _, _, Err(error=rejected)):
-                return Err(TimeZoneRejected(rejected))
-
-            case (
-                Ok(value=parsed_email),
-                Ok(value=parsed_password),
-                Ok(value=parsed_display_name),
-                Ok(value=parsed_locale),
-                Ok(value=parsed_time_zone),
-            ):
-                return Ok(
-                    cls(
-                        user_id=UserId.generate(),
-                        email=parsed_email,
-                        password_hash=await hasher.hash(parsed_password),
-                        display_name=parsed_display_name,
-                        time_zone=parsed_time_zone,
-                        locale=parsed_locale,
-                        status=Active(),
-                        registered_at=clock.now(),
-                        key=_KEY,
-                    )
-                )
-
-            case _:  # pragma: no cover -- jeder Ausgang ist `Ok` oder `Err`
-                msg = "unreachable: ein Result ist entweder Ok oder Err"
-                raise AssertionError(msg)
+        ((((address, secret), name), language), zone) = fields
+        return Ok(
+            cls(
+                user_id=UserId.generate(),
+                email=address,
+                password_hash=await hasher.hash(secret),
+                display_name=name,
+                time_zone=zone,
+                locale=language,
+                status=Active(),
+                registered_at=clock.now(),
+                key=_KEY,
+            )
+        )
 
     def __eq__(self, other: object) -> bool:
         """Vergleiche ueber die Identitaet, nicht ueber die Attribute."""

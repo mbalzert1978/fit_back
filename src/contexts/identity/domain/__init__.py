@@ -57,6 +57,7 @@ from src.contexts.identity.domain.user_creation_errors import (
     PasswordRejected,
     TimeZoneRejected,
     UserCreationError,
+    UserRejected,
 )
 from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
 from src.contexts.identity.domain.user_time_zone_errors import (
@@ -149,6 +150,7 @@ __all__ = [
     "UserIdMalformed",
     "UserRegistry",
     "UserRegistryError",
+    "UserRejected",
     "UserTimeZone",
     "UserTimeZoneError",
     "UserTimeZoneIsEmpty",
