@@ -74,8 +74,8 @@ allein, weil sie eine Ebene tiefer stehen. Was er zusichert, ist unveraendert: k
 - `src/contexts/identity/application/register_user/validators/register_user_rules.py` — die
   restlichen fuenf Fundstellen, umgestellt.
 
-Alle sieben Fundstellen tragen jetzt den Fold. In den Regeln fiel dabei auch die Doppelung weg:
-statt fuenfmal `case Ok(): return []` gibt es **einen** Erfolgs-Arm `_no_errors`, und jeder
+Jede Fundstelle des zweistufigen `match` traegt jetzt den Fold. In den Regeln fiel dabei auch die
+Doppelung weg: statt fuenfmal `case Ok(): return []` gibt es **einen** Erfolgs-Arm `_no_errors`, und jeder
 Fehler-Arm ist eine eigene, gegen ihre Union getypte Funktion (`_email_errors`,
 `_password_errors`, …), die flach matcht. `ty` rechnet die Vollzaehligkeit dort aus, ohne dass
 `pyproject.toml` einen `[[tool.ty.overrides]]`-Block braucht.
