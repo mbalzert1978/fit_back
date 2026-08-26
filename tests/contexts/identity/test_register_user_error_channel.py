@@ -2,12 +2,9 @@
 
 `RegisterUserError` ist bewusst ausgeschrieben (`RequestInvalid |
 EmailAlreadyRegistered`) statt ueber `UserRegistryError` gebildet - der Slice
-soll sich beim Wachsen der Port-Union **melden**, nicht still mitwachsen. Diese
-Zusage haengt bis hierher an einem Docstring: der Stack faehrt ohne Typpruefer
-(`.rules/python/README.md`), also erzwingt niemand, dass ein neuer Ausgang von
-`UserRegistryError` auch im Fehlerkanal des Use Case ankommt und dort gefaltet
-wird. Er schluege erst zur Anfragezeit im `assert_never` auf - HTTP 500 statt
-roter CI.
+soll sich beim Wachsen der Port-Union **melden**, nicht still mitwachsen. Ohne
+diesen Test schluege ein neuer Ausgang erst zur Anfragezeit im `assert_never`
+auf - HTTP 500 statt roter CI.
 
 Dieser Test **misst** die Fallmengen, statt sie zu behaupten
 (`.rules/python/python-error-handling.md`, "Maschinell geprueft, nicht

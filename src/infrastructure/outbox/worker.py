@@ -1,14 +1,7 @@
-"""Worker: laesst den Relay schlafen, bis Postgres ihn weckt.
+"""Worker: laesst den Relay schlafen, bis Postgres ihn per LISTEN/NOTIFY weckt.
 
-Ohne LISTEN/NOTIFY bliebe nur Polling, und dessen Intervall waere zugleich die
-mittlere Zustellverzoegerung - kurz genug fuer "sofort" hiesse, die Datenbank
-dauerhaft leer abzufragen. Der Worker haelt stattdessen eine eigene Verbindung
-im LISTEN-Zustand: Postgres schiebt beim Commit des Publishers eine
-Benachrichtigung, und erst die weckt den Relay.
-
-Das Polling verschwindet damit nicht ganz, es wird zum **Sicherheitsnetz** -
-`idle_wait_seconds` faengt eine verlorene Benachrichtigung (Verbindungsabriss)
-und faellige Retries ab, die von sich aus niemand ankuendigt.
+Das Polling ueber `idle_wait_seconds` bleibt als Sicherheitsnetz - es faengt eine
+verlorene Benachrichtigung und faellige Retries ab.
 """
 
 import asyncio
@@ -49,25 +42,16 @@ class OutboxWorker:
         """
         wakeup = asyncio.Event()
 
-        # Eigene Verbindung, die nur lauscht: der Relay braucht seine
-        # Transaktionen fuer sich, und eine Verbindung im LISTEN-Zustand darf
-        # nicht gleichzeitig fuer Abfragen benutzt werden.
         # Als Name festgehalten, nicht inline: `remove_listener` identifiziert den
-        # Callback ueber Objektgleichheit, und ein zweites Lambda mit gleichem
-        # Rumpf ist ein anderes Objekt - es wuerde nichts entfernen.
+        # Callback ueber Objektgleichheit.
         def on_notify(*_: object) -> None:
             wakeup.set()
 
         async with self._engine.connect() as listening:
             driver_connection = (await listening.get_raw_connection()).driver_connection
             if driver_connection is None:
-                # Hinter der Verbindung steht keine DBAPI-Verbindung, also gibt
-                # es hier kein LISTEN/NOTIFY. Das ist kein Startfehler: das
-                # Polling in `_pump` ist ohnehin das Sicherheitsnetz (siehe
-                # Modul-Docstring) und stellt weiter zu - nur mit
-                # `idle_wait_seconds` als Zustellverzoegerung statt "sofort".
-                # Verspaetete Zustellung schlaegt gar keine, deshalb laut melden
-                # und degradiert weiterlaufen, statt den Relay abzuschalten.
+                # Ohne LISTEN/NOTIFY laut melden und degradiert weiterlaufen: verspaetete
+                # Zustellung schlaegt gar keine.
                 _logger.error(
                     "Outbox-Worker lauscht nicht auf %s: keine DBAPI-Verbindung hinter der "
                     "Engine. Zustellung laeuft nur ueber das Polling, bis zu %.0fs verzoegert.",
@@ -88,10 +72,8 @@ class OutboxWorker:
     async def _pump(self, wakeup: asyncio.Event) -> None:
         """Abwechselnd leerraeumen und warten."""
         while True:
-            # Zuerst zuruecksetzen, dann leerraeumen: eine Benachrichtigung, die
-            # waehrend des Leerraeumens eintrifft, bleibt so gesetzt und
-            # verhindert, dass der naechste Durchlauf sich schlafen legt,
-            # obwohl gerade etwas hereingekommen ist.
+            # Zuerst zuruecksetzen, dann leerraeumen: eine Benachrichtigung waehrend des
+            # Leerraeumens bleibt so gesetzt und verhindert den naechsten Schlaf.
             wakeup.clear()
             while await self._relay.relay_due_events() > 0:
                 pass

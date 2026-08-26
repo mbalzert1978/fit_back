@@ -1,10 +1,4 @@
-"""Konfiguration des Prozesses - gelesen aus der Umgebung, geprueft beim Start.
-
-Bewusst ein eigenes Modul und nicht Teil des Einstiegspunkts: die Konfiguration
-wird auch von Werkzeugen gebraucht, die die Anwendung gar nicht hochfahren
-(Migrationsskripte, Diagnosebefehle), und `main.py` soll nichts enthalten, was
-man ohne laufende App wissen muss.
-"""
+"""Konfiguration des Prozesses - gelesen aus der Umgebung, geprueft beim Start."""
 
 import os
 from functools import lru_cache
@@ -16,11 +10,7 @@ from sqlalchemy import URL
 __all__ = ["JWT_SECRET_MINIMUM_LENGTH", "Settings", "get_settings"]
 
 JWT_SECRET_MINIMUM_LENGTH = 32
-"""RFC 7518 Abschnitt 3.2: der HMAC-Schluessel ist mindestens so lang wie der Hash.
-
-Kuerzer nimmt `pyjwt` zwar an, warnt aber - und eine Warnung im Log ist kein
-Schutz. Der Prozess soll mit einem zu kurzen Geheimnis gar nicht erst starten.
-"""
+"""RFC 7518 Abschnitt 3.2: der HMAC-Schluessel ist mindestens so lang wie der Hash."""
 
 
 @final
@@ -31,35 +21,20 @@ class Settings(BaseModel):
     db_port: int = Field(default=5432, ge=1, le=65535)
     db_name: str = Field(default="fit_back")
     db_user: str = Field(default="fit_user")
-    db_password: str = Field(...)  # Pflichtangabe, kein Standardwert
+    db_password: str = Field(...)
     jwt_secret: str = Field(..., min_length=JWT_SECRET_MINIMUM_LENGTH, repr=False)
-    """Das Signaturgeheimnis der Access-Token - Pflichtangabe, kein Standardwert.
-
-    Ein Default waere hier keine Bequemlichkeit, sondern eine Hintertuer: wer
-    ihn kennt, kann sich als jeder Nutzer ausgeben. Genau dieser Fall steht
-    schon einmal in
-    `docs/decisions/2026-08-05-1130-security-gate-triage-ticket-0002-und-agent-integritaets-incident.md`.
+    """Das Signaturgeheimnis der Access-Token - ohne Default, weil ein bekannter Default
+    eine Hintertuer waere
+    (`docs/decisions/2026-08-05-1130-security-gate-triage-ticket-0002-und-agent-integritaets-incident.md`).
     """
 
     @property
     def database_url(self) -> URL:
         """Die eine Datenbank-URL des Prozesses.
 
-        Der Treiber ist asyncpg, gefahren wird er ueber SQLAlchemy - ein Weg,
-        den sich Health-Check, Idempotency-Middleware und die Slices teilen
-        (`docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md`).
-
-        Zusammengesetzt ueber `URL.create`, **nicht** ueber einen f-String. Eine
-        URL hat Trennzeichen mit Bedeutung - `@`, `:`, `/`, `%`, `#` -, und ein
-        Passwort darf sie alle enthalten. Interpoliert man es roh, verschiebt ein
-        einziges `@` die Grenze zwischen Zugangsdaten und Host: der Prozess
-        verbindet sich dann gegen einen anderen Server oder gar nicht.
-        `URL.create` nimmt die Bestandteile einzeln entgegen und maskiert sie
-        selbst - damit gibt es keine Stelle mehr, an der man das vergessen kann.
-
-        Nebeneffekt, der hier zaehlt: `str(...)` einer `URL` zeigt das Passwort
-        als `***`. Landet die URL versehentlich in einem Log, geht das Geheimnis
-        nicht mit.
+        Siehe `docs/decisions/2026-08-06-1500-ein-db-weg-und-die-middleware-die-nie-lief.md`.
+        Ueber `URL.create` und nicht ueber einen f-String: ein Passwort darf `@`, `:`,
+        `/`, `%` und `#` enthalten, und `URL.create` maskiert sie selbst.
         """
         return URL.create(
             drivername="postgresql+asyncpg",
@@ -74,19 +49,8 @@ class Settings(BaseModel):
 def _required_from_environment(name: str) -> str:
     """Liest eine Umgebungsvariable, die keinen Standardwert hat.
 
-    `os.getenv` liefert `str | None`; die Pflichtfelder von `Settings` sind
-    aber `str`. Die Luecke hier zu schliessen statt am Feld ist Absicht: ein
-    Standardwert (etwa `""`) waere bei `db_password` keine Bequemlichkeit,
-    sondern ein Prozess, der mit leerem Passwort hochkommt.
-
-    Fehlt die Variable, wirft die Funktion `ValueError` - nicht `KeyError`,
-    wie `os.environ[...]` es taete. Nur so faengt `get_settings` den Fall in
-    seinem bestehenden `except` ein und macht daraus denselben `RuntimeError`
-    mit derselben geheimnisfreien Meldung wie bei jedem anderen
-    Konfigurationsfehler.
-
-    Genannt wird der *Name* der Variable, nie ihr Wert - die Meldung landet im
-    Log.
+    Wirft `ValueError` und nicht `KeyError`, damit `get_settings` den Fall in seinem
+    bestehenden `except` einfaengt. Genannt wird der Name der Variable, nie ihr Wert.
     """
     value = os.getenv(name)
     if value is None:
@@ -99,24 +63,8 @@ def _required_from_environment(name: str) -> str:
 def get_settings() -> Settings:
     """Die eine Konfiguration des Prozesses - gelesen und geprueft beim ersten Aufruf.
 
-    Der einzige oeffentliche Einstieg in die Konfiguration. Der Cache ist nicht
-    bloss Ersparnis: er macht diese Funktion zu *der* Quelle der Konfiguration.
-    Wer sie aufruft, bekommt dasselbe Objekt, das der Lifespan beim Start
-    geprueft hat - er ruft sie als Erstes auf und faengt sich den `RuntimeError`
-    einer unbrauchbaren Umgebung dort ein, wo er hingehoert: beim Start, nicht
-    bei der ersten Anfrage.
-
-    Wirft `RuntimeError`, wenn etwas fehlt oder unbrauchbar ist - der Prozess
-    soll in dem Fall gar nicht erst starten, statt beim ersten Zugriff
-    umzufallen. Die Meldung nennt bewusst keinen Wert: hier steht ein Passwort
-    im Spiel, und eine Startfehlermeldung landet im Log.
-
-    Als Dependency benutzt man sie ueber `SettingsDep` (`src/api/composition.py`).
-    Im Test wird nicht die Umgebung gebogen, sondern die Dependency
-    ueberschrieben - `app.dependency_overrides[get_settings]`.
-
-    Wer die Umgebung tatsaechlich neu lesen will, ruft `cache_clear()`; das
-    brauchen nur Tests, die den Start selbst nachstellen.
+    Wirft `RuntimeError`, wenn etwas fehlt oder unbrauchbar ist; die Meldung nennt keinen
+    Wert, weil ein Passwort im Spiel ist und sie im Log landet.
     """
     try:
         return Settings(

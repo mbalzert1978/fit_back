@@ -101,24 +101,9 @@ filterwarnings = [
     "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning",
 ]
 
-# ---------------------------------------------------------------------------
-# ty (Astral) - der Typechecker. `ruff` prueft keine Typen; ohne dieses
-# Werkzeug ist jede Annotation im Repo Dokumentation statt Zusage (Issue #97).
-#
-# ty ist Preview. Faellt es aus, sind `mypy` oder `pyright` die Rueckfallebene -
-# beide lesen dieselben Annotationen, nur die Konfiguration unten waere neu zu
-# schreiben.
-#
-# Hier stand eine **Baseline**: 37 eingefrorene Befunde in 18 Dateien, damit
-# das Gate ab sofort scharf laufen konnte, obwohl der Bestand es noch nicht
-# hergab. Sie ist in fuenf Wellen abgebaut und seit dem 2026-08-26 **leer** -
-# `ty` prueft `src/` vollstaendig, ohne eine einzige Ausnahme.
-#
-# Kommt hier je wieder ein [[tool.ty.overrides]]-Block hin, ist das ein
-# Rueckschritt und gehoert begruendet: was gemessen wurde, warum es sich nicht
-# beheben liess, und wann die Zeile wieder faellt.
-# Hergang und Zaehlung: docs/decisions/2026-08-25-1500-typechecker-ty.md
-# ---------------------------------------------------------------------------
+# ty (Astral) - der Typechecker, siehe docs/decisions/2026-08-25-1500-typechecker-ty.md.
+# Die Baseline ist seit dem 2026-08-26 leer; ein neuer [[tool.ty.overrides]]-Block waere
+# ein Rueckschritt und gehoert dort begruendet.
 [tool.ty.rules]
 # Ein nicht aufloesbarer Import ist ein echter Fehler, kein Hinweis.
 unresolved-import = "error"

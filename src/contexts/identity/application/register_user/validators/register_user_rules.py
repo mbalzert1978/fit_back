@@ -1,34 +1,7 @@
-"""Collect-all-Regeln gegen das public Request-DTO.
+"""Collect-all-Regeln gegen das public Request-DTO (.rules/python/python-rule-pattern.md).
 
-Fehlerform entscheidet die Variante: hier fallen viele *unabhaengige* Feldfehler
-an, die gemeinsam berichtet werden sollen (`errors.password`, `errors.email`,
-... in einer Antwort) - also Collect-all, nicht Fail-fast
-(.rules/python/python-rule-pattern.md).
-
-**Eine Regel ist eine Funktion mit der Signatur `Rule[RegisterUserRequest]`, die
-genau eine Frage beantwortet** - und sie beantwortet sie selbst. Kein
-generischer Helfer mit Konverter-Callback dazwischen: der musste seine Signatur
-ueber fuenf verschiedene Fehlertypen spannen und wurde dabei erst zu
-`Result[object, Exception]` aufgemacht und dann unwahr, denn diese Fehlerfaelle
-sind frozen Dataclasses und keine `Exception`. Steht die Fallunterscheidung in
-der Regel, bleibt der konkrete Typ erhalten und die Annotation stimmt.
-
-**Jede Regel matcht in zwei Stufen**: erst den Ausgang (`Ok` / `Err`), dann den
-Fehlerwert selbst. Das ist keine Ziererei, sondern der Preis dafuer, dass die
-Vollzaehligkeit hier **statisch** gilt und nicht nur zur Laufzeit: stuenden die
-Fehlerfaelle verschachtelt im Muster (`case Err(error=EmailIsEmpty())`), traegt
-`ty` die Einengung nicht ins Typargument von `Err` hinein - der Restfall bliebe
-fuer den Pruefer `Err[EmailError]` statt `Never` und `assert_never` nur noch
-Behauptung. Auf dem Fehlerwert selbst gematcht, rechnet `ty` die Erschoepfung
-aus; beide `assert_never` je Regel sind damit belegt.
-
-Jede Regel delegiert die Pruefung selbst an die `parse`-Factory ihres Value
-Object und implementiert sie damit nicht ein zweites Mal. Die Feldnamen sind die
-des API-Vertrags (camelCase), weil sie unveraendert im `errors`-Objekt landen.
-
-Domaenenfehler werden hier in sprachunabhaengige Codes + Parameter uebersetzt,
-nicht in Text fuer Menschen. Der Text entsteht erst am HTTP-Rand nach
-`Accept-Language`.
+Die Feldnamen sind die des API-Vertrags (camelCase), weil sie unveraendert im
+`errors`-Objekt landen.
 """
 
 from typing import assert_never
@@ -72,30 +45,14 @@ from src.contexts.shared_kernel.validation import FieldError, Rule, all_of
 __all__ = ["build_register_user_rules"]
 
 _EMAIL = "email"
-"""Feldname des API-Vertrags - als Konstante, weil ihn fuenfzehn Arme wiederholen.
-
-Die uebrigen Regeln haben je einen Arm und nennen ihren Feldnamen dort direkt:
-eine Konstante fuer eine einzige Verwendungsstelle verschiebt die Antwort nur
-eine Zeile weiter nach oben.
-"""
+"""Feldname des API-Vertrags - als Konstante, weil ihn fuenfzehn Arme wiederholen."""
 
 
 def email_rule(idn: IdnEncoder) -> Rule[RegisterUserRequest]:  # noqa: C901 -- Closure factory for dependency injection
-    """Regel-Fabrik: die einzige Regel mit einer Abhaengigkeit.
-
-    Die E-Mail-Pruefung braucht den IDN-Port, alle anderen Regeln nicht. Statt
-    ihn allen aufzudraengen, bekommt genau diese Regel ihn per Closure.
-    """
+    """Reiche der E-Mail-Regel den IDN-Port per Closure, den sonst keine Regel braucht."""
 
     def email_must_be_wellformed(request: RegisterUserRequest) -> list[FieldError]:  # noqa: C901, PLR0911, PLR0912 -- Exhaustive match over 15+ email error types
-        """Die E-Mail-Adresse muss wohlgeformt sein.
-
-        Fuenfzehn Arme, einer je Regel aus `Email.parse` - das ist der Preis
-        dafuer, dass die Domaene die Adresse nicht per Regex, sondern in einzeln
-        benannten Faellen prueft. Jeder Fall hat einen eigenen Code und eine
-        eigene Textvorlage; sie zusammenzufassen hiesse, dem Aufrufer statt der
-        Ursache nur noch "ungueltig" zu sagen.
-        """
+        """Die E-Mail-Adresse muss wohlgeformt sein."""
         outcome = Email.parse(request.email, idn)
         match outcome:
             case Ok():

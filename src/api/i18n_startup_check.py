@@ -7,8 +7,7 @@ eine fehlende Vorlage laesst die Anwendung beim Start scheitern statt erst beim 
 
 Geprueft wird in beide Richtungen und auf drei Ebenen:
 
-1. Jeder Fall jeder uebergebenen Union traegt einen `code` (`CodedError`) - das ist der
-   Laufzeit-Ersatz fuer den Typpruefer, den dieser Stack bewusst nicht hat.
+1. Jeder Fall jeder uebergebenen Union traegt einen `code` (`CodedError`).
 2. Zu jedem Code gibt es in **jeder** Sprache eine Vorlage, und zu jeder Vorlage einen
    Code. Karteileichen sind die andere Haelfte des Drifts.
 3. Die Platzhalter einer Vorlage kommen in der Nutzlast ihres Falls vor. Sonst schluege
