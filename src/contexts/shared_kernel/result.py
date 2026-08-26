@@ -21,6 +21,15 @@ from dataclasses import dataclass
 from typing import Final, final
 
 
+def _lifted[T, E](outcome: Result[T, E]) -> AsyncResult[T, E]:
+    """Hebe einen fertigen Ausgang in eine bereits abgeschlossene Kette."""
+
+    async def run() -> Result[T, E]:
+        return outcome
+
+    return AsyncResult(run())
+
+
 @final
 @dataclass(frozen=True, slots=True)
 class Ok[T]:
@@ -107,11 +116,7 @@ class Ok[T]:
 
     def _settled[E](self) -> AsyncResult[T, E]:
         """Reiche diesen fertigen Erfolg als bereits abgeschlossene Kette weiter."""
-
-        async def run() -> Result[T, E]:
-            return self
-
-        return AsyncResult(run())
+        return _lifted(self)
 
 
 @final
@@ -185,11 +190,7 @@ class Err[E]:
 
     def _settled[T](self) -> AsyncResult[T, E]:
         """Reiche diesen fertigen Fehlschlag als bereits abgeschlossene Kette weiter."""
-
-        async def run() -> Result[T, E]:
-            return self
-
-        return AsyncResult(run())
+        return _lifted(self)
 
 
 type Result[T, E] = Ok[T] | Err[E]
@@ -209,9 +210,10 @@ class AsyncResult[T, E]:
     ```
 
     `Ok`/`Err` bleiben der einzige Ort, an dem der Ausgang entschieden wird -
-    jede Methode hier faltet ihr Awaitable auf und ruft die gleichnamige Methode
-    darauf. Auch der Kurzschluss ist damit derselbe: liegt ein `Err` vor, laeuft
-    kein weiterer Schritt an.
+    jede Methode hier reicht ihren Schritt an `_then` bzw. `_then_async` weiter,
+    und die falten das Awaitable auf und rufen die gleichnamige Methode darauf.
+    Auch der Kurzschluss ist damit derselbe: liegt ein `Err` vor, laeuft kein
+    weiterer Schritt an.
 
     `eq=False`, weil ein Vergleich zweier ausstehender Ketten nichts aussagt;
     verglichen wird das `Result` **nach** dem `await`. Und wie jede Coroutine
@@ -224,81 +226,63 @@ class AsyncResult[T, E]:
         """Loese die ganze Kette aus und liefere den fertigen Ausgang."""
         return self.awaitable.__await__()
 
-    def map[U](self, f: Callable[[T], U], /) -> AsyncResult[U, E]:
-        """Transformiere den erfolgreichen Wert via Funktion."""
+    def _then[U, F](self, step: Callable[[Result[T, E]], Result[U, F]], /) -> AsyncResult[U, F]:
+        """Haenge einen **synchronen** Schritt hinten an die Kette."""
 
-        async def run() -> Result[U, E]:
-            return (await self.awaitable).map(f)
+        async def run() -> Result[U, F]:
+            return step(await self.awaitable)
 
         return AsyncResult(run())
+
+    def _then_async[U, F](
+        self, step: Callable[[Result[T, E]], Awaitable[Result[U, F]]], /
+    ) -> AsyncResult[U, F]:
+        """Haenge einen **asynchronen** Schritt hinten an die Kette."""
+
+        async def run() -> Result[U, F]:
+            return await step(await self.awaitable)
+
+        return AsyncResult(run())
+
+    def map[U](self, f: Callable[[T], U], /) -> AsyncResult[U, E]:
+        """Transformiere den erfolgreichen Wert via Funktion."""
+        return self._then(lambda outcome: outcome.map(f))
 
     def map_async[U](self, f: Callable[[T], Awaitable[U]], /) -> AsyncResult[U, E]:
         """Transformiere den erfolgreichen Wert via **asynchroner** Funktion."""
-
-        async def run() -> Result[U, E]:
-            return await (await self.awaitable).map_async(f)
-
-        return AsyncResult(run())
+        return self._then_async(lambda outcome: outcome.map_async(f))
 
     def bind[U, F](self, f: Callable[[T], Result[U, F]], /) -> AsyncResult[U, E | F]:
         """Verkette eine Funktion, die selbst `Result[U, F]` zurueckgibt."""
-
-        async def run() -> Result[U, E | F]:
-            return (await self.awaitable).bind(f)
-
-        return AsyncResult(run())
+        return self._then(lambda outcome: outcome.bind(f))
 
     def bind_async[U, F](
         self, f: Callable[[T], Awaitable[Result[U, F]]], /
     ) -> AsyncResult[U, E | F]:
         """Verkette eine **asynchrone** Funktion, die selbst `Result[U, F]` zurueckgibt."""
-
-        async def run() -> Result[U, E | F]:
-            return await (await self.awaitable).bind_async(f)
-
-        return AsyncResult(run())
+        return self._then_async(lambda outcome: outcome.bind_async(f))
 
     def map_err[F](self, f: Callable[[E], F], /) -> AsyncResult[T, F]:
         """Transformiere den Fehler."""
-
-        async def run() -> Result[T, F]:
-            return (await self.awaitable).map_err(f)
-
-        return AsyncResult(run())
+        return self._then(lambda outcome: outcome.map_err(f))
 
     def map_err_async[F](self, f: Callable[[E], Awaitable[F]], /) -> AsyncResult[T, F]:
         """Transformiere den Fehler via **asynchroner** Funktion."""
-
-        async def run() -> Result[T, F]:
-            return await (await self.awaitable).map_err_async(f)
-
-        return AsyncResult(run())
+        return self._then_async(lambda outcome: outcome.map_err_async(f))
 
     def or_else[U, F](self, f: Callable[[E], Result[U, F]], /) -> AsyncResult[T | U, F]:
         """Versuche die Alternative auf dem Fehler-Zweig."""
-
-        async def run() -> Result[T | U, F]:
-            return (await self.awaitable).or_else(f)
-
-        return AsyncResult(run())
+        return self._then(lambda outcome: outcome.or_else(f))
 
     def or_else_async[U, F](
         self, f: Callable[[E], Awaitable[Result[U, F]]], /
     ) -> AsyncResult[T | U, F]:
         """Versuche die **asynchrone** Alternative auf dem Fehler-Zweig."""
-
-        async def run() -> Result[T | U, F]:
-            return await (await self.awaitable).or_else_async(f)
-
-        return AsyncResult(run())
+        return self._then_async(lambda outcome: outcome.or_else_async(f))
 
     def inspect_async(self, f: Callable[[T], Awaitable[object]], /) -> AsyncResult[T, E]:
         """Loese eine Nebenwirkung auf dem Erfolgs-Wert aus, ohne die Kette zu veraendern."""
-
-        async def run() -> Result[T, E]:
-            return await (await self.awaitable).inspect_async(f)
-
-        return AsyncResult(run())
+        return self._then_async(lambda outcome: outcome.inspect_async(f))
 
     async def fold[U](self, on_ok: Callable[[T], U], on_err: Callable[[E], U], /) -> U:
         """Fuehre die Kette aus und falte ihren Ausgang auf einen Wert - der Ausgang der Kette."""
