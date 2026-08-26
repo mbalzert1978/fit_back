@@ -71,6 +71,30 @@ class Settings(BaseModel):
         )
 
 
+def _required_from_environment(name: str) -> str:
+    """Liest eine Umgebungsvariable, die keinen Standardwert hat.
+
+    `os.getenv` liefert `str | None`; die Pflichtfelder von `Settings` sind
+    aber `str`. Die Luecke hier zu schliessen statt am Feld ist Absicht: ein
+    Standardwert (etwa `""`) waere bei `db_password` keine Bequemlichkeit,
+    sondern ein Prozess, der mit leerem Passwort hochkommt.
+
+    Fehlt die Variable, wirft die Funktion `ValueError` - nicht `KeyError`,
+    wie `os.environ[...]` es taete. Nur so faengt `get_settings` den Fall in
+    seinem bestehenden `except` ein und macht daraus denselben `RuntimeError`
+    mit derselben geheimnisfreien Meldung wie bei jedem anderen
+    Konfigurationsfehler.
+
+    Genannt wird der *Name* der Variable, nie ihr Wert - die Meldung landet im
+    Log.
+    """
+    value = os.getenv(name)
+    if value is None:
+        msg = f"Missing required environment variable: {name}"
+        raise ValueError(msg)
+    return value
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Die eine Konfiguration des Prozesses - gelesen und geprueft beim ersten Aufruf.
@@ -100,8 +124,8 @@ def get_settings() -> Settings:
             db_port=int(os.getenv("DB_PORT", "5432")),
             db_name=os.getenv("DB_NAME", "fit_back"),
             db_user=os.getenv("DB_USER", "fit_user"),
-            db_password=os.getenv("DB_PASSWORD"),
-            jwt_secret=os.getenv("JWT_SECRET"),
+            db_password=_required_from_environment("DB_PASSWORD"),
+            jwt_secret=_required_from_environment("JWT_SECRET"),
         )
     except (ValidationError, ValueError) as e:
         msg = "Configuration validation failed: invalid environment variables"

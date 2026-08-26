@@ -97,10 +97,22 @@ def all_of_async[T](*rules: AsyncRule[T]) -> AsyncRule[T]:
 
     async def combined(value: T) -> list[FieldError]:
         async with asyncio.TaskGroup() as group:
-            running = [group.create_task(rule(value)) for rule in rules]
+            running = [group.create_task(_as_coroutine(rule, value)) for rule in rules]
         return [error for task in running for error in task.result()]
 
     return combined
+
+
+async def _as_coroutine[T](rule: AsyncRule[T], value: T) -> list[FieldError]:
+    """Fuehre eine Regel so aus, dass eine echte Coroutine dabei herauskommt.
+
+    `TaskGroup.create_task` nimmt eine Coroutine, `AsyncRule` verspricht nur ein
+    `Awaitable` - und das ist die weitere Zusage: eine Regel darf auch ein Objekt
+    mit `__await__` zurueckgeben. Statt die Zusage zum Aufrufer hin zu verengen,
+    wird hier gewartet; dieses `await` ist die Coroutine, die die `TaskGroup`
+    verlangt. Die Regel selbst laeuft dadurch weder frueher noch spaeter.
+    """
+    return await rule(value)
 
 
 def as_async[T](rule: Rule[T]) -> AsyncRule[T]:

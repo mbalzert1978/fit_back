@@ -185,10 +185,51 @@ Benachrichtigungen, der Schaden ist also Latenz bis `idle_wait_seconds`, nicht D
 
 Zwei Nebenfunde, die eigene Tickets verdienen und in dieser Welle bewusst **nicht** angefasst
 wurden: `db_schemas.py` steht noch in der 1.x-Form (`declarative_base()` + `Column()`) statt
-`Mapped`/`mapped_column` — die nicht-`Mapped`-Annotation geht dort nur durch, weil Python 3.14
-Annotationen verzögert auswertet; und `IdempotencyKey` hat außerhalb der eigenen Datei **keinen
-Verwender** (`alembic/env.py` setzt `target_metadata = None`, die Middleware spricht die Tabelle
-über rohe `text(...)`-Statements an), kann also unbemerkt gegen die Migrationen driften.
+`Mapped`/`mapped_column` → **Issue #101**; und `IdempotencyKey` hat außerhalb der eigenen Datei
+**keinen Verwender** (`alembic/env.py` setzt `target_metadata = None`, die Middleware spricht die
+Tabelle über rohe `text(...)`-Statements an), kann also unbemerkt gegen die Migrationen driften —
+dafür bewusst **kein** Ticket, das erledigt sich mit den nächsten Endpunkten.
+
+Zum ersten Nebenfund gehört eine Korrektur: hier stand zunächst, die nicht-`Mapped`-Annotation gehe
+nur durch, weil Python 3.14 Annotationen verzögert auswertet. **Das war falsch** — nachgemessen mit
+SQLAlchemy 2.0.51 auf Python 3.14.5 wird die Form auch mit zur Definitionszeit materialisierten
+`__annotations__` akzeptiert, ohne `__allow_unmapped__`. Wir stehen dort nicht auf einer
+Zufälligkeit. Der belastbare Grund für #101 ist ein anderer: `nullable=True` lässt sich in dieser
+Form nicht ausdrücken — drei nullbare Spalten tragen nicht-optionale Annotationen, also genau die
+uneingelöste Zusage, gegen die dieses Ticket angetreten ist.
+
+### Welle 4 — Konfiguration und Nebenläufigkeit (2026-08-26): 10 → 7 Befunde, 5 → 3 Dateien
+
+Der Block `invalid-argument-type` über `settings.py` + `validation.py` entfällt ganz. Beide Befunde
+waren echt; die eingetragene Begründung nannte diesmal die Symptome richtig, aber die Lösung lag in
+beiden Fällen nicht dort, wo man sie zuerst sucht.
+
+**`settings.py`.** `os.getenv("DB_PASSWORD")` liefert `str | None` an ein Pflichtfeld ohne
+Standardwert. Die beiden naheliegenden Abkürzungen sind je eine Verhaltensänderung:
+`os.getenv(name, "")` ließe ein leeres Passwort durch (`db_password` hat kein `min_length`), und
+`os.environ[name]` würfe `KeyError` **am bestehenden `except` vorbei** — der Startfehler käme dann
+nackt statt als `RuntimeError` mit der geheimnisfreien Meldung. Stattdessen ein Helfer, der bei
+`None` ein `ValueError` wirft; das fängt das vorhandene `except (ValidationError, ValueError)` und
+mündet in genau dieselbe Meldung. Der einzige Unterschied liegt unterhalb der Außengrenze
+(`__cause__` ist bei fehlender Variable jetzt `ValueError` statt `ValidationError`); daran hängt im
+Repo nichts.
+
+**`validation.py`.** `TaskGroup.create_task` verlangt eine `Coroutine`, `AsyncRule[T]` verspricht
+nur ein `Awaitable`. Der Befund ist **auch zur Laufzeit echt**: eine Regel, die ein Objekt mit
+`__await__` oder ein `Future` liefert, wäre in `create_task` an einem `TypeError` gescheitert. Der
+naheliegende Weg — `AsyncRule` auf `Coroutine[…]` schärfen — scheidet zweimal aus: er bräuchte die
+beiden konventionellen `Any`-Parameter, und er verengte die dokumentierte Zusage eines
+**öffentlichen** Typs, sodass eine wartbare Regel mit `__await__` kein `AsyncRule` mehr wäre.
+Stattdessen wartet ein privater Wrapper (`async def _as_coroutine`) auf das `Awaitable`; ein
+`async def`-Aufruf *ist* per Konstruktion eine Coroutine. Nebenläufigkeit und die zugesagte
+Ergebnisreihenfolge (Regelreihenfolge, nicht Scheduler-Reihenfolge) bleiben unberührt.
+
+Zwei Nachbesserungen an der Zuarbeit, die zeigen, dass Grün beim Typprüfer nicht das Ende der
+Prüfung ist: der Helfer in `settings.py` war zunächst als zweiarmiger `match` formuliert und brach
+damit `tests/test_match_exhaustiveness.py` (der letzte Zweig endet nicht laut) — eine Guard-Klausel
+tut dasselbe und hält die Regel ein; und sein Bezeichner war der einzige deutschsprachige in ganz
+`src/`. Bezeichner sind laut `CLAUDE.md` von der Deutschpflicht ausgenommen, und das Repo führt sie
+durchweg englisch.
 
 ## Rückfallebene
 

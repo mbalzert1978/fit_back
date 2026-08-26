@@ -110,7 +110,7 @@ filterwarnings = [
 # schreiben.
 #
 # Die Blocks unter [[tool.ty.overrides]] sind eine **Baseline**: der Ist-Stand
-# vom 2026-08-26, 10 Befunde in 5 Dateien, eingefroren, damit das Gate ab
+# vom 2026-08-26, 7 Befunde in 3 Dateien, eingefroren, damit das Gate ab
 # sofort scharf laeuft und jede *neue* Datei voll geprueft wird. Die Liste soll
 # schrumpfen, nicht wachsen - eine neue Zeile hier gehoert begruendet.
 # Hergang und Zaehlung: docs/decisions/2026-08-25-1500-typechecker-ty.md
@@ -118,16 +118,6 @@ filterwarnings = [
 [tool.ty.rules]
 # Ein nicht aufloesbarer Import ist ein echter Fehler, kein Hinweis.
 unresolved-import = "error"
-
-# `TaskGroup.create_task` gegen `Awaitable` statt `Coroutine`, Pydantic-`LaxStr`
-# gegen `str | None`.
-[[tool.ty.overrides]]
-include = [
-    "src/contexts/shared_kernel/validation.py",
-    "src/settings.py",
-]
-[tool.ty.overrides.rules]
-invalid-argument-type = "ignore"
 
 # Starlette/FastAPI-Grenze: Handler-Signaturen und `Response.body_iterator`
 # (nur auf `StreamingResponse` vorhanden) treffen die deklarierten Typen nicht.
