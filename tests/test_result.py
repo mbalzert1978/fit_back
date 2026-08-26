@@ -313,3 +313,107 @@ class TestOrElse:
 
         assert laeufe == []
         assert returned is result
+
+
+class TestZip:
+    """Tests fuer `zip` - zwei Ausgaenge zu einem ueber ihrem Paar."""
+
+    def test_zwei_ok_ergeben_das_paar(self) -> None:
+        """Der Erfolgsfall traegt beide Werte in der Reihenfolge des Aufrufs."""
+        links: Result[int, str] = Ok(1)
+        rechts: Result[str, str] = Ok("zwei")
+
+        assert links.zip(rechts) == Ok((1, "zwei"))
+
+    def test_ein_err_links_gewinnt(self) -> None:
+        """Liegt links schon ein Fehler, bleibt er das Ergebnis."""
+        links: Result[int, str] = Err("kaputt")
+        rechts: Result[str, str] = Ok("zwei")
+
+        assert links.zip(rechts) == Err("kaputt")
+
+    def test_ein_err_rechts_gewinnt(self) -> None:
+        """Auch der rechte Fehler schlaegt durch - `zip` verlangt beide Seiten."""
+        links: Result[int, str] = Ok(1)
+        rechts: Result[str, str] = Err("kaputt")
+
+        assert links.zip(rechts) == Err("kaputt")
+
+    def test_der_linke_fehler_gewinnt_gegen_den_rechten(self) -> None:
+        """Bei zwei Fehlern entscheidet die Reihenfolge, nicht der Zufall."""
+        links: Result[int, str] = Err("zuerst")
+        rechts: Result[str, str] = Err("danach")
+
+        assert links.zip(rechts) == Err("zuerst")
+
+    def test_die_kette_tuermt_paare_auf(self) -> None:
+        """`a.zip(b).zip(c)` traegt `((A, B), C)` - die Form aus Rust."""
+        erst: Result[int, str] = Ok(1)
+        dann: Result[str, str] = Ok("zwei")
+        zuletzt: Result[float, str] = Ok(3.0)
+
+        assert erst.zip(dann).zip(zuletzt) == Ok(((1, "zwei"), 3.0))
+
+    def test_ein_err_am_ende_der_kette_gewinnt_auch(self) -> None:
+        """Die Kette laeuft bis zum letzten Glied - nicht nur bis zum ersten Paar."""
+        erst: Result[int, str] = Ok(1)
+        dann: Result[str, str] = Ok("zwei")
+        zuletzt: Result[float, str] = Err("kaputt")
+
+        assert erst.zip(dann).zip(zuletzt) == Err("kaputt")
+
+
+class TestZipAll:
+    """Tests fuer `zip_all` - wie `zip`, aber kein Fehler geht verloren."""
+
+    def test_zwei_ok_ergeben_das_paar(self) -> None:
+        """Ohne Fehler verhaelt sich `zip_all` wie `zip`."""
+        links: Result[int, list[str]] = Ok(1)
+        rechts: Result[str, list[str]] = Ok("zwei")
+
+        assert links.zip_all(rechts) == Ok((1, "zwei"))
+
+    def test_ein_err_links_bleibt_allein(self) -> None:
+        """Ist nur links ein Fehler, steht auch nur er in der Liste."""
+        links: Result[int, list[str]] = Err(["kaputt"])
+        rechts: Result[str, list[str]] = Ok("zwei")
+
+        assert links.zip_all(rechts) == Err(["kaputt"])
+
+    def test_ein_err_rechts_bleibt_allein(self) -> None:
+        """Ist nur rechts ein Fehler, schlaegt er unveraendert durch."""
+        links: Result[int, list[str]] = Ok(1)
+        rechts: Result[str, list[str]] = Err(["kaputt"])
+
+        assert links.zip_all(rechts) == Err(["kaputt"])
+
+    def test_beide_fehler_stehen_nebeneinander(self) -> None:
+        """Der Unterschied zu `zip`: der zweite Befund geht nicht verloren."""
+        links: Result[int, list[str]] = Err(["zuerst"])
+        rechts: Result[str, list[str]] = Err(["danach"])
+
+        assert links.zip_all(rechts) == Err(["zuerst", "danach"])
+
+    def test_die_kette_sammelt_ueber_alle_glieder(self) -> None:
+        """Drei fehlerhafte Glieder ergeben drei Befunde - in Aufrufreihenfolge."""
+        erst: Result[int, list[str]] = Err(["eins"])
+        dann: Result[str, list[str]] = Err(["zwei"])
+        zuletzt: Result[float, list[str]] = Err(["drei"])
+
+        assert erst.zip_all(dann).zip_all(zuletzt) == Err(["eins", "zwei", "drei"])
+
+    def test_die_kette_tuermt_paare_auf(self) -> None:
+        """Der Erfolgsfall traegt dieselbe verschachtelte Form wie bei `zip`."""
+        erst: Result[int, list[str]] = Ok(1)
+        dann: Result[str, list[str]] = Ok("zwei")
+        zuletzt: Result[float, list[str]] = Ok(3.0)
+
+        assert erst.zip_all(dann).zip_all(zuletzt) == Ok(((1, "zwei"), 3.0))
+
+    def test_ein_gutes_glied_zwischen_zwei_schlechten_wird_uebersprungen(self) -> None:
+        """Gesammelt wird, was gescheitert ist - nicht, was dazwischenliegt."""
+        erst: Result[int, list[str]] = Err(["eins"])
+        dann: Result[str, list[str]] = Ok("zwei")
+        zuletzt: Result[float, list[str]] = Err(["drei"])
+
+        assert erst.zip_all(dann).zip_all(zuletzt) == Err(["eins", "drei"])

@@ -49,6 +49,33 @@ class Ok[T]:
 
         return AsyncResult(run())
 
+    def zip[U, E](self, other: Result[U, E], /) -> Result[tuple[T, U], E]:
+        """Lege zwei Ausgaenge nebeneinander statt mit `bind` ineinander.
+
+        `Option::zip` aus Rust, und wie dort paarweise: `a.zip(b).zip(c)` traegt
+        `((A, B), C)`. Eine variadische Form liefe auf `tuple[object, ...]`
+        hinaus - Python kann ein Typparameter-Pack durchreichen, aber nicht
+        abbilden.
+
+        Der zweite Ausgang ist bereits ausgewertet. Ein Schritt mit Wirkung
+        gehoert deshalb in ein `bind`, nicht hierhin.
+        """
+        return other.map(lambda value: (self.value, value))
+
+    def zip_all[U, E](self, other: Result[U, list[E]], /) -> Result[tuple[T, U], list[E]]:
+        """Wie `zip`, aber der zweite Fehler geht nicht verloren.
+
+        `zip` meldet genau einen Fehler - richtig fuer eine Invariante, falsch
+        fuer eine Eingabemaske. `zip_all` ist `all_of` aus
+        `shared_kernel/validation.py` fuer Ausgaenge, die neben dem Fehler auch
+        einen **Wert** tragen.
+
+        Die Liste steht schon im Eingang: nur so ist die Kette wieder ihr eigener
+        Eingang und bleibt flach. Der Aufrufer hebt jeden einzelnen Fehler per
+        `map_err` hinein.
+        """
+        return other.map(lambda value: (self.value, value))
+
     def bind[U, E](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         """Verkette eine Funktion, die selbst Result[U, E] zurückgibt."""
         return f(self.value)
@@ -133,6 +160,18 @@ class Err[E]:
     def map_async[T, U](self, _: Callable[[T], Awaitable[U]], /) -> AsyncResult[U, E]:
         """Ignoriere den Fehler (asynchrone Transformation nicht möglich)."""
         return self._settled()
+
+    def zip[U, F](self, _: Result[U, F], /) -> Err[E]:
+        """Es liegt schon ein Fehler vor - der zweite Ausgang aendert daran nichts."""
+        return self
+
+    def zip_all[X, U](self: Err[list[X]], other: Result[U, list[X]], /) -> Err[list[X]]:
+        """Nimm die Fehler des zweiten Ausgangs dazu, statt ihn zu verwerfen.
+
+        Der annotierte `self` haelt fest, dass nur ein Fehlschlag mit **Liste**
+        verkettbar ist - sonst gaebe es nichts, woran der zweite Befund haengt.
+        """
+        return other.fold(lambda _: self, lambda errors: Err([*self.error, *errors]))
 
     def bind[T, U, F](self, _: Callable[[T], Result[U, F]], /) -> Err[E]:
         """Ignoriere den Fehler (Verkettung nicht möglich)."""
@@ -251,6 +290,21 @@ class AsyncResult[T, E]:
     def map_async[U](self, f: Callable[[T], Awaitable[U]], /) -> AsyncResult[U, E]:
         """Transformiere den erfolgreichen Wert via **asynchroner** Funktion."""
         return self._then_async(lambda outcome: outcome.map_async(f))
+
+    def zip[U, F](self, other: Result[U, F], /) -> AsyncResult[tuple[T, U], E | F]:
+        """Fuehre diese Kette mit einem fertigen Ausgang zu einem ueber ihrem Paar zusammen."""
+        return self._then(lambda outcome: outcome.zip(other))
+
+    def zip_all[V, X, U](
+        self: AsyncResult[V, list[X]], other: Result[U, list[X]], /
+    ) -> AsyncResult[tuple[V, U], list[X]]:
+        """Lege einen fertigen Ausgang neben die Kette und behalte beide Fehler.
+
+        `V` statt des `T` der Klasse, obwohl beide dasselbe meinen: ein
+        annotierter `self` ist eine Argument-Position und machte `T` invariant -
+        `or_else` lebt aber von dessen Kovarianz.
+        """
+        return self._then(lambda outcome: outcome.zip_all(other))
 
     def bind[U, F](self, f: Callable[[T], Result[U, F]], /) -> AsyncResult[U, E | F]:
         """Verkette eine Funktion, die selbst `Result[U, F]` zurueckgibt."""

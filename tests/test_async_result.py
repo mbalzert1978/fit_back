@@ -569,3 +569,35 @@ class TestDieDreiTraegerBleibenDeckungsgleich:
             "Gegenstueck dort trifft die Entscheidung in der Kette. Nachziehen auf `Ok` und "
             "`Err` in src/contexts/shared_kernel/result.py."
         )
+
+
+@pytest.mark.asyncio
+async def test_zip_legt_einen_fertigen_ausgang_neben_die_kette() -> None:
+    """Beleg: `zip` gibt es auch auf der noch nicht erwarteten Form."""
+    kette: AsyncResult[int, str] = AsyncResult(_pending(Ok(1)))
+
+    assert await kette.zip(Ok("zwei")) == Ok((1, "zwei"))
+
+
+@pytest.mark.asyncio
+async def test_zip_kuerzt_die_kette_bei_einem_fehler_ab() -> None:
+    """Beleg: liegt in der Kette ein Fehler, bleibt er das Ergebnis."""
+    kette: AsyncResult[int, str] = AsyncResult(_pending(Err("kaputt")))
+
+    assert await kette.zip(Ok("zwei")) == Err("kaputt")
+
+
+@pytest.mark.asyncio
+async def test_zip_all_legt_einen_fertigen_ausgang_neben_die_kette() -> None:
+    """Beleg: `zip_all` gibt es auch auf der noch nicht erwarteten Form."""
+    kette: AsyncResult[int, list[str]] = AsyncResult(_pending(Ok(1)))
+
+    assert await kette.zip_all(Ok("zwei")) == Ok((1, "zwei"))
+
+
+@pytest.mark.asyncio
+async def test_zip_all_sammelt_auch_ueber_die_wartende_kette() -> None:
+    """Beleg: der Fehler in der Kette und der daneben stehen am Ende nebeneinander."""
+    kette: AsyncResult[int, list[str]] = AsyncResult(_pending(Err(["zuerst"])))
+
+    assert await kette.zip_all(Err(["danach"])) == Err(["zuerst", "danach"])
