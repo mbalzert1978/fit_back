@@ -14,7 +14,7 @@ Wie Anfrage und Antworten aussehen, steht nebenan und nicht hier:
 - `register_user_problem.py` — die 409- und 422-Koerper samt ihrer Uebersetzung
 """
 
-from typing import assert_never
+from typing import Final, assert_never
 
 from fastapi import APIRouter, status
 
@@ -33,6 +33,23 @@ __all__ = ["router"]
 
 router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
 
+_CREATED_HEADERS: Final = {
+    "Location": {
+        "description": "Das angelegte Konto.",
+        "schema": {"type": "string", "format": "uri-reference"},
+    },
+    "Content-Language": {
+        "description": "Die Sprache, in der dieser Koerper beantwortet wurde.",
+        "schema": {"type": "string"},
+    },
+}
+"""Die Kopfzeilen, die nur zur 201 **dieser** Route gehoeren.
+
+Hier und nicht im Nachtrag an der Beschreibung (`src/api/openapi.py`): der
+setzt ein, was fuer jede Antwort des Hosts gilt. Diese zwei setzt
+`apply_created_headers` und sonst niemand.
+"""
+
 
 @router.post(
     "/register",
@@ -40,6 +57,7 @@ router = APIRouter(prefix="/api/v1/identity", tags=["identity"])
     summary="Registriert ein neues Konto",
     response_model=RegisterUserResponse,
     responses={
+        status.HTTP_201_CREATED: {"headers": _CREATED_HEADERS},
         status.HTTP_409_CONFLICT: {"model": ProblemDetails},
         status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ProblemDetails},
     },

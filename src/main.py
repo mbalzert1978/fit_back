@@ -28,6 +28,7 @@ from src.api.health_router import health_router
 from src.api.i18n import create_resources
 from src.api.i18n_startup_check import verify_error_codes_complete
 from src.api.identity import register_user_router
+from src.api.openapi import document_middleware_effects
 from src.api.pydantic_contract_check import verify_pydantic_contract
 from src.api.request_validation_errors import RequestValidationFault
 from src.contexts.identity.application.register_user import RegisterUserFailure
@@ -40,7 +41,7 @@ from src.contexts.identity.domain import (
 )
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
-from src.middleware.response_envelope import ResponseEnvelopeMiddleware
+from src.middleware.response_envelope import API_VERSION, ResponseEnvelopeMiddleware
 from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
 from src.settings import get_settings
 
@@ -125,7 +126,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.info("Datenbank-Engine geschlossen")
 
 
-app = FastAPI(title="Fit-back API", lifespan=lifespan)
+app = FastAPI(title="Fit-back API", version=API_VERSION, lifespan=lifespan)
 
 # Reihenfolge: `add_middleware` schiebt jeweils nach vorn, die zuletzt
 # hinzugefuegte laeuft also **aussen**. Der Auffangpunkt fuer unbehandelte
@@ -149,6 +150,10 @@ register_exception_handlers(app)
 
 app.include_router(health_router)
 app.include_router(register_user_router)
+
+# Nach den Routern: der Nachtrag laeuft ueber alle Pfade des Dokuments, und ein
+# Router, der danach dazukaeme, stuende nicht darin.
+document_middleware_effects(app)
 
 
 def main() -> None:
