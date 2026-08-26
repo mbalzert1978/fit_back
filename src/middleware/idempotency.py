@@ -99,7 +99,7 @@ from datetime import datetime
 from typing import Any, Final, final
 from uuid import UUID
 
-from sqlalchemy import TextClause, text
+from sqlalchemy import RowMapping, TextClause, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -111,6 +111,7 @@ from starlette.types import ASGIApp
 from src.api.i18n import ResourcesCache, get_language_from_header
 from src.api.problem_details import translated_problem
 from src.contexts.shared_kernel.time_provider import TimeProvider
+from src.middleware.streamed_body import read_streamed_body
 
 logger = logging.getLogger(__name__)
 
@@ -289,8 +290,18 @@ async def claim_key(
         return claimed.first() is not None
 
 
-async def find_key(engine: AsyncEngine, key: UUID) -> Mapping[str, Any] | None:
-    """Lies die bestehende Zeile zu einem Schluessel."""
+async def find_key(engine: AsyncEngine, key: UUID) -> RowMapping | None:
+    """Lies die bestehende Zeile zu einem Schluessel.
+
+    `RowMapping` und nicht das engere `Mapping[str, Any]`: `RowMapping` laesst
+    sich zwar mit Spaltennamen lesen - so tut es der einzige Aufrufer
+    `_answer_from_existing` -, ist aber als `Mapping` ueber der Schluesselmenge
+    `str | SQLCoreOperations[Any] | ...` erklaert, weil eine Zeile sich auch
+    ueber Spaltenobjekte indizieren laesst. Der Schluesseltyp von `Mapping` ist
+    invariant; damit ist `RowMapping` kein `Mapping[str, Any]`, und die alte
+    Angabe war schlicht falsch. Umgepackt wird nichts: der Wert stimmt, nur
+    seine Beschriftung stimmte nicht.
+    """
     async with engine.connect() as connection:
         found = await connection.execute(_FIND_KEY, {"key": key})
         return found.mappings().first()
@@ -507,7 +518,7 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         # gelesener Iterator, kein `.body`. Er muss hier eingesammelt werden - und
         # weil er sich nur einmal lesen laesst, geht anschliessend eine neue
         # Antwort mit denselben Bytes hinaus.
-        raw_body = b"".join([chunk async for chunk in response.body_iterator])
+        raw_body = await read_streamed_body(response)
         try:
             response_body = json.loads(raw_body.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:

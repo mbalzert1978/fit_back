@@ -32,8 +32,10 @@ from uuid import uuid7
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp
 
 from src.contexts.shared_kernel.time_provider import TimeProvider
+from src.middleware.streamed_body import read_streamed_body
 
 __all__ = ["API_VERSION", "REQUEST_ID_HEADER", "ResponseEnvelopeMiddleware"]
 
@@ -52,9 +54,9 @@ _BODY_HEADERS = frozenset({b"content-length", b"content-type"})
 class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
     """Legt `{data, meta}` um jede erfolgreiche JSON-Antwort."""
 
-    def __init__(self, app: Callable[..., object], time_provider: TimeProvider) -> None:
+    def __init__(self, app: ASGIApp, time_provider: TimeProvider) -> None:
         """Nimm die Zeitquelle entgegen - `meta.timestamp` kommt aus ihr, nicht aus `utcnow`."""
-        super().__init__(app)  # type: ignore[arg-type]
+        super().__init__(app)
         self._clock = time_provider
 
     async def dispatch(
@@ -67,7 +69,7 @@ class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
             response.headers[REQUEST_ID_HEADER] = request_id
             return response
 
-        body = json.loads(await _body_of(response))
+        body = json.loads(await read_streamed_body(response))
         wrapped = JSONResponse(
             status_code=response.status_code,
             content={"data": body, "meta": self._meta(request_id)},
@@ -105,14 +107,3 @@ def _is_enveloped(response: Response) -> bool:
     return response.status_code in _SUCCESS and response.headers.get("content-type", "").startswith(
         _JSON
     )
-
-
-async def _body_of(response: Response) -> bytes:
-    """Lies den Koerper der Antwort einmal vollstaendig ein.
-
-    `BaseHTTPMiddleware` reicht jede nachgelagerte Antwort als
-    `_StreamingResponse` weiter - auch die, die weiter innen ein `JSONResponse`
-    war. Ihr Koerper steht nur ueber `body_iterator` zur Verfuegung, und nur
-    genau einmal; deshalb wird er hier eingesammelt und danach neu aufgebaut.
-    """
-    return b"".join([chunk async for chunk in response.body_iterator])  # type: ignore[attr-defined]

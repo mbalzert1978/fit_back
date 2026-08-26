@@ -109,27 +109,16 @@ filterwarnings = [
 # beide lesen dieselben Annotationen, nur die Konfiguration unten waere neu zu
 # schreiben.
 #
-# Die Blocks unter [[tool.ty.overrides]] sind eine **Baseline**: der Ist-Stand
-# vom 2026-08-26, 7 Befunde in 3 Dateien, eingefroren, damit das Gate ab
-# sofort scharf laeuft und jede *neue* Datei voll geprueft wird. Die Liste soll
-# schrumpfen, nicht wachsen - eine neue Zeile hier gehoert begruendet.
+# Hier stand eine **Baseline**: 37 eingefrorene Befunde in 18 Dateien, damit
+# das Gate ab sofort scharf laufen konnte, obwohl der Bestand es noch nicht
+# hergab. Sie ist in fuenf Wellen abgebaut und seit dem 2026-08-26 **leer** -
+# `ty` prueft `src/` vollstaendig, ohne eine einzige Ausnahme.
+#
+# Kommt hier je wieder ein [[tool.ty.overrides]]-Block hin, ist das ein
+# Rueckschritt und gehoert begruendet: was gemessen wurde, warum es sich nicht
+# beheben liess, und wann die Zeile wieder faellt.
 # Hergang und Zaehlung: docs/decisions/2026-08-25-1500-typechecker-ty.md
 # ---------------------------------------------------------------------------
 [tool.ty.rules]
 # Ein nicht aufloesbarer Import ist ein echter Fehler, kein Hinweis.
 unresolved-import = "error"
-
-# Starlette/FastAPI-Grenze: Handler-Signaturen und `Response.body_iterator`
-# (nur auf `StreamingResponse` vorhanden) treffen die deklarierten Typen nicht.
-[[tool.ty.overrides]]
-include = [
-    "src/api/exception_handlers.py",
-    "src/middleware/idempotency.py",
-    "src/middleware/response_envelope.py",
-]
-[tool.ty.overrides.rules]
-invalid-argument-type = "ignore"
-invalid-return-type = "ignore"
-not-iterable = "ignore"
-type-assertion-failure = "ignore"
-unresolved-attribute = "ignore"

@@ -231,6 +231,76 @@ tut dasselbe und hält die Regel ein; und sein Bezeichner war der einzige deutsc
 `src/`. Bezeichner sind laut `CLAUDE.md` von der Deutschpflicht ausgenommen, und das Repo führt sie
 durchweg englisch.
 
+### Welle 5 — die HTTP-Grenze (2026-08-26): 7 → 0 Befunde, 3 → 0 Dateien
+
+Der letzte Block entfällt. **Die Baseline ist leer**; `ty` prüft `src/` ohne eine einzige Ausnahme.
+Kein Befund dieser Welle war eine `ty`-Lücke — alle sieben waren echte Typfehler oder echte Lücken
+in fremden Signaturen.
+
+**`body_iterator` (beide Middlewares, eine Ursache).** Die eingetragene Begründung —
+„`Response.body_iterator` (nur auf `StreamingResponse` vorhanden)" — war **falsch**. Es ist der
+private `starlette.middleware.base._StreamingResponse`, und der erbt in Starlette 1.3.1 direkt von
+`Response`, **nicht** von `StreamingResponse`; ein `isinstance(response, StreamingResponse)` trägt
+dort also nicht (nachgemessen, nicht übernommen). Was eine Middleware tatsächlich vor sich hat,
+trägt in Starlette damit keinen öffentlichen Namen. Das neue `src/middleware/streamed_body.py` gibt
+ihm einen — nicht als Nachbau der fremden Klasse, sondern als das, was beide Middlewares von ihr
+brauchen: ein `@runtime_checkable` Protocol mit `body_iterator: AsyncIterable[bytes]` und eine
+Lesefunktion darüber. Der Nicht-Streaming-Fall wirft jetzt ein `TypeError`, das die gebrochene
+Annahme benennt, statt als `AttributeError` aus dem Inneren einer Comprehension zu schlagen; es
+bleibt wie zuvor eine **nicht aufgefangene** Exception an derselben Stelle. Ein Rückfall auf
+`response.body` wurde bewusst nicht gebaut — ein ungetesteter Pfad für einen Zustand, den Starlettes
+Kette nicht erzeugt, verschluckte den Bruch, statt ihn zu melden. Zwei tote
+`# type: ignore[attr-defined]`-Kommentare eines anderen Checkers sind mit weggefallen.
+
+**`find_key` (`idempotency.py`).** `RowMapping` ist als `Mapping[_KeyType, Any]` erklärt, und
+`_KeyType` umfasst neben `str` auch Spaltenobjekte — der Schlüsseltyp von `Mapping` ist invariant,
+also ist `RowMapping` tatsächlich **kein** `Mapping[str, Any]`. Falsch war die Deklaration, nicht
+der Wert; der einzige Aufrufer indiziert ohnehin mit Spaltennamen. Umgepackt wird nichts.
+
+**`_field_of` (`exception_handlers.py`).** Ursache war der Parametertyp: bei `dict[str, object]`
+ergibt `.get("loc") or ()` etwas nicht Iterierbares. Mit `pydantic_core.ErrorDetails` ist `loc` ein
+Pflichtschlüssel vom Typ `tuple[int | str, ...]` — der Ersatzwert `or ()` entfällt, er stand nur da,
+um einen zu schwachen Typ auszugleichen. Gemessen an jeder kaputten Eingabe des Vertragstests: `loc`
+ist nie abwesend und nie leer.
+
+**Zwei Entscheidungen, die nicht der Prüfer trifft.**
+
+1. *`assert_never` in `_fault_of`.* `error["type"]` ist ein `str`, und `str` hat keine geschlossene
+   Fallmenge — nach sechs Literalen bleibt ein Rest, die `Never`-Zusage ist statisch nicht
+   einlösbar. Der letzte Zweig wirft jetzt explizit und benennt den unbekannten Pydantic-Typ.
+   `.rules/python/python-error-handling.md` bleibt **unverändert gültig**: `assert_never` ist
+   weiterhin das eine Muster. Diese Stelle ist die begründete Ausnahme, und der Docstring sagt das
+   selbst — samt dem Grund, der nur hier zutrifft (offene Fallmenge, nicht „Wurf statt
+   `assert_never`"), damit niemand den Zweig als Vorlage nimmt. Überall sonst wird über geschlossene
+   Unions gematcht, dort ist die Zusage einlösbar.
+2. *Handler-Registrierung.* Starlettes `add_exception_handler` verlangt einen Handler, der *jede*
+   `Exception` annimmt; unserer nimmt nur `RequestValidationError`. Die Korrelation „Typ im ersten
+   Argument = Typ im Handler" ist in Starlettes `ExceptionHandler`-Alias nicht ausdrückbar — dafür
+   bräuchte es upstream ein generisches `add_exception_handler[E: Exception](...)`. Registriert wird
+   deshalb über FastAPIs Dekorator: der dokumentierte Weg, zur Laufzeit dasselbe (er ruft intern
+   `add_exception_handler`), und er hält den Handler auf `RequestValidationError` fest. Ehrlich
+   dazugesagt: FastAPI typisiert den Dekorator mit einem unbeschränkten TypeVar, dort wird also
+   **nicht mehr geprüft** statt bestätigt. Der Tausch ist trotzdem der bessere — so bleibt genau
+   eine Zeile ungeprüft, statt `invalid-argument-type` für die ganze Datei abzuschalten. Ein totes
+   `# type: ignore[arg-type]` ist mit weggefallen.
+
+## Was der Abbau über die Baseline gelehrt hat
+
+Die eingetragene Begründung war **viermal falsch** — bei Welle 1 (nicht ty-Lücke, sondern Invarianz
+in `result.py`), Welle 2 (die verschachtelte Musterform, nicht `Err[E]`), Welle 3 (ein real
+erreichbarer `None`-Zweig, nicht der Lebenszyklus) und Welle 5 (`_StreamingResponse`, nicht
+`StreamingResponse`). Von 37 eingefrorenen Befunden war am Ende **keiner** eine Werkzeug-Macke.
+
+Daraus zwei Sätze, die über dieses Ticket hinaus gelten:
+
+- **Eine Baseline-Begründung ist eine Vermutung, bis sie gemessen ist.** Sie wird unter Zeitdruck
+  geschrieben, in dem Moment, in dem man den Befund gerade *nicht* untersucht — und sie liest sich
+  später wie ein Befund. Wer eine Zeile abbaut, misst die Ursache neu.
+- **Ein Schweigen des Prüfers ist kein Freispruch.** `Column[Uuid]` war genauso falsch wie die
+  gemeldeten Zeilen und wurde nie beanstandet, weil `Uuid` zu `Unknown` auflöste. Und: Grün beim
+  Typprüfer ist nicht das Ende der Prüfung — in Welle 4 kam eine typkorrekte Lösung durch, die den
+  Exhaustiveness-Test des Repos brach.
+
 ## Rückfallebene
 
 `ty` ist Preview (`0.0.74`). Erweist es sich als untragbar, sind `mypy` oder `pyright` die
