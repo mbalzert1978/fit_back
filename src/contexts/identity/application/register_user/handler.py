@@ -12,7 +12,7 @@ from src.contexts.identity.domain import (
     register,
     user_registered,
 )
-from src.contexts.shared_kernel import Result, TimeProvider
+from src.contexts.shared_kernel import AsyncResult, Result, TimeProvider
 from src.contexts.shared_kernel.events import EventPublisher
 
 __all__ = ["RegisterUserHandler"]
@@ -45,8 +45,16 @@ class RegisterUserHandler:
         self._events = events
         self._clock = clock
 
-    async def __call__(self, command: RegisterUserCommand) -> Result[User, UserRegistryError]:
+    def __call__(self, command: RegisterUserCommand) -> AsyncResult[User, UserRegistryError]:
         """Registriere den Kandidaten und melde die Registrierung."""
+        # `inspect_async` statt eines Match: gemeldet wird nur der aufgenommene
+        # User - eine abgelehnte Registrierung ist nichts, worauf ein anderer
+        # Context reagieren duerfte - und die Meldung selbst aendert am Ergebnis
+        # des Use Case nichts.
+        return AsyncResult(self._registered(command)).inspect_async(self._announce)
+
+    async def _registered(self, command: RegisterUserCommand) -> Result[User, UserRegistryError]:
+        """Baue den Kandidaten - das Hashen wartet - und reiche ihn dem Bestand."""
         candidate = register(
             user_id=UserId.generate(),
             email=command.email,
@@ -56,12 +64,7 @@ class RegisterUserHandler:
             locale=command.locale,
             registered_at=self._clock.now(),
         )
-        # `inspect_async` statt eines Match: gemeldet wird nur der aufgenommene
-        # User - eine abgelehnte Registrierung ist nichts, worauf ein anderer
-        # Context reagieren duerfte - und die Meldung selbst aendert am Ergebnis
-        # des Use Case nichts.
-        registered = await self._registry.add(candidate)
-        return await registered.inspect_async(self._announce)
+        return await self._registry.add(candidate)
 
     async def _announce(self, user: User) -> None:
         """Melde die abgeschlossene Registrierung nach aussen."""

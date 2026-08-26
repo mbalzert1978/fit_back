@@ -120,6 +120,9 @@ class Ok[T]:
     def bind[U, E](self, f: Callable[[T], "Result[U, E]"]) -> "Result[U, E]":
         return f(self.value)
 
+    def fold[U, E](self, on_ok: Callable[[T], U], _on_err: Callable[[E], U], /) -> U:
+        return on_ok(self.value)
+
 
 @dataclass(frozen=True, slots=True)
 class Err[E]:
@@ -131,6 +134,9 @@ class Err[E]:
     def bind[T, U](self, f: Callable[[T], "Result[U, E]"]) -> "Err[E]":
         return self
 
+    def fold[T, U](self, _on_ok: Callable[[T], U], on_err: Callable[[E], U], /) -> U:
+        return on_err(self.error)
+
 
 type Result[T, E] = Ok[T] | Err[E]
 ```
@@ -141,15 +147,18 @@ von `U` ab), das `self` zurueckgeben ist also strukturell korrekt. Deshalb brauc
 `# type: ignore`. Der Typechecker dieses Stacks ist `ty`; wo er hier trotzdem meldet, steht die
 Ausnahme als benannte Baseline in `pyproject.toml` statt als Kommentar im Code.
 
-`match` ist der uebliche Weg, ein `Result` zu entpacken — nicht ein manuelles `isinstance`-Paar:
+**`fold` ist der Weg aus dem `Result` heraus, nicht `match`.** `map`, `bind`, `map_err` und
+`or_else` bleiben im `Result`; `fold` ist die eine Operation, die kontrolliert herausfuehrt — der
+**Eliminator**. Er nimmt je einen Arm fuer beide Ausgaenge und liefert einen Wert:
 
 ```python
-match outcome:
-    case Ok(value=order):
-        ...
-    case Err(error=reason):
-        ...
+return outcome.fold(_accepted, _rejected)
 ```
+
+Der `Ok`/`Err`-Split steht damit **einmal** in `result.py` statt an jeder Fundstelle. Ein manuelles
+`isinstance`-Paar ist an dieser Stelle ohnehin falsch; ein `match` ueber `Ok`/`Err` ist es seit dem
+Eliminator ebenso (siehe „Damit `ty` die Zusage einloesen kann" weiter unten und
+[`2026-08-26-1130`](../../docs/decisions/2026-08-26-1130-result-fold-als-eliminator.md)).
 
 ## Die Fehlernutzlast ist ein typisierter Fall, nie ein fertiger Satz
 
@@ -214,14 +223,21 @@ Nutzermeldung wird: die `OSError`-Meldung im IO-Adapter (`RenameFailed(str(error
 Log-Text, der Grund eines Infrastruktur-Fehlschlags. Faustregel: erreicht die Formulierung je eine
 Antwort an einen Aufrufer, ist sie ein typisierter Fall.
 
-**Verketten oder matchen — die Grenze verlaeuft am Container.** Bleibt der Ausgang ein `Result` und
-aendert sich nur der Fehlertyp, wird **verkettet**: `Email.parse(raw, idn).map_err(to_field_fault)`.
-Wird der `Result` **verlassen** (Fold in eine Response-Union) oder aus einer fremden Union heraus
-**betreten** (Naht-Ergebnis → `Result[T, <Port>Error]` im Port-Adapter, z. B.
-`Result[User, UserRegistryError]`), wird **gematcht** — dort
-gibt es kein `Err`, auf dem eine Kette sitzen koennte, und `map` kaeme nie aus dem Ok-Zweig heraus.
-Der `match` ist an dieser Grenze kein Notbehelf, sondern der Wachposten: kommt ein Fall dazu, bricht
-er laut auf, waehrend eine Kette aus zwei Funktionen ihn still durchreichen wuerde
+**Verketten, falten oder matchen — die Grenze verlaeuft am Container.** Drei Faelle, und jeder hat
+genau ein Werkzeug:
+
+- Bleibt der Ausgang ein `Result` und aendert sich nur der Fehlertyp, wird **verkettet**:
+  `Email.parse(raw, idn).map_err(to_field_fault)`.
+- Wird der `Result` **verlassen** (in eine Response-Union, in eine `FieldError`-Liste), wird
+  **gefaltet**: `outcome.fold(_accepted, _rejected)`. Nicht gematcht — ein `match` ueber `Ok`/`Err`
+  ist genau die Stufe, die der Eliminator abnimmt.
+- Wird der `Result` aus einer fremden Union heraus **betreten** (Naht-Ergebnis →
+  `Result[T, <Port>Error]` im Port-Adapter, z. B. `Result[User, UserRegistryError]`), wird
+  **gematcht** — dort gibt es kein `Err`, auf dem eine Kette oder ein Fold sitzen koennte.
+
+Der Wachposten geht dabei nicht verloren, er zieht nur um: er sitzt jetzt **im Fehler-Arm des
+Folds**, der flach ueber die Fehler-Union matcht und mit `assert_never` schliesst. Kommt ein Fall
+dazu, bricht er dort laut auf, waehrend eine Kette aus zwei Funktionen ihn still durchreichen wuerde
 ([python-control-flow.md](./python-control-flow.md)). Damit er das wirklich tut, braucht er den
 werfenden Abschlusszweig aus dem naechsten Abschnitt — **ohne** ihn bricht er gerade nicht auf.
 
@@ -264,11 +280,33 @@ def locale_tag(locale: Locale) -> str:
 mit dem unerwarteten Wert, und `ty` meldet einen nicht behandelten Fall schon beim Pruefen statt
 erst im Betrieb. Ein selbstgebauter `raise RuntimeError("unreachable")` kann das zweite nicht.
 
-**Damit `ty` die Zusage einloesen kann, wird in zwei Stufen gematcht** — erst der Ausgang
-(`Ok` / `Err`), dann der Fehlerwert selbst. Steht der Fehlerfall verschachtelt im Muster
-(`case Err(error=EmailIsEmpty())`), traegt `ty` die Einengung nicht ins Typargument von `Err`
-hinein; der Restfall bleibt `Err[EmailError]` statt `Never`, und `assert_never` ist wieder nur
-Laufzeitschutz.
+**Damit `ty` die Zusage einloesen kann, matcht der Code flach ueber die Fehler-Union** — nie
+verschachtelt im `Err`. Steht der Fehlerfall im Muster (`case Err(error=EmailIsEmpty())`), traegt
+`ty` die Einengung nicht ins Typargument von `Err` hinein; der Restfall bleibt `Err[EmailError]`
+statt `Never`, und `assert_never` ist wieder nur Laufzeitschutz. Ueber einer flachen Union rechnet
+`ty` die Vollzaehligkeit dagegen aus.
+
+**Den `Ok`/`Err`-Split nimmt `fold` ab, nicht eine zweite `match`-Stufe.** Der Fehler-Arm bekommt
+den Fehlerwert bereits ausgepackt und matcht flach darueber:
+
+```python
+def to_response(outcome: Result[Registration, RegisterUserError]) -> RegisterUserResponse:
+    return outcome.fold(_accepted, _rejected)
+
+
+def _rejected(error: RegisterUserError) -> RegisterUserResponse:
+    match error:
+        case RequestInvalid(errors=errors):
+            return RegistrationInvalid(group_by_field(errors))
+        case EmailAlreadyRegistered(email=email):
+            return EmailAlreadyTaken(email.value)
+        case _:
+            assert_never(error)
+```
+
+Ein `match` ueber `Ok`/`Err` mit einem zweiten `match` darin ist damit **abgeloest**: er kostete
+zwei `assert_never` je Funktion und eine Einrueckungsebene, ohne mehr zuzusichern
+([`2026-08-26-1130`](../../docs/decisions/2026-08-26-1130-result-fold-als-eliminator.md)).
 
 **Immer `assert_never`, auch wo der Rest nicht streng `Never` ist.** Es gibt Faelle, die typmaessig
 gueltig sind und trotzdem nie ankommen, weil eine Stufe davor sie ausschliesst — `to_response` im

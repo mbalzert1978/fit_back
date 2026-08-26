@@ -87,8 +87,21 @@ ignore = [
 # Eine DeprecationWarning ist eine Ankuendigung mit Frist - sie soll die Suite
 # brechen, solange die Frist laeuft, nicht still mitlaufen. Ausnahmen werden
 # einzeln benannt, mit Paket, Grund und Upstream-Link.
+#
+# Eine RuntimeWarning steht hier aus demselben Grund. Sie traegt "coroutine ...
+# was never awaited" - den einen Fehler der async-Kette, der **nicht** laut
+# scheitert. `ty` faengt die Form, in der das vergessene `await` einen Wert
+# liefert; die Wahrheitswert-Form (`if kette.fold(...)`) faengt kein Typsystem -
+# sie faellt hier auf.
+#
+# Der zweite Eintrag traegt den ersten. Die Warnung faellt beim Aufraeumen an,
+# also ausserhalb jedes Frames, den pytest einem Test zuordnen kann; pytest
+# packt sie dort in eine PytestUnraisableExceptionWarning um. Ohne die bliebe
+# "error::RuntimeWarning" wirkungslos - genau fuer diesen Fall.
 filterwarnings = [
     "error::DeprecationWarning",
+    "error::RuntimeWarning",
+    "error::pytest.PytestUnraisableExceptionWarning",
     # uvloop 0.22.1: `Loop.run_in_executor` und `add_signal_handler` rufen das
     # deprecatete `asyncio.iscoroutinefunction` (uvloop/includes/stdlib.pxi:40).
     # Sichtbar wird es dort, wo hineingelaufen wird - `asyncio.to_thread` in

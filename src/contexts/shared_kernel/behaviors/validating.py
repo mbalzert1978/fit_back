@@ -13,7 +13,7 @@ Bewusst **kein** Ersatz fuer `validation.py`: `Rule`, `all_of`/`all_of_async` un
 from collections.abc import Callable, Sequence
 
 from src.contexts.shared_kernel.pipeline import Behavior, Handler
-from src.contexts.shared_kernel.result import Err, Ok, Result
+from src.contexts.shared_kernel.result import AsyncResult, Err, Ok, Result
 from src.contexts.shared_kernel.validation import AsyncRule, FieldError
 
 __all__ = ["validating"]
@@ -31,9 +31,8 @@ def validating[TIn, TOut, E](
     noch **einen** Fold am Ende.
     """
 
-    async def behave(request: TIn, inner: Handler[TIn, TOut, E]) -> Result[TOut, E]:
-        checked = await _checked(rule, request, on_invalid)
-        return await checked.bind_async(inner)
+    def behave(request: TIn, inner: Handler[TIn, TOut, E]) -> AsyncResult[TOut, E]:
+        return AsyncResult(_checked(rule, request, on_invalid)).bind_async(inner)
 
     return behave
 

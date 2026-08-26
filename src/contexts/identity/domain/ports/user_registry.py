@@ -4,7 +4,7 @@ from typing import Protocol
 
 from src.contexts.identity.domain.entities.user import User
 from src.contexts.identity.domain.errors import EmailAlreadyRegistered
-from src.contexts.shared_kernel import Result
+from src.contexts.shared_kernel import AsyncResult
 
 __all__ = ["UserRegistry", "UserRegistryError"]
 
@@ -34,6 +34,6 @@ class UserRegistry(Protocol):
     Unique-Index -, und `add` meldet deren Urteil zurueck.
     """
 
-    async def add(self, user: User) -> Result[User, UserRegistryError]:
+    def add(self, user: User) -> AsyncResult[User, UserRegistryError]:
         """Nimm den User auf; `Err(EmailAlreadyRegistered)`, wenn die E-Mail vergeben ist."""
         ...

@@ -19,7 +19,7 @@ from src.contexts.identity.application.register_user.errors import RegisterUserE
 from src.contexts.identity.application.register_user.registration import Registration
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.domain import User
-from src.contexts.shared_kernel import Ok, Result
+from src.contexts.shared_kernel import AsyncResult, Ok, Result
 from src.contexts.shared_kernel.pipeline import Handler
 
 __all__ = ["issuing_session"]
@@ -44,7 +44,7 @@ def issuing_session(
         session = await sessions.issue(str(user.id), user.registered_at.unix_seconds)
         return Ok(Registration(user, session))
 
-    async def run(request: RegisterUserRequest) -> Result[Registration, RegisterUserError]:
-        return await (await step(request)).bind_async(issue)
+    def run(request: RegisterUserRequest) -> AsyncResult[Registration, RegisterUserError]:
+        return AsyncResult(step(request)).bind_async(issue)
 
     return run

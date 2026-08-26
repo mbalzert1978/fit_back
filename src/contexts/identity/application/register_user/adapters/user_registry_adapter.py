@@ -15,7 +15,7 @@ from src.contexts.identity.domain import (
     account_status_tag,
     locale_tag,
 )
-from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import AsyncResult, Err, Ok, Result
 
 __all__ = ["UserRegistryAdapter"]
 
@@ -28,8 +28,12 @@ class UserRegistryAdapter:
         """Nimm die Naht-Implementierung entgegen (Fake oder Repository)."""
         self._store = store
 
-    async def add(self, user: User) -> Result[User, UserRegistryError]:
+    def add(self, user: User) -> AsyncResult[User, UserRegistryError]:
         """Nimm den User auf und werte das Urteil des Bestands aus."""
+        return AsyncResult(self._insert(user))
+
+    async def _insert(self, user: User) -> Result[User, UserRegistryError]:
+        """Schreibe ueber die Naht und uebersetze ihre Union in das `Result`."""
         outcome = await self._store.insert(_record_of(user))
         match outcome:
             case UserStored():

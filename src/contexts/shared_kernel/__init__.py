@@ -6,7 +6,7 @@ asyncpg braucht, gehoert nicht hierher, sondern nach `src/api/` (HTTP-Rand) oder
 `src/infrastructure/` (geteilte Infrastruktur).
 """
 
-from src.contexts.shared_kernel.result import Err, Ok, Result
+from src.contexts.shared_kernel.result import AsyncResult, Err, Ok, Result
 from src.contexts.shared_kernel.text_rules import (
     NotBlankError,
     TextIsEmpty,
@@ -22,6 +22,7 @@ from src.contexts.shared_kernel.timestamp import Timestamp
 from src.contexts.shared_kernel.user_owned import IUserOwned
 
 __all__ = [
+    "AsyncResult",
     "Err",
     "FakeTimeProvider",
     "IUserOwned",
