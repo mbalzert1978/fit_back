@@ -12,15 +12,9 @@ __all__ = ["UserRegistry", "UserRegistryError"]
 type UserRegistryError = EmailAlreadyRegistered
 """Die **erwarteten** Ausgaenge dieses Ports - heute genau einer.
 
-Eine eigene Union je Port statt eines Sammeltyps ueber den ganzen Context: nur so
-zaehlt die Aufzaehlung ehrlich auf, was hier ankommen kann, und nur so bleibt ein
-`match` darueber eine Aussage statt einer Pflichtuebung ueber zwei Dutzend
-Faelle, von denen einer eintritt.
-
-Sie waechst mit dem, was der Adapter als Wert melden **kann**: erwartete
-IO-Ausgaenge gehoeren dann hierher (als Fall im `Result`, nicht als Exception),
-Unerwartetes bubbelt weiterhin hoch. Sie waechst nicht auf Verdacht - ein Fall
-ohne Adapter, der ihn liefert, ist ein Arm, den niemand erreicht.
+Eigene Union statt Sammeltyp, und sie waechst nur mit dem, was ein Adapter
+tatsaechlich als Wert meldet - nicht auf Verdacht:
+docs/decisions/2026-08-17-0933-fehler-union-je-port-statt-domainerror-als-sammeltyp.md.
 """
 
 

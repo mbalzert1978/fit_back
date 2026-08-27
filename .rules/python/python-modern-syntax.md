@@ -38,8 +38,14 @@ logger.warning(f"field {field_name} is invalid")  # G004 — formatiert auch, we
 
 ## Pattern Matching statt verschachtelter `if`/`isinstance`-Ketten
 
-Siehe [python-control-flow.md](./python-control-flow.md) fuer die volle Regel inkl.
+Wer eine Struktur von Hand prueft — `isinstance` plus Attributvergleich plus noch ein `isinstance`
+eine Ebene tiefer —, schreibt ein `case` in der falschen Sprache. Die volle Regel steht in
+[python-control-flow.md](./python-control-flow.md), inklusive Beispiel aus diesem Repo und
 Exhaustivitaets-Fallback.
+
+Diese Ueberschrift stand hier lange **ohne** diesen Absatz, und der Abschnitt drueben hiess nur
+„if/elif-Ketten". Wer verschachtelten `isinstance`-Code hatte, folgte dem Verweis, fand eine andere
+Form und schloss: betrifft mich nicht.
 
 ## PEP-695-Generics statt `typing.Generic`/`TypeVar`/`TypeAlias`
 

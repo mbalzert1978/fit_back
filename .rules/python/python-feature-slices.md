@@ -383,10 +383,9 @@ Zwei Zusagen, und beide sind zu belegen (`tests/test_pipeline.py`): das **erste*
 aussen, und ein Behavior, das `Err` liefert, ohne den naechsten Schritt zu rufen, **laesst den
 Handler nicht laufen**.
 
-**Die Eingabe-Validierung ist das erste Behavior**, kein `if` im Slice. Sie hebt die gesammelten
-`FieldError` in den Fehlerkanal der Pipeline und kuerzt ab; damit fallen die beiden frueher
-getrennten Kanaele (Feldfehler hier, Domaenenfehler dort) zu **einem** zusammen, und der Slice hat
-genau **einen** Fold am Ende. Der gemeinsame Typ ist use-case-eigen und ausgeschrieben:
+**Der Slice hat genau einen Fehlerkanal**, kein `if` im `run`. Feldfehler und Domaenenfehler fallen
+zu **einem** Kanal zusammen, und am Ende steht genau **ein** Fold. Der gemeinsame Typ ist
+use-case-eigen und ausgeschrieben:
 
 ```python
 type RegisterUserError = RequestInvalid | EmailAlreadyRegistered   # RequestInvalid traegt die FieldError
@@ -396,15 +395,21 @@ Do:
 ```python
 def build_register_user_pipeline(...) -> RegisterUserPipeline:
     return RegisterUserPipeline(
-        build_pipeline(
-            _dispatch(handler, idn),                                   # Request-Mapper + Handler
-            validating(as_async(build_register_user_rules(idn)), request_invalid),
-        )
+        build_pipeline(_dispatch(handler))                             # Request-Mapper + Handler
     )
 
 
 async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
     return to_response(await self._chain(request))                     # ein Fold, kein Zweig
+```
+
+Die Feldfehler kommen hier aus der Aggregatwurzel, die alle ihre Befunde auf einmal meldet
+(`zip_all`, siehe [python-rule-pattern.md](./python-rule-pattern.md)); `_dispatch` hebt sie per
+`map_err` in denselben Kanal. Ein Validierungs-Behavior davor waere die zweite Auswertung derselben
+Regeln. Es gehoert an diese Stelle nur, wenn die Frage **keiner** Wurzel gehoert:
+
+```python
+build_pipeline(_dispatch(handler), validating(as_async(_rules), request_invalid))
 ```
 
 Don't:

@@ -28,11 +28,8 @@ __all__ = ["IdnEncoder", "IdnEncoderError"]
 type IdnEncoderError = UnencodableDomainLabel
 """Der eine erwartete Ausgang dieses Ports: das Label ist nicht kodierbar.
 
-Frueher stand hier der Sammeltyp `DomainError` des ganzen Contexts - und das war
-unwahr an der Stelle, an der es zaehlt: `email.py` reicht das Ergebnis dieses
-Ports als `Result[str, EmailError]` weiter, also durch eine Union, in der die
-meisten `DomainError`-Faelle gar nicht vorkommen. Die schmale Port-Union sagt,
-was der Adapter wirklich liefert, und der Weiterreicher stimmt wieder.
+Warum eine eigene, schmale Union statt des Sammeltyps `DomainError`:
+docs/decisions/2026-08-17-0933-fehler-union-je-port-statt-domainerror-als-sammeltyp.md.
 """
 
 

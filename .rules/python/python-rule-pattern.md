@@ -6,10 +6,10 @@
 >
 > **Gebaut zu sehen ist beides im Referenz-Slice** `src/contexts/identity`: der gemeinsame
 > Collect-all-Typalias in `src/contexts/shared_kernel/validation.py` (`Rule`, `all_of`,
-> `FieldError`), seine Anwendung in
-> `application/register_user/validators/register_user_rules.py`, und der Fail-fast-Zweig als
-> `chain(...)` in `domain/value_objects/email.py` — dort setzt `_RULES: ResultRule[str, EmailError]`
-> die einzeln benannten Adressregeln zusammen.
+> `FieldError`), der Fail-fast-Zweig als `chain(...)` in `domain/value_objects/email.py` — dort
+> setzt `_RULES: ResultRule[str, EmailError]` die einzeln benannten Adressregeln zusammen —, und
+> die Collect-all-Frage **über mehreren Feldern zugleich** als `zip_all`-Kette in
+> `domain/entities/user.py`.
 
 Zwei Bausteine decken jede "ist dieser Input/Zustand gueltig?"-Frage ab — beide sind das
 [Rule Pattern](https://dev.to/stevsharp/the-rule-pattern-in-c-2ed0) (eine Regel ist ein Objekt
@@ -66,8 +66,8 @@ Helfer, dem man den passenden Konverter hereinreicht. Ein solcher Helfer muss se
 alle Fehlertypen spannen, die er bedient, und wird dabei erst weit (`Result[object, ...]`) und dann
 unwahr. Der Preis der ausgeschriebenen Arme ist Laenge; der Preis des Helfers ist eine Annotation,
 die nicht mehr stimmt. Gebaut zu sehen in
-`application/register_user/validators/register_user_rules.py`, wo `email_must_be_wellformed`
-vierzehn Arme hat — einen je Adressregel, jeder mit eigenem Code.
+`application/register_user/mappers/rejection_mapper.py`, wo `_email_errors` vierzehn Arme hat —
+einen je Adressregel, jeder mit eigenem Code.
 
 Do — Fail-fast Domaenen-Check mit einem typisierten Fehler:
 ```python
@@ -210,19 +210,51 @@ Alternativen steht in `docs/decisions/2026-08-24-1500-any-of-gebaut-fuer-die-zei
 Der Kombinator **Conditional** aus der Vorlage bleibt bewusst nicht gebaut — eine Regel ist hier
 eine Funktion und darf selbst verzweigen (`docs/decisions/2026-08-07-1331-…`).
 
-## Validierungsregeln laufen als erstes Behavior der Pipeline, nicht vorab im Command geparst
+## Kann die Wurzel die Frage selbst beantworten, gehoert sie in die Wurzel
 
-Die Collect-all-`Rule` wird direkt gegen das public Request-DTO registriert und vom
-**Validierungs-Behavior** der Pipeline konsumiert (`validating(...)` in
-`shared_kernel/behaviors/validating.py`; siehe [python-error-handling.md](./python-error-handling.md) fuer den
-`Result`-Typ und [python-feature-slices.md](./python-feature-slices.md) fuer die Behavior-Kette).
-Es hebt die gesammelten `FieldError` in den **einen** Fehlerkanal des Use Case und kuerzt ab —
-nicht ein `if` im Slice, das einen zweiten Kanal und einen zweiten Fold nach sich zoege.
+Eine Aggregatwurzel baut ihre Value Objects ueber deren `parse`-Factories. Damit hat sie jede
+Feldregel ohnehin schon gestellt. Steht davor noch ein Regelwerk gegen das public Request-DTO, das
+**dieselben** Factories ein zweites Mal ruft, wird jede Regel zweimal ausgewertet — und die beiden
+Wege koennen auseinanderlaufen.
 
-Damit sieht der Kern-Handler nie einen ungueltigen Request, und die Command-Konstruktion, die
-daraus die Domaenen-Value-Objects baut, ist **infallibel**: Validierung ist bereits eine Ebene
-hoeher gelaufen, das Command braucht deshalb keinen eigenen `Result`/Fehlerkanal, der diese
-Pruefung dupliziert.
+Der Ausweg ist nicht, die Wurzel infallibel zu machen, sondern sie **sammeln** zu lassen:
+
+```python
+def zip_all[U, E](self, other: Result[U, list[E]], /) -> Result[tuple[T, U], list[E]]: ...
+
+
+return (
+    Email.parse(email, idn).map_err(email_rejection)
+    .zip_all(Password.parse(password).map_err(password_rejection))
+    .zip_all(DisplayName.parse(display_name).map_err(display_name_rejection))
+    .bind_async(...)
+)
+```
+
+`zip_all` ist `all_of` fuer Ausgaenge, die neben dem Fehler auch einen **Wert** tragen: `all_of`
+sammelt Meldungen, `zip_all` sammelt Meldungen **und** haelt die geprueften Value Objects fest.
+Damit kann die Wurzel alle Befunde auf einmal melden (422 mit `errors`), ohne dass irgendwer ein
+zweites Mal parst. Gebaut zu sehen in `domain/entities/user.py`; die Entscheidung samt der
+verworfenen Doppelpruefung steht in
+`docs/decisions/2026-08-26-2330-die-wurzel-sammelt-ihre-befunde-selbst.md`.
+
+Der Fehlerkanal ist eine **Liste, schon im Eingang**. Nur so ist die Kette wieder ihr eigener
+Eingang und bleibt flach; jede Factory hebt ihren Fehler per `map_err` in eine einelementige Liste.
+Am Ende fasst ein `map_err` sie zu **einem** benannten Fall zusammen (`UserRejected`) — nicht zu
+einer nackten Liste, ueber die der Rand dann `case list()` matchen muesste.
+
+### Das Validierungs-Behavior bleibt — fuer Regeln ohne Wurzel
+
+`validating(...)` in `shared_kernel/behaviors/validating.py` hebt eine Collect-all-`Rule` gegen das
+Request-DTO in den **einen** Fehlerkanal des Use Case und kuerzt ab (siehe
+[python-error-handling.md](./python-error-handling.md) fuer den `Result`-Typ und
+[python-feature-slices.md](./python-feature-slices.md) fuer die Behavior-Kette). Das ist weiterhin
+der Ort fuer jede Frage, die **keine** Wurzel beantworten kann — Felder, die zu keinem Value Object
+gehoeren, oder Bedingungen ueber mehrere Aggregate.
+
+Was es nicht mehr ist: die Vorstufe, die eine fail-fast-Wurzel gesprächsfähig macht. Steht in einem
+Slice ein `validating`, dessen Regeln dieselben `parse`-Factories rufen wie die Wurzel dahinter, ist
+das der Befund — nicht die Loesung.
 
 ## Review-Checkliste
 
@@ -232,7 +264,9 @@ Pruefung dupliziert.
 - [ ] Keine Regel wird nach einem Fehlschlag ein zweites Mal ausgewertet, nur um herauszufinden, welche Teilregel fehlgeschlagen ist — diese Information kommt aus der einen Auswertung.
 - [ ] Keine feature-lokale `Protocol`-Klasse bildet `Rule`/`ResultRule` strukturell nach; Features importieren/komponieren den gemeinsamen Typalias.
 - [ ] Eine ueber mehrere Request-Typen geteilte Regel ist dadurch gerechtfertigt, dass sie wirklich dieselbe Frage ueber dieselben Felder stellt, ausgedrueckt ueber ein gemeinsames `Protocol` — nicht durch das Zusammenzwingen unverwandter Typen.
-- [ ] Validierung laeuft als **erstes Behavior** der Pipeline via `Rule[TRequest]`/`AsyncRule[TRequest]`, nicht als `if` im Slice und nicht vorab im Command geparst; die Command-Konstruktion ist infallibel, sobald Validierung vorgelagert bereits gelaufen ist.
+- [ ] Keine Regel wird zweimal gestellt: prueft eine Aggregatwurzel ein Feld ueber dessen `parse`-Factory, steht dieselbe Frage **nicht** noch einmal als `Rule` gegen das Request-DTO davor. Die Wurzel sammelt ihre Befunde per `zip_all` und meldet sie alle auf einmal.
+- [ ] Was **keine** Wurzel beantworten kann, laeuft als Behavior der Pipeline via `Rule[TRequest]`/`AsyncRule[TRequest]` — nicht als `if` im Slice.
+- [ ] Die gesammelten Befunde einer Wurzel verlassen sie als **ein** benannter Fall, nicht als nackte `list` — sonst matcht der Rand ueber die Datenstruktur statt ueber die Fachlichkeit.
 - [ ] Eine Regel ist nur dann `AsyncRule`, wenn sie wirklich IO braucht; eine synchrone Regel wird mit `as_async` gehoben, nicht umgeschrieben.
 - [ ] Ein Wert, der in mehreren einander ausschliessenden Formen gueltig ist, wird mit `any_of` ausgedrueckt, nicht mit einer `if`-Kette — und der Fall „keine der Formen" kommt per `map_err` vom Aufrufer, nicht vom Kombinator.
 - [ ] **Jede** Pruefung steht als benannte Funktion und wird als `_RULE`/`_RULES` deklariert — auch die einzelne. `parse` verdrahtet nur noch (`_RULES(raw).map(cls)`); ein `if` oder ein `try` im Rumpf von `parse` ist der Befund.

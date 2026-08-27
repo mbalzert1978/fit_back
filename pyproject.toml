@@ -67,14 +67,37 @@ ignore = [
     "TC001",   # Imports unter `if TYPE_CHECKING` verstecken. Dieser Stack laeuft bewusst ohne
     "TC002",   # mypy/pyright (.rules/python/README.md) - die Trennung braechte keinen Nutzen,
     "TC003",   # und zur Laufzeit aufloesbare Annotationen sind uns lieber als gesparte Imports
+    "FIX002",  # feuert auf die blosse Existenz eines TODO und widerspricht damit TD002/TD003,
+               # die Autor und Ticket-Link *verlangen*. Beides zusammen hiesse: jeder korrekt
+               # belegte TODO braucht ein noqa. Wir wollen TODOs mit Ticket, nicht keine TODOs -
+               # TD002/TD003 bleiben deshalb scharf.
 ]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "uuid.uuid4".msg = "Sortierbare IDs: uuid7() statt uuid4() — siehe .rules/python/python-modern-syntax.md."
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ALL"]
-"src/contexts/*/specs/**" = ["ALL"]
+# Testcode ist Code. Frueher stand hier `ALL` - damit prueften weder ruff noch
+# complexipy noch ty in `tests/` irgendetwas, und eine Funktion mit kognitiver
+# Komplexitaet 46 lief jahrelang unbemerkt mit (Schwelle ist 15).
+# Ausgenommen bleibt nur, was am Testidiom scheitert, jedes einzeln benannt.
+# Beide Listen sind absichtlich gleich; TOML kennt keine Variablen, und ein
+# Verweis von der einen auf die andere waere eine Kopie, die driftet.
+"tests/**" = [
+    "S101",    # `assert` - die Zusicherung ist der Test
+    "D1",      # fehlende Docstrings - der Testname traegt die Beschreibung,
+               # siehe .rules/common/docstrings-und-kommentare.md
+    "PLR2004", # "magic value" im Vergleich - der erwartete Wert ist die Zusicherung
+    "S105",    # hartkodiertes Passwort ...
+    "S106",    # ... als Argument - Testdaten, keine Geheimnisse
+]
+"src/contexts/*/specs/**" = [
+    "S101",
+    "D1",
+    "PLR2004",
+    "S105",
+    "S106",
+]
 "alembic/*/versions/**" = ["INP001"]  # Alembic verwaltet diese Revisionen über seinen eigenen Loader
 "alembic/env.py" = ["INP001"]  # Alembic führt env.py direkt auf, kein importierbares Paket
 "scripts/**" = [

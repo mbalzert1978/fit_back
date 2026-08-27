@@ -14,10 +14,8 @@ __all__ = ["RegisterUserOutbox"]
 class RegisterUserOutbox:
     """Schreibt die Ereignisse des Use Case RegisterUser in die Outbox.
 
-    Nimmt die Transaktion des laufenden Vorgangs entgegen, nicht eine eigene:
-    genau dadurch entsteht das Ereignis gemeinsam mit dem Nutzer-Datensatz. Ein
-    eigener Verbindungsaufbau hier waere das Ende der transaktionalen Garantie
-    und damit der Sinn der Outbox.
+    Nimmt die Transaktion des laufenden Vorgangs entgegen, nicht eine eigene -
+    siehe `OutboxTransaction` fuer die Begruendung.
     """
 
     def __init__(self, transaction: OutboxTransaction) -> None:

@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 @pytest.mark.asyncio
 async def test_postgres_connection(postgres_session: AsyncSession) -> None:
-    """Test that the PostgreSQL connection is working."""
     result = await postgres_session.execute(text("SELECT 1"))
     value = result.scalar()
     assert value == 1
@@ -13,7 +12,6 @@ async def test_postgres_connection(postgres_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_alembic_migration_applied(postgres_session: AsyncSession) -> None:
-    """Test that all required schemas exist after Alembic migration."""
     required_schemas = {
         "identity",
         "catalog",

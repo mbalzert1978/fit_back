@@ -9,7 +9,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Ein Mount auf /var/lib/postgresql und nicht auf dessen data/: seit
+      # Postgres 18 legt das Image die Daten in ein Unterverzeichnis je
+      # Hauptversion. Ein Mount auf dem alten Pfad bricht den Start ab.
+      # Siehe https://github.com/docker-library/postgres/pull/1259
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test:
         - CMD-SHELL

@@ -29,23 +29,13 @@ type NotBlankError = TextIsEmpty
 
 
 def not_blank(raw: str) -> Result[str, NotBlankError]:
-    """Der Text besteht nicht nur aus Leerraum - und kommt getrimmt zurueck.
-
-    Getrimmt, weil die Regel ohnehin trimmen muss, um zu urteilen: gaebe sie den
-    Rohwert weiter, muesste jede folgende Regel es erneut tun.
-    """
+    """Der Text besteht nicht nur aus Leerraum - und kommt getrimmt zurueck."""
     trimmed = raw.strip()
     return Ok(trimmed) if trimmed else Err(TextIsEmpty())
 
 
 def not_blank_as[E](error_factory: Callable[[], E]) -> ResultRule[str, E]:
-    """Baue `not_blank` als Regel, die ihren Fall im Vokabular des Aufrufers meldet.
-
-    `TextIsEmpty` ist technisch und ohne Feldbezug; wer trimmt, will danach den
-    eigenen fachlichen Fall in der Kette stehen haben. Statt diese Uebersetzung
-    an jedem Value Object wortgleich zu wiederholen, nimmt der Kombinator die
-    Fabrik des Falls entgegen und liefert die fertige, verkettbare Regel.
-    """
+    """Baue `not_blank` als Regel, die ihren Fall im Vokabular des Aufrufers meldet."""
 
     def rule(raw: str) -> Result[str, E]:
         return not_blank(raw).map_err(lambda _: error_factory())

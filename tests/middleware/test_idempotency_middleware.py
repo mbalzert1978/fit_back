@@ -2,7 +2,7 @@
 
 import logging
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
+from uuid import uuid7
 
 import pytest
 from fastapi.responses import JSONResponse
@@ -21,7 +21,6 @@ class TestCalculateRequestHash:
     """Tests für calculate_request_hash()."""
 
     def test_hash_is_sha256(self) -> None:
-        """Hash sollte ein gültiger SHA256-Hash sein."""
         method = "POST"
         path = "/api/v1/items"
         body = '{"name": "test"}'
@@ -32,7 +31,6 @@ class TestCalculateRequestHash:
         assert all(c in "0123456789abcdef" for c in hash_value)
 
     def test_same_input_produces_same_hash(self) -> None:
-        """Identische Eingaben sollten denselben Hash produzieren."""
         method = "POST"
         path = "/api/v1/items"
         body = '{"name": "test"}'
@@ -43,7 +41,6 @@ class TestCalculateRequestHash:
         assert hash1 == hash2
 
     def test_different_input_produces_different_hash(self) -> None:
-        """Unterschiedliche Eingaben sollten unterschiedliche Hashes produzieren."""
         method = "POST"
         path = "/api/v1/items"
         body1 = '{"name": "test1"}'
@@ -59,11 +56,9 @@ class TestIsIdempotentMethod:
     """Tests für is_idempotent_method()."""
 
     def test_post_is_idempotent(self) -> None:
-        """POST sollte als idempotent betrachtet werden."""
         assert is_idempotent_method("POST") is True
 
     def test_put_is_idempotent(self) -> None:
-        """PUT sollte als idempotent betrachtet werden."""
         assert is_idempotent_method("PUT") is True
 
     def test_get_is_not_idempotent(self) -> None:
@@ -71,11 +66,9 @@ class TestIsIdempotentMethod:
         assert is_idempotent_method("GET") is False
 
     def test_delete_is_not_idempotent(self) -> None:
-        """DELETE sollte nicht als idempotent betrachtet werden."""
         assert is_idempotent_method("DELETE") is False
 
     def test_lowercase_post_is_idempotent(self) -> None:
-        """Lowercase 'post' sollte auch als idempotent betrachtet werden."""
         assert is_idempotent_method("post") is True
 
 
@@ -88,7 +81,6 @@ class TestIdempotencyKeyMiddleware:
     """Tests für IdempotencyKeyMiddleware."""
 
     async def test_passes_through_without_idempotency_header(self) -> None:
-        """Sollte durchpassen, wenn kein Idempotency-Key-Header vorhanden ist."""
         mock_app = MagicMock()
         middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
@@ -115,7 +107,7 @@ class TestIdempotencyKeyMiddleware:
         mock_app = MagicMock()
         middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
-        key = uuid4()
+        key = uuid7()
         mock_request = AsyncMock()
         mock_request.method = "POST"
         mock_request.headers = {"Idempotency-Key": str(key)}
@@ -131,14 +123,13 @@ class TestIdempotencyKeyMiddleware:
         assert result == mock_response
 
     async def test_passes_through_with_invalid_uuid(self) -> None:
-        """Sollte durchpassen, wenn Idempotency-Key kein gültiger UUID ist."""
         mock_app = MagicMock()
         middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
         mock_request = AsyncMock()
         mock_request.method = "POST"
         mock_request.headers = {"Idempotency-Key": "not-a-uuid"}
-        mock_request.state.user_id = uuid4()
+        mock_request.state.user_id = uuid7()
 
         mock_call_next = AsyncMock()
         mock_response = JSONResponse({"status": "created"}, status_code=201)
@@ -153,7 +144,6 @@ class TestIdempotencyKeyMiddlewareConfiguration:
     """Tests für IdempotencyKeyMiddleware-Konfiguration."""
 
     def test_middleware_accepts_ttl_days_config(self) -> None:
-        """Middleware sollte ttl_days-Parameter akzeptieren."""
         mock_app = MagicMock()
         middleware = IdempotencyKeyMiddleware(
             mock_app, time_provider=FakeTimeProvider(), ttl_days=14
@@ -162,7 +152,6 @@ class TestIdempotencyKeyMiddlewareConfiguration:
         assert middleware.ttl_days == 14
 
     def test_middleware_default_ttl_is_7_days(self) -> None:
-        """Standard-TTL sollte 7 Tage sein."""
         mock_app = MagicMock()
         middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
@@ -204,7 +193,6 @@ class TestFormatKeyForLog:
         assert not formatted.endswith("]")
 
     def test_control_characters_never_reach_the_log_raw(self) -> None:
-        """Steuerzeichen im Wert stehen maskiert im Log, nicht roh."""
         formatted = format_key_for_log("a\nb\tc")
 
         assert "\n" not in formatted
@@ -219,7 +207,6 @@ class TestInvalidIdempotencyKeyLogging:
 
     @staticmethod
     async def _dispatch_with_key(key_header: str) -> None:
-        """Schicke eine POST-Anfrage mit diesem Idempotency-Key durch die Middleware."""
         middleware = IdempotencyKeyMiddleware(MagicMock(), time_provider=FakeTimeProvider())
 
         request = AsyncMock()
@@ -232,7 +219,6 @@ class TestInvalidIdempotencyKeyLogging:
         await middleware.dispatch(request, call_next)
 
     async def test_overlong_key_is_logged_truncated(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Der volle Wert fehlt im Log; gekuerzte Form und Originallaenge stehen darin."""
         overlong = "a" * LOGGED_KEY_MAX_LENGTH + "b" * 500
 
         with caplog.at_level(logging.WARNING, logger="src.middleware.idempotency"):
@@ -246,7 +232,6 @@ class TestInvalidIdempotencyKeyLogging:
     async def test_key_within_limit_is_logged_unchanged(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Ein Wert innerhalb der Obergrenze wird nicht angetastet."""
         key_header = "not-a-uuid"
 
         with caplog.at_level(logging.WARNING, logger="src.middleware.idempotency"):

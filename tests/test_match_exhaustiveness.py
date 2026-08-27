@@ -27,7 +27,7 @@ QUELLE = pathlib.Path(__file__).resolve().parents[1] / "src"
 
 
 def _endet_laut(zweig: ast.match_case) -> bool:
-    """Wirft der Zweig, oder ruft er `assert_never`?"""
+    """Ob der Zweig wirft oder `assert_never` ruft."""
     for knoten in ast.walk(zweig):
         if isinstance(knoten, ast.Raise):
             return True
@@ -55,7 +55,6 @@ def _offene_match_stellen() -> list[tuple[str, int]]:
 
 
 def test_jeder_match_endet_laut() -> None:
-    """Kein `match` darf still durchfallen und `None` liefern."""
     unerlaubt = [f"src/{datei}:{zeile}" for datei, zeile in _offene_match_stellen()]
 
     assert not unerlaubt, (

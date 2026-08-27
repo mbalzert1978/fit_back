@@ -41,7 +41,6 @@ class DummyAggregateChanged:
     occurred_at: Timestamp
 
     def to_payload(self) -> Mapping[str, JsonValue]:
-        """Gib die Nutzlast heraus."""
         return {"index": self.index}
 
 
@@ -49,11 +48,9 @@ class RecordingHandler:
     """Test-Consumer: haelt fest, was ihm zugestellt wurde."""
 
     def __init__(self) -> None:
-        """Beginne ohne Zustellungen."""
         self.delivered: list[DeliveredEvent] = []
 
     async def handle(self, event: DeliveredEvent) -> None:
-        """Merke die Zustellung."""
         self.delivered.append(event)
 
 
@@ -65,12 +62,13 @@ class FailingHandler:
         self._remaining = failures
         self.calls = 0
 
-    async def handle(self, event: DeliveredEvent) -> None:
+    async def handle(self, _event: DeliveredEvent) -> None:
         """Scheitere, solange noch Fehlversuche uebrig sind."""
         self.calls += 1
         if self._remaining > 0:
             self._remaining -= 1
-            raise RuntimeError("Consumer nicht bereit")
+            msg = "Consumer nicht bereit"
+            raise RuntimeError(msg)
 
 
 @pytest_asyncio.fixture
@@ -83,8 +81,18 @@ async def clean_outbox(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncEngi
         await connection.execute(text("TRUNCATE shared_kernel.outbox"))
 
 
+def _index_of(event: DeliveredEvent) -> int:
+    """Lies den `index` einer Zustellung heraus - in diesen Tests immer eine Zahl.
+
+    Die Nutzlast ist auf der Leitung nur `JsonValue`; erst hier steht wieder fest,
+    dass darin die Zahl steckt, die `DummyAggregateChanged` hineingeschrieben hat.
+    """
+    index = event.payload["index"]
+    assert isinstance(index, int), f"index ist keine Zahl: {index!r}"
+    return index
+
+
 def _clock_at(unix_seconds: int) -> FakeTimeProvider:
-    """Baue eine feststehende Uhr auf einen Unix-Zeitpunkt."""
     return FakeTimeProvider(datetime.fromtimestamp(unix_seconds, UTC))
 
 
@@ -94,7 +102,6 @@ def _relay(
     unix_seconds: int = 1_000_000,
     config: RelayConfig | None = None,
 ) -> OutboxRelay:
-    """Baue einen Relay auf einer feststehenden Uhr."""
     return OutboxRelay(engine, registry, _clock_at(unix_seconds), config)
 
 
@@ -187,7 +194,7 @@ async def test_nebenlaeufige_relays_verarbeiten_kein_event_doppelt(
         )
 
     assert claimed == [1, 1]
-    indices = [event.payload["index"] for event in (*first.delivered, *second.delivered)]
+    indices = [_index_of(event) for event in (*first.delivered, *second.delivered)]
     assert sorted(indices) == [1, 2]
 
 
@@ -234,7 +241,6 @@ async def test_worker_stellt_ohne_polling_intervall_zu(clean_outbox: AsyncEngine
 async def test_fehlschlag_verschiebt_die_faelligkeit_statt_zu_warten(
     clean_outbox: AsyncEngine,
 ) -> None:
-    """Ein gescheiterter Versuch wird zur Faelligkeit, nicht zu einer Schlafphase."""
     handler = FailingHandler(failures=1)
     registry = EventRegistry()
     registry.register(DummyAggregateChanged, handler)
@@ -308,7 +314,6 @@ async def test_aufgegebenes_event_gilt_nicht_als_zugestellt(clean_outbox: AsyncE
     assert row["failed_at"] is not None
     assert row["processed_at"] is None
 
-    # Ein aufgegebenes Event wird nicht erneut angefasst.
     assert await _relay(clean_outbox, registry, now + 3600, config).relay_due_events() == 0
 
 

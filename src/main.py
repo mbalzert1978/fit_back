@@ -28,6 +28,7 @@ from src.api.health_router import health_router
 from src.api.i18n import create_resources
 from src.api.i18n_startup_check import verify_error_codes_complete
 from src.api.identity import register_user_router
+from src.api.openapi import document_middleware_effects
 from src.api.pydantic_contract_check import verify_pydantic_contract
 from src.api.request_validation_errors import RequestValidationFault
 from src.contexts.identity.application.register_user import RegisterUserFailure
@@ -42,7 +43,7 @@ from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.idempotency import IdempotencyKeyMiddleware
 from src.middleware.response_envelope import ResponseEnvelopeMiddleware
 from src.middleware.unhandled_exceptions import UnhandledExceptionMiddleware
-from src.settings import get_settings
+from src.settings import get_api_version, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Start und nicht erst die erste Anfrage.
     settings = get_settings()
 
-    # Lade und validiere i18n Resource-Files beim Start
     app.state.resources = create_resources()
     logger.info("i18n Resource-Dateien geladen")
 
@@ -125,7 +125,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.info("Datenbank-Engine geschlossen")
 
 
-app = FastAPI(title="Fit-back API", lifespan=lifespan)
+# `get_api_version` und nicht `get_settings`: hier laeuft der Import, und der darf
+# keine vollstaendige Umgebung verlangen (`tests/api/test_app_startup.py`).
+api_version = get_api_version()
+
+app = FastAPI(title="Fit-back API", version=api_version, lifespan=lifespan)
 
 # Reihenfolge: `add_middleware` schiebt jeweils nach vorn, die zuletzt
 # hinzugefuegte laeuft also **aussen**. Der Auffangpunkt fuer unbehandelte
@@ -136,7 +140,9 @@ app.add_middleware(IdempotencyKeyMiddleware, time_provider=SystemTimeProvider())
 # Auffangpunkts: was die Idempotenz-Middleware ablegt, ist damit der nackte
 # Koerper, und eine wiederholte Anfrage bekommt ihn mit ihrer *eigenen*
 # `requestId` neu eingepackt statt mit der von gestern.
-app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
+app.add_middleware(
+    ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider(), api_version=api_version
+)
 app.add_middleware(UnhandledExceptionMiddleware)
 
 # Rate-Limit- und CSRF-Middleware sind hier bewusst nicht verdrahtet: beide kamen
@@ -149,6 +155,10 @@ register_exception_handlers(app)
 
 app.include_router(health_router)
 app.include_router(register_user_router)
+
+# Nach den Routern: der Nachtrag laeuft ueber alle Pfade des Dokuments, und ein
+# Router, der danach dazukaeme, stuende nicht darin.
+document_middleware_effects(app, api_version)
 
 
 def main() -> None:

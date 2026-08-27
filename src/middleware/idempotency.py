@@ -32,7 +32,6 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_200_OK, HTTP_409_CONFLICT
 from starlette.types import ASGIApp
 
-from src.api.i18n import ResourcesCache, get_language_from_header
 from src.api.problem_details import translated_problem
 from src.contexts.shared_kernel.time_provider import TimeProvider
 from src.middleware.streamed_body import read_streamed_body
@@ -169,7 +168,7 @@ async def store_response(
     response_status: int,
     response_headers: Mapping[str, str],
 ) -> None:
-    """Halte die Antwort an der Reservierung fest - Rumpf, Statuscode und Kopfzeilen."""
+    """Halte die Antwort an der Reservierung fest."""
     async with engine.begin() as connection:
         await connection.execute(
             _STORE_RESPONSE,
@@ -219,10 +218,9 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         time_provider: TimeProvider,
         ttl_days: int = 7,
     ) -> None:
-        """Initialisiere die Middleware.
+        """`ttl_days` liegt als Konfiguration bereit fuer den Cleanup-Job.
 
-        `ttl_days` liegt als Konfiguration bereit, bis es den Cleanup-Job gibt - der ist
-        nicht Teil von Ticket 0006.
+        Der Job selbst ist nicht Teil von Ticket 0006.
         """
         super().__init__(app)
         self.time_provider = time_provider
@@ -290,8 +288,6 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         request_hash: str,
     ) -> Response:
         """Der Schluessel war schon vergeben - entscheide, was der Aufrufer bekommt."""
-        language = get_language_from_header(request.headers.get("accept-language"))
-        resources: ResourcesCache = request.app.state.resources
         existing = await find_key(engine, key)
         if existing is None:
             # Zwischen Reservierung und Abfrage geloescht (TTL-Bereinigung); ein Vorgang
@@ -307,8 +303,6 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                 request,
                 HTTP_409_CONFLICT,
                 KEY_REUSED_SLUG,
-                resources,
-                language=language,
             )
 
         if existing["response_body"] is None:
@@ -317,8 +311,6 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                 request,
                 HTTP_409_CONFLICT,
                 REQUEST_IN_PROGRESS_SLUG,
-                resources,
-                language=language,
                 # Der Slug steht im Pact und wird deshalb nicht an den
                 # Ressourcen-Schluessel angeglichen.
                 resource_key="idempotency-request-in-progress",

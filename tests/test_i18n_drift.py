@@ -1,4 +1,4 @@
-"""Die Drift-Pruefung: schlaegt sie an, wenn Fehlerfaelle und Vorlagen auseinanderlaufen?
+"""Die Drift-Pruefung schlaegt an, wenn Fehlerfaelle und Vorlagen auseinanderlaufen.
 
 Der erste Test ist der eigentliche Nutzen - er faehrt dieselbe Aufzaehlung wie der
 Zusammenbau und faellt in CI aus, bevor jemand deployt. Die uebrigen belegen, dass die
@@ -12,7 +12,7 @@ from typing import ClassVar, final
 import pytest
 
 from src.api.i18n import create_resources
-from src.api.i18n_startup_check import verify_error_codes_complete
+from src.api.i18n_startup_check import ErrorTemplates, verify_error_codes_complete
 from src.main import ERROR_UNIONS, PRESENTATION_CODES
 
 
@@ -32,6 +32,11 @@ class FakeResources:
 
     def get(self, language: str, code: str) -> str | None:
         return self._templates.get(code) if language == "de-DE" else None
+
+
+def fake_resources(templates: dict[str, str]) -> ErrorTemplates:
+    """Buendle die fuenf Aufrufstellen auf eine Naht."""
+    return FakeResources(templates)
 
 
 @final
@@ -66,7 +71,7 @@ def test_der_zusammenbau_ist_driftfrei() -> None:
 
 
 def test_ein_code_ohne_vorlage_faellt_auf() -> None:
-    resources = FakeResources({"thing-too-long": "hoechstens {maximum}"})
+    resources = fake_resources({"thing-too-long": "hoechstens {maximum}"})
 
     with pytest.raises(ValueError, match="keine Vorlage") as caught:
         verify_error_codes_complete(resources, [ThingError])
@@ -76,7 +81,7 @@ def test_ein_code_ohne_vorlage_faellt_auf() -> None:
 
 def test_eine_vorlage_ohne_fall_faellt_auf() -> None:
     """Karteileichen sind die andere Haelfte des Drifts."""
-    resources = FakeResources(
+    resources = fake_resources(
         {
             "thing-too-long": "hoechstens {maximum}",
             "thing-is-empty": "leer",
@@ -92,7 +97,7 @@ def test_eine_vorlage_ohne_fall_faellt_auf() -> None:
 
 def test_ein_platzhalter_ohne_nutzlast_faellt_auf() -> None:
     """Sonst schluege das Rendern erst zu, wenn jemand den Fehler ausloest."""
-    resources = FakeResources(
+    resources = fake_resources(
         {
             "thing-too-long": "hoechstens {maximum} von {gibt_es_nicht}",
             "thing-is-empty": "leer",
@@ -106,9 +111,8 @@ def test_ein_platzhalter_ohne_nutzlast_faellt_auf() -> None:
 
 
 def test_ein_fall_ohne_code_faellt_auf() -> None:
-    """Ein Fehlerfall ohne `code` laesst die Startpruefung scheitern."""
     with pytest.raises(ValueError, match="ohne `code`") as caught:
-        verify_error_codes_complete(FakeResources({}), [Uncoded])
+        verify_error_codes_complete(fake_resources({}), [Uncoded])
 
     assert "Uncoded" in str(caught.value)
 
@@ -122,4 +126,4 @@ def test_zwei_faelle_mit_demselben_code_fallen_auf() -> None:
         code: ClassVar[str] = ThingIsEmpty.code
 
     with pytest.raises(ValueError, match="doppelt vergeben"):
-        verify_error_codes_complete(FakeResources({}), [ThingError, Doppelgaenger])
+        verify_error_codes_complete(fake_resources({}), [ThingError, Doppelgaenger])

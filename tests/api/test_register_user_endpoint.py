@@ -31,7 +31,7 @@ from src.api.i18n import create_resources
 from src.api.identity import register_user_router
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.response_envelope import ResponseEnvelopeMiddleware
-from src.settings import Settings, get_settings
+from src.settings import DEFAULT_API_VERSION, Settings, get_settings
 
 pytestmark = pytest.mark.asyncio
 
@@ -60,7 +60,11 @@ async def client(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncClient]:
     app.dependency_overrides[get_settings] = lambda: settings
     # Der Umschlag gehoert zum Host und nicht zum Router - wer den Rand misst,
     # misst ihn mit.
-    app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
+    app.add_middleware(
+        ResponseEnvelopeMiddleware,
+        time_provider=SystemTimeProvider(),
+        api_version=DEFAULT_API_VERSION,
+    )
     register_exception_handlers(app)
     app.include_router(register_user_router)
     app.state.engine = postgres_engine
@@ -132,7 +136,6 @@ async def test_der_ausgegebene_refresh_token_ist_abgelegt(
 async def test_die_transaktion_wird_committet(
     client: AsyncClient, postgres_engine: AsyncEngine
 ) -> None:
-    """Nach der Antwort stehen Nutzer, Ereignis und Refresh-Token wirklich in der Datenbank."""
     await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
     async with postgres_engine.begin() as connection:
@@ -143,7 +146,6 @@ async def test_die_transaktion_wird_committet(
 
 
 async def test_vergebene_adresse_wird_zu_409(client: AsyncClient) -> None:
-    """Zweite Registrierung derselben Adresse: 409 als problem+json."""
     await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
     response = await client.post("/api/v1/identity/register", json=_VALID_BODY)
@@ -154,6 +156,27 @@ async def test_vergebene_adresse_wird_zu_409(client: AsyncClient) -> None:
     assert problem["type"].endswith("/email-already-registered")
     assert problem["status"] == 409
     assert problem["instance"] == "/api/v1/identity/register"
+
+
+async def test_ein_abgelehnter_versuch_traegt_kein_location(client: AsyncClient) -> None:
+    """`Location` gehoert zur 201 und nur zu ihr.
+
+    Geprueft wird die Leitung, nicht der Zweig im Endpunkt: ein `Location` auf
+    dem 409 zeigte auf ein Konto, das dieser Aufruf nicht angelegt hat.
+
+    Die Kopfzeilen der 201 kommen aus einer Dependency, und eine Dependency
+    laeuft vor dem Endpunkt - also auch vor einer Ablehnung. Dass der Endpunkt
+    sie trotzdem erst im 201-Zweig setzt, faengt dieser Test **nicht**: FastAPI
+    verwirft die Kopfzeilen der eingespritzten `Response`, sobald ein Endpunkt
+    selbst eine `Response` zurueckgibt. Der Zweig steht dort aus einem anderen
+    Grund - siehe `_created_headers` in `register_user_response.py`.
+    """
+    await client.post("/api/v1/identity/register", json=_VALID_BODY)
+
+    response = await client.post("/api/v1/identity/register", json=_VALID_BODY)
+
+    assert response.status_code == 409
+    assert "location" not in response.headers
 
 
 async def test_ungueltige_eingabe_wird_zu_422_mit_feldfehlern(client: AsyncClient) -> None:

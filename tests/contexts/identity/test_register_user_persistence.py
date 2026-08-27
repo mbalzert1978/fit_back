@@ -127,7 +127,6 @@ async def test_ohne_commit_entsteht_keine_von_beiden(clean_identity: AsyncEngine
 async def test_der_unique_constraint_entscheidet_die_eindeutigkeit(
     clean_identity: AsyncEngine,
 ) -> None:
-    """Die zweite Registrierung derselben Adresse wird von der Datenbank abgelehnt."""
     async with clean_identity.connect() as connection:
         await connection.begin()
         await _register(connection, _request())

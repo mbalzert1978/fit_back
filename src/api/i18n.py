@@ -14,7 +14,16 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import final
 
-__all__ = ["ResourcesCache", "create_resources", "get_language_from_header", "translate"]
+from fastapi import Request
+
+__all__ = [
+    "ResourcesCache",
+    "create_resources",
+    "get_language_from_header",
+    "language_of",
+    "resources_of",
+    "translate",
+]
 
 SUPPORTED_LANGUAGES = {"de-DE", "en-US"}
 DEFAULT_LANGUAGE = "de-DE"
@@ -75,14 +84,12 @@ class ResourcesCache:
         """Übersetze einen Code + Parameter zu Text."""
         template = self.get(language, code)
         if template is None:
-            # Fallback auf Default-Sprache
             template = self.get(DEFAULT_LANGUAGE, code)
         if template is None:
             # Sollte nie vorkommen, da beim Start geprüft
             msg = f"Code '{code}' not found in any language"
             raise AssertionError(msg)
 
-        # Benannte Platzhalter aus Parametern ausfüllen
         try:
             return template.format(**parameters)
         except KeyError as e:
@@ -93,9 +100,6 @@ class ResourcesCache:
 def create_resources() -> ResourcesCache:
     """Erstelle und validiere die Resource-Dateien beim Startup.
 
-    Diese Funktion wird von der Anwendung während der Initialisierung
-    aufgerufen, um sicherzustellen, dass alle Fehlercodes in allen Sprachen
-    definiert sind. Die Instanz wird in app.state.resources gespeichert.
     Wirft TypeError für malformed JSON, ValueError für fehlende Codes.
     """
     return ResourcesCache()
@@ -110,8 +114,7 @@ def translate(
     """Übersetze einen Code + Parameter zu Text in einer Sprache.
 
     Args:
-        resources: Die ResourcesCache-Instanz (aus request.app.state.resources,
-            garantiert im Lifespan)
+        resources: Die geladenen Sprachdateien.
         code: Der zu übersetzende Fehlercode (aus Fehler-Union, beim Start gegen
             Ressourcen geprüft)
         parameters: Optional dict mit Parametern für Template-Platzhalter
@@ -193,3 +196,30 @@ def get_language_from_header(accept_language: str | None) -> str:
         ),
         DEFAULT_LANGUAGE,
     )
+
+
+def language_of(request: Request) -> str:
+    """Die ausgehandelte Sprache dieser Anfrage.
+
+    Die eine Stelle, an der `Accept-Language` ausgewertet wird. Ohne
+    Zwischenspeicher - mehrfach gefragt kommt mehrfach dasselbe heraus.
+    """
+    return get_language_from_header(request.headers.get("accept-language"))
+
+
+def resources_of(request: Request) -> ResourcesCache:
+    """Die beim Start geladenen Ressourcen dieser Anwendung.
+
+    Vorbedingung: der Lifespan in `src/main.py` hat sie in `app.state.resources`
+    abgelegt. Fehlen sie, bricht der Aufruf **hier** ab statt weiter unten in
+    `translate`.
+    """
+    resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
+    if resources is None:
+        msg = (
+            "app.state.resources fehlt - die App lief ohne ihren Lifespan. Der Lifespan in "
+            "src/main.py legt sie ueber create_resources() an; ein Test, der seine App selbst "
+            "baut, setzt app.state.resources = create_resources()."
+        )
+        raise AssertionError(msg)
+    return resources

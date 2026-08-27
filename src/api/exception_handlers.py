@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic_core import ErrorDetails
 
-from src.api.i18n import ResourcesCache, get_language_from_header, translate
+from src.api.i18n import language_of, resources_of, translate
 from src.api.problem_details import translated_problem
 from src.api.request_validation_errors import (
     BodyNotAnObject,
@@ -45,9 +45,7 @@ HANDLED_PYDANTIC_ERROR_TYPES = frozenset(
         "value_error",
     }
 )
-"""Die Pydantic-Fehlertypen, die an diesem Handler ankommen koennen.
-
-Gemessen statt geschaetzt: `tests/api/test_pydantic_error_contract.py` haelt die Menge in
+"""Gemessen statt geschaetzt: `tests/api/test_pydantic_error_contract.py` haelt die Menge in
 beide Richtungen fest.
 """
 
@@ -91,8 +89,8 @@ async def validation_exception_handler(
     exc: RequestValidationError,
 ) -> JSONResponse:
     """Beantworte einen strukturellen Request-Fehler als RFC-7807-ProblemDetails."""
-    language = get_language_from_header(request.headers.get("accept-language"))
-    resources: ResourcesCache = request.app.state.resources
+    language = language_of(request)
+    resources = resources_of(request)
 
     errors_dict: dict[str, list[str]] = {}
     for error in exc.errors():
@@ -113,8 +111,6 @@ async def validation_exception_handler(
         # bestanden (RFC 9110 Abschnitt 15.5.21); der Pact nennt den Code ohne Matcher.
         status.HTTP_422_UNPROCESSABLE_CONTENT,
         "validation-failed",
-        resources,
-        language=language,
         errors=errors_dict or None,
     )
 

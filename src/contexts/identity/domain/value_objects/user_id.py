@@ -1,11 +1,11 @@
 """Value Object UserId - die validierte Identitaet der Aggregatwurzel User."""
 
-from dataclasses import dataclass
-from typing import Self, final
+from dataclasses import dataclass, field
+from typing import Final, Self, final
 from uuid import UUID, uuid7
 
 from src.contexts.identity.domain.user_id_errors import UserIdError, UserIdMalformed
-from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import ConstructionKey, Err, Ok, Result, deny_foreign_key
 from src.contexts.shared_kernel.validation import ParseRule
 
 __all__ = ["UserId"]
@@ -25,27 +25,35 @@ def is_well_formed_uuid(candidate: str) -> Result[UUID, UserIdError]:
 
 _RULE: ParseRule[str, UUID, UserIdError] = is_well_formed_uuid
 
+_KEY: Final = ConstructionKey()
+"""Der modul-private Schluessel - nur die drei Factories unten haben ihn."""
+
 
 @final
 @dataclass(frozen=True, slots=True)
 class UserId:
     """Identitaet eines Users als zeitsortierte UUIDv7.
 
-    Wird ausschliesslich ueber `generate`, `parse` oder `hydrate` erzeugt - nie
-    ueber den rohen Konstruktor ausserhalb dieses Moduls.
+    Wird ausschliesslich ueber `generate`, `parse` oder `hydrate` erzeugt - der
+    rohe Konstruktor weist jeden anderen Weg ab.
     """
 
     value: UUID
+    key: ConstructionKey = field(repr=False, compare=False, kw_only=True)
+
+    def __post_init__(self) -> None:
+        """Weise jeden Bau ab, der nicht durch eine der drei Factories ging."""
+        deny_foreign_key(self.key, _KEY)
 
     @classmethod
     def generate(cls) -> UserId:
         """Erzeuge eine neue, zeitsortierte Identitaet (UUIDv7)."""
-        return cls(uuid7())
+        return cls(uuid7(), key=_KEY)
 
     @classmethod
     def parse(cls, raw: str) -> Result[Self, UserIdError]:
         """Lies eine Identitaet aus einem moeglicherweise ungueltigen Rohwert."""
-        return _RULE(raw).map(cls)
+        return _RULE(raw).map(lambda checked: cls(checked, key=_KEY))
 
     @classmethod
     def hydrate(cls, raw: str) -> UserId:

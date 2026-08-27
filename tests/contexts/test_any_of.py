@@ -5,7 +5,6 @@ from src.contexts.shared_kernel.validation import any_of
 
 
 def test_first_matching_branch_wins_and_the_later_ones_do_not_run() -> None:
-    """Beleg: nach einem Treffer laeuft kein weiterer Zweig."""
     laeufe: list[str] = []
 
     def trifft(value: str) -> Result[str, str]:
@@ -21,8 +20,6 @@ def test_first_matching_branch_wins_and_the_later_ones_do_not_run() -> None:
 
 
 def test_the_winning_branch_hands_on_its_own_value() -> None:
-    """Beleg: ein Zweig darf normalisieren - weitergereicht wird sein Ergebnis."""
-
     def scheitert(_: str) -> Result[str, str]:
         return Err("erster")
 
@@ -33,8 +30,6 @@ def test_the_winning_branch_hands_on_its_own_value() -> None:
 
 
 def test_without_a_match_the_last_error_survives() -> None:
-    """Beleg: scheitern alle Zweige, traegt das Ergebnis den Fehler des letzten."""
-
     def erster(_: str) -> Result[str, str]:
         return Err("erster")
 
@@ -45,8 +40,6 @@ def test_without_a_match_the_last_error_survives() -> None:
 
 
 def test_a_single_branch_behaves_like_the_rule_itself() -> None:
-    """Beleg: ein Zweig allein ist zulaessig und aendert nichts."""
-
     def trifft(value: str) -> Result[str, str]:
         return Ok(value)
 

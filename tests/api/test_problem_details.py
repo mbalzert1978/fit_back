@@ -12,7 +12,6 @@ class TestProblemDetails:
     """Tests for RFC 7807 ProblemDetails model."""
 
     def test_problem_details_basic_structure(self) -> None:
-        """Test creating a basic ProblemDetails instance."""
         problem = ProblemDetails(
             type="https://api.example/errors/not-found",
             title="Not Found",
@@ -28,7 +27,6 @@ class TestProblemDetails:
         assert problem.errors is None
 
     def test_problem_details_with_validation_errors(self) -> None:
-        """Test ProblemDetails with field-level validation errors."""
         problem = ProblemDetails(
             type="https://api.example/errors/validation-failed",
             title="Validation Failed",
@@ -47,7 +45,6 @@ class TestProblemDetails:
         assert problem.errors["email"] == ["Invalid email format"]
 
     def test_problem_details_serialization(self) -> None:
-        """Test JSON serialization of ProblemDetails."""
         problem = ProblemDetails(
             type="https://api.example/errors/conflict",
             title="Conflict",
@@ -63,7 +60,6 @@ class TestProblemDetails:
         assert "errors" not in data or data["errors"] is None
 
     def test_problem_details_status_validation(self) -> None:
-        """Test that status must be 4xx or 5xx."""
         with pytest.raises(ValidationError):
             ProblemDetails(
                 type="https://api.example/errors/bad",
@@ -74,7 +70,6 @@ class TestProblemDetails:
             )
 
     def test_problem_details_exclude_none_in_json(self) -> None:
-        """Test that None errors field is excluded from JSON output."""
         problem = ProblemDetails(
             type="https://api.example/errors/server-error",
             title="Server Error",

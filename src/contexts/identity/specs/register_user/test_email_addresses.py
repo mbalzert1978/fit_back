@@ -97,6 +97,7 @@ def _request(email: str) -> RegisterUserRequest:
 @pytest.mark.parametrize(("address", "expected_accepted"), _CASES)
 async def test_nimmt_genau_die_spezifizierten_adressen_an(
     address: str,
+    *,
     expected_accepted: bool,
 ) -> None:
     result = await RegisterUserTestApi().run(_request(address))

@@ -16,30 +16,31 @@ echten Use Case herauskommen, belegen die Specs unter
 Regel: `.rules/python/python-error-handling.md`, "Jeder `match` ist vollstaendig".
 """
 
-from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
-from src.contexts.identity.application.register_user.errors import request_invalid
+from datetime import UTC, datetime
+
+import pytest
+
 from src.contexts.identity.application.register_user.abstractions import IssuedSession
-from src.contexts.identity.application.register_user.fakes import PassthroughIdnLabels
-from src.contexts.identity.application.register_user.registration import Registration
+from src.contexts.identity.application.register_user.adapters import (
+    IdnEncoderAdapter,
+    PasswordHasherAdapter,
+)
+from src.contexts.identity.application.register_user.errors import request_invalid
+from src.contexts.identity.application.register_user.fakes import (
+    DeterministicPasswordHasher,
+    PassthroughIdnLabels,
+)
 from src.contexts.identity.application.register_user.mappers.register_user_response_mapper import (
     to_response,
 )
+from src.contexts.identity.application.register_user.registration import Registration
 from src.contexts.identity.application.register_user.response import (
     EmailAlreadyTaken,
     RegistrationAccepted,
     RegistrationInvalid,
 )
-from src.contexts.identity.domain import (
-    DisplayName,
-    Email,
-    EmailAlreadyRegistered,
-    PasswordHash,
-    UserId,
-    UserTimeZone,
-    hydrate_locale,
-    register,
-)
-from src.contexts.shared_kernel import Err, Ok, Timestamp
+from src.contexts.identity.domain import Email, EmailAlreadyRegistered, User, UserFactory
+from src.contexts.shared_kernel import Err, FakeTimeProvider, Ok
 from src.contexts.shared_kernel.validation import FieldError
 
 REGISTRIERT_AM = 1798221600
@@ -50,17 +51,37 @@ def _email(raw: str) -> Email:
     return Email.hydrate(raw, IdnEncoderAdapter(PassthroughIdnLabels()))
 
 
-def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
-    """Der Erfolgsfall traegt Stammdaten und Sitzung als Primitive nach aussen."""
-    user = register(
-        user_id=UserId.generate(),
-        email=_email("markus@example.de"),
-        password_hash=PasswordHash.hydrate("argon2id$…"),
-        display_name=DisplayName.hydrate("Markus"),
-        time_zone=UserTimeZone.hydrate("Europe/Berlin"),
-        locale=hydrate_locale("de"),
-        registered_at=Timestamp(REGISTRIERT_AM),
+async def _user() -> User:
+    """Baue die Wurzel ueber denselben Weg wie die Produktion - `User.create`.
+
+    Seit die Wurzel ihre Value Objects selbst baut, gibt es keinen zweiten Weg zu
+    einem `User` mehr. Der Test nimmt deshalb dieselben Fakes wie die Specs; die
+    Uhr steht fest, damit `registered_at` pruefbar bleibt.
+    """
+    fabrik = UserFactory(
+        idn=IdnEncoderAdapter(PassthroughIdnLabels()),
+        hasher=PasswordHasherAdapter(DeterministicPasswordHasher()),
+        clock=FakeTimeProvider(datetime.fromtimestamp(REGISTRIERT_AM, UTC)),
     )
+    erzeugt = await fabrik.create(
+        email="markus@example.de",
+        password="geheim-genug-fuer-alle",
+        display_name="Markus",
+        locale="de",
+        time_zone="Europe/Berlin",
+    )
+    match erzeugt:
+        case Ok(value=user):
+            return user
+        case Err(error=rejected):
+            msg = f"unreachable: gueltige Eingabe wurde abgelehnt - {rejected}"
+            raise AssertionError(msg)
+
+
+@pytest.mark.asyncio
+async def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
+    """Der Erfolgsfall traegt Stammdaten und Sitzung als Primitive nach aussen."""
+    user = await _user()
 
     session = IssuedSession(
         access_token="ein-access-token",

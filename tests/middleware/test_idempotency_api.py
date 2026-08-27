@@ -7,8 +7,8 @@ jetzt gegen die Testcontainers-Engine, dieselbe, die auch die Slices benutzen.
 """
 
 import json
-from collections.abc import AsyncGenerator
-from uuid import UUID, uuid4
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from uuid import UUID, uuid7
 
 import pytest
 import pytest_asyncio
@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
+from starlette.types import ASGIApp
 
 from src.api.exception_handlers import register_exception_handlers
 from src.api.i18n import create_resources
@@ -31,7 +32,7 @@ from src.middleware.idempotency import (
     calculate_request_hash,
 )
 from src.middleware.response_envelope import ResponseEnvelopeMiddleware
-from src.settings import Settings, get_settings
+from src.settings import DEFAULT_API_VERSION, Settings, get_settings
 
 pytestmark = pytest.mark.asyncio
 
@@ -39,13 +40,15 @@ pytestmark = pytest.mark.asyncio
 class _StubAuthMiddleware(BaseHTTPMiddleware):
     """Setzt eine feste `user_id` - die Idempotenz haengt an ihr."""
 
-    def __init__(self, app: object, user_id: UUID) -> None:
-        super().__init__(app)  # type: ignore[arg-type]
+    def __init__(self, app: ASGIApp, user_id: UUID) -> None:
+        super().__init__(app)
         self._user_id = user_id
 
-    async def dispatch(self, request: Request, call_next: object) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         request.state.user_id = self._user_id
-        return await call_next(request)  # type: ignore[operator]
+        return await call_next(request)
 
 
 def _build_app(engine: AsyncEngine, user_id: UUID | None) -> FastAPI:
@@ -63,7 +66,7 @@ def _build_app(engine: AsyncEngine, user_id: UUID | None) -> FastAPI:
 
     @app.post("/api/v1/test-idempotency")
     async def create() -> JSONResponse:
-        return JSONResponse(status_code=201, content={"id": str(uuid4()), "data": "angelegt"})
+        return JSONResponse(status_code=201, content={"id": str(uuid7()), "data": "angelegt"})
 
     @app.put("/api/v1/test-idempotency")
     async def update() -> JSONResponse:
@@ -93,7 +96,8 @@ def _build_app(engine: AsyncEngine, user_id: UUID | None) -> FastAPI:
 
     @app.post("/api/v1/kaputt")
     async def kaputt() -> JSONResponse:
-        raise RuntimeError("etwas ging schief")
+        msg = "etwas ging schief"
+        raise RuntimeError(msg)
 
     app.add_middleware(IdempotencyKeyMiddleware, time_provider=FakeTimeProvider())
     if user_id is not None:
@@ -120,8 +124,8 @@ async def test_zweiter_aufruf_liefert_die_gespeicherte_antwort(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
     """Der Kern des Tickets: gleicher Schluessel, gleiche Antwort - Statuscode inbegriffen."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    key = str(uuid7())
 
     async with await _client(app) as client:
         first = await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
@@ -136,9 +140,9 @@ async def test_der_eintrag_traegt_alle_geforderten_felder(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
     """`shared_kernel.idempotency_keys` bekommt Schluessel, Nutzer, Hash, Body und Zeitpunkt."""
-    user_id = uuid4()
+    user_id = uuid7()
     app = _build_app(clean_idempotency_keys, user_id=user_id)
-    key = uuid4()
+    key = uuid7()
 
     async with await _client(app) as client:
         await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": str(key)})
@@ -164,15 +168,14 @@ async def test_der_eintrag_traegt_alle_geforderten_felder(
 async def test_verschiedene_schluessel_stoeren_sich_nicht(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Zwei Schluessel, zwei Vorgaenge - kein Treffer im Zwischenspeicher."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
 
     async with await _client(app) as client:
         first = await client.post(
-            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid4())}
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid7())}
         )
         second = await client.post(
-            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid4())}
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid7())}
         )
 
     assert (first.status_code, second.status_code) == (201, 201)
@@ -182,8 +185,7 @@ async def test_verschiedene_schluessel_stoeren_sich_nicht(
 async def test_ohne_schluessel_geht_die_anfrage_durch(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Ohne Header greift die Middleware nicht ein."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
 
     async with await _client(app) as client:
         response = await client.post("/api/v1/test-idempotency")
@@ -200,7 +202,7 @@ async def test_ohne_angemeldeten_nutzer_greift_der_schluessel_trotzdem(
     gerade dort: zweimal abgeschickt entstuende sonst ein zweites Konto (#95).
     """
     app = _build_app(clean_idempotency_keys, user_id=None)
-    key = str(uuid4())
+    key = str(uuid7())
 
     async with await _client(app) as client:
         first = await client.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
@@ -221,8 +223,7 @@ async def test_ohne_angemeldeten_nutzer_greift_der_schluessel_trotzdem(
 async def test_ungueltige_uuid_im_header_geht_durch(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Ein unlesbarer Schluessel bricht die Anfrage nicht ab."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
 
     async with await _client(app) as client:
         response = await client.post(
@@ -234,11 +235,11 @@ async def test_ungueltige_uuid_im_header_geht_durch(
 
 async def test_get_wird_nicht_behandelt(clean_idempotency_keys: AsyncEngine) -> None:
     """Nur POST und PUT sind idempotenzpflichtig."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
 
     async with await _client(app) as client:
         response = await client.get(
-            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid4())}
+            "/api/v1/test-idempotency", headers={"Idempotency-Key": str(uuid7())}
         )
 
     assert response.status_code == 200
@@ -253,8 +254,8 @@ async def test_derselbe_schluessel_mit_anderem_body_wird_abgelehnt(
     seiner ERSTEN Anfrage und hielte seinen zweiten, voellig anderen Vorgang
     fuer erledigt.
     """
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    key = str(uuid7())
 
     async with await _client(app) as client:
         first = await client.post(
@@ -279,11 +280,11 @@ async def test_der_schluessel_eines_anderen_nutzers_ist_belegt(
     unterscheidbar, liesse sich damit die Schluesselvergabe fremder Nutzer
     abtasten.
     """
-    key = str(uuid4())
-    async with await _client(_build_app(clean_idempotency_keys, user_id=uuid4())) as erster:
+    key = str(uuid7())
+    async with await _client(_build_app(clean_idempotency_keys, user_id=uuid7())) as erster:
         await erster.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
 
-    async with await _client(_build_app(clean_idempotency_keys, user_id=uuid4())) as zweiter:
+    async with await _client(_build_app(clean_idempotency_keys, user_id=uuid7())) as zweiter:
         response = await zweiter.post("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
 
     assert response.status_code == 409
@@ -299,8 +300,8 @@ async def test_eine_laufende_anfrage_blockt_den_zweiten_versuch(
     Reservierung ohne Antwort ist genau das, was eine noch laufende Anfrage
     hinterlaesst.
     """
-    user_id = uuid4()
-    key = uuid4()
+    user_id = uuid7()
+    key = uuid7()
     app = _build_app(clean_idempotency_keys, user_id=user_id)
 
     async with await _client(app) as client:
@@ -331,8 +332,8 @@ async def test_eine_abgelehnte_anfrage_gibt_den_schluessel_frei(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
     """Ein 400 hinterlaesst nichts Wiederholbares - der Schluessel darf nicht blockiert bleiben."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    key = str(uuid7())
 
     async with await _client(app) as client:
         first = await client.post("/api/v1/abgelehnt", headers={"Idempotency-Key": key})
@@ -349,9 +350,8 @@ async def test_eine_abgelehnte_anfrage_gibt_den_schluessel_frei(
 async def test_eine_gescheiterte_anfrage_gibt_den_schluessel_frei(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Auch eine geworfene Ausnahme darf den Schluessel nicht dauerhaft verbrennen."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    key = str(uuid7())
 
     async with await _client(app) as client:
         with pytest.raises(RuntimeError):
@@ -367,9 +367,8 @@ async def test_eine_gescheiterte_anfrage_gibt_den_schluessel_frei(
 async def test_put_wird_ebenfalls_zwischengespeichert(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """PUT faellt unter dieselbe Regel wie POST."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    key = str(uuid7())
 
     async with await _client(app) as client:
         await client.put("/api/v1/test-idempotency", headers={"Idempotency-Key": key})
@@ -392,8 +391,8 @@ async def test_der_wiederverwendete_schluessel_nennt_die_sprache_der_antwort(
     nicht erkennen, in welcher Sprache er vorliegt, und ein Cache lieferte die
     englische Antwort spaeter an einen deutschen Aufrufer aus.
     """
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    key = str(uuid7())
 
     async with await _client(app) as client:
         await client.post(
@@ -414,8 +413,8 @@ async def test_die_laufende_anfrage_nennt_die_sprache_der_antwort(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
     """Dasselbe fuer die 409 - beide Ausgaenge gehen durch dieselbe `_problem`."""
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    key = str(uuid7())
 
     async with clean_idempotency_keys.begin() as connection:
         await connection.execute(
@@ -426,7 +425,7 @@ async def test_die_laufende_anfrage_nennt_die_sprache_der_antwort(
             ),
             {
                 "key": key,
-                "user_id": str(uuid4()),
+                "user_id": str(uuid7()),
                 "hash": calculate_request_hash("POST", "/api/v1/test-idempotency", ""),
             },
         )
@@ -450,8 +449,8 @@ async def test_der_replay_traegt_die_vertragsrelevanten_kopfzeilen(
     fuer den Zeitpunkt von damals, `Content-Length` fuer den Rumpf von damals.
     Wiederholt waeren sie eine Aussage ueber eine Antwort, die es nicht mehr gibt.
     """
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    key = str(uuid7())
 
     async with await _client(app) as client:
         first = await client.post("/api/v1/mit-kopfzeilen", headers={"Idempotency-Key": key})
@@ -479,8 +478,8 @@ async def test_eine_zeile_ohne_aufgezeichneten_status_bleibt_bei_200(
     Sie sollen den Replay nicht zum Absturz bringen, sondern ihn auf sein altes
     Verhalten zurueckfallen lassen: 200 und keine Kopfzeilen.
     """
-    user_id = uuid4()
-    key = uuid4()
+    user_id = uuid7()
+    key = uuid7()
     app = _build_app(clean_idempotency_keys, user_id=user_id)
 
     async with clean_idempotency_keys.begin() as connection:
@@ -518,9 +517,13 @@ async def test_der_umschlag_entsteht_beim_replay_nicht_doppelt(
     stuende der Umschlag von gestern im `data` von heute - samt der `requestId`
     einer Anfrage, die laengst vorbei ist.
     """
-    app = _build_app(clean_idempotency_keys, user_id=uuid4())
-    app.add_middleware(ResponseEnvelopeMiddleware, time_provider=FakeTimeProvider())
-    key = str(uuid4())
+    app = _build_app(clean_idempotency_keys, user_id=uuid7())
+    app.add_middleware(
+        ResponseEnvelopeMiddleware,
+        time_provider=FakeTimeProvider(),
+        api_version=DEFAULT_API_VERSION,
+    )
+    key = str(uuid7())
 
     async with await _client(app) as client:
         first = await client.post("/api/v1/mit-kopfzeilen", headers={"Idempotency-Key": key})
@@ -555,7 +558,11 @@ async def register_client(
     )
     # Reihenfolge wie in `src/main.py`: der Umschlag liegt ausserhalb der Idempotenz.
     app.add_middleware(IdempotencyKeyMiddleware, time_provider=FakeTimeProvider())
-    app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
+    app.add_middleware(
+        ResponseEnvelopeMiddleware,
+        time_provider=SystemTimeProvider(),
+        api_version=DEFAULT_API_VERSION,
+    )
     register_exception_handlers(app)
     app.include_router(register_user_router)
     app.state.engine = clean_idempotency_keys
@@ -577,7 +584,7 @@ async def test_die_wiederholte_registrierung_antwortet_wie_der_erstaufruf(
     Sinn eines Idempotency-Keys - der Aufrufer, dem die erste Antwort verloren
     ging, darf nicht an der Antwort erkennen, dass er der zweite war.
     """
-    key = str(uuid4())
+    key = str(uuid7())
     body = {
         "email": "markus@example.de",
         "password": "ein-langes-passwort",

@@ -7,12 +7,13 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from src.api.i18n import ResourcesCache, translate
+from src.api.i18n import language_of, resources_of, translate
 
 __all__ = [
     "PROBLEM_JSON_MEDIA_TYPE",
     "PROBLEM_TYPE_PREFIX",
     "ProblemDetails",
+    "ProblemResponse",
     "problem",
     "problem_type",
     "translated_problem",
@@ -98,6 +99,27 @@ class ProblemDetails(BaseModel):
     }
 
 
+@final
+class ProblemResponse(JSONResponse):
+    """Die HTTP-Antwort, die einen `ProblemDetails`-Koerper traegt.
+
+    Eine eigene Klasse und kein `JSONResponse` mit `media_type=`-Argument: der
+    Media-Type gehoert zur Form und nicht zur Aufrufstelle. Damit steht in der
+    Signatur eines Endpunkts, **welche** Antwort er im Fehlerfall liefert,
+    statt nur "irgendein JSON".
+
+    Warum ueberhaupt eine Response und nicht das nackte `ProblemDetails`-Modell:
+    FastAPI nimmt den Media-Type aus der `response_class` der **Route** und
+    nicht aus dem einzelnen Rueckgabewert (`fastapi/routing.py`, Zweig fuer
+    Nicht-Response-Rueckgaben). Ein zurueckgegebenes Modell traege deshalb
+    `application/json` - und damit nicht mehr, was RFC 7807 und der Vertrag des
+    Frontends verlangen (`contracts/pacts/identity/`). Die `response_class` der
+    Route umzustellen scheidet aus: sie gilt auch fuer die 201.
+    """
+
+    media_type = PROBLEM_JSON_MEDIA_TYPE
+
+
 def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, status, type, and text
     request: Request,
     http_status: int,
@@ -107,7 +129,7 @@ def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, st
     errors: dict[str, list[str]] | None = None,
     *,
     language_tag: str,
-) -> JSONResponse:
+) -> ProblemResponse:
     """Baue eine RFC-7807-Antwort im Format des Shared Kernel.
 
     `language_tag` hat bewusst **keinen** Vorgabewert: `title` und `detail` sind
@@ -124,10 +146,9 @@ def problem(  # noqa: PLR0913, PLR0917 -- API response builder needs context, st
         instance=str(request.url.path),
         errors=errors,
     )
-    response = JSONResponse(
+    response = ProblemResponse(
         status_code=http_status,
         content=details.model_dump(exclude_none=True),
-        media_type=PROBLEM_JSON_MEDIA_TYPE,
     )
     response.headers["Content-Language"] = language_tag
     # Die Umschlag-Middleware setzt denselben Header, aber nur auf 2xx -
@@ -147,24 +168,22 @@ def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
     request: Request,
     http_status: int,
     slug: str,
-    resources: ResourcesCache,
     *,
-    language: str,
     resource_key: str | None = None,
     parameters: Mapping[str, object] | None = None,
     errors: dict[str, list[str]] | None = None,
-) -> JSONResponse:
+) -> ProblemResponse:
     """Baue eine RFC-7807-Antwort samt ihren beiden Uebersetzungen.
 
-    Die eine Stelle, an der eine Fehlerantwort dieser API **entsteht**. Vorher
-    standen an jeder Aufrufstelle zwei `translate`-Aufrufe unmittelbar vor
-    `problem()`, und `(slug, title, detail, language_tag)` reisten ueberall
-    zusammen - vier Werte, von denen drei aus dem ersten folgen. Hier folgen sie
-    wirklich aus ihm: `title` steht unter `<resource_key>`, `detail` unter
-    `<resource_key>-detail`.
+    Die eine Stelle, an der eine Fehlerantwort dieser API **entsteht**: `title`
+    steht unter `<resource_key>`, `detail` unter `<resource_key>-detail`.
 
     `resource_key` faellt auf `slug` zurueck, weil beide fast ueberall
-    deckungsgleich sind. Wo sie es nicht sind, wird der Schluessel genannt statt
+    deckungsgleich sind. Der Rueckfall ist ein `or` und kein `is not None`: ein
+    leerer Schluessel ist kein Schluessel, sondern derselbe Fall wie gar keiner -
+    er wuerde sonst als `""` in die Ressourcen gehen und dort scheitern.
+
+    Wo Slug und Schluessel auseinandergehen, wird der Schluessel genannt statt
     die Ressource umbenannt: der Slug steht im Fehlertyp und damit im Vertrag des
     Frontends (`contracts/pacts/identity/`), der Ressourcenschluessel nicht -
     eine Angleichung waere entweder ein Vertragsbruch oder eine Migration der
@@ -174,13 +193,19 @@ def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
     `parameters` fuellt die Platzhalter beider Vorlagen; ein Titel ohne
     Platzhalter ignoriert sie.
 
-    Zum `noqa`: die Signatur zaehlt acht Argumente, `PLR0913` erlaubt fuenf.
-    Weniger sind es nicht - Anfrage, Status, Slug, Ressourcen und Sprache sind
-    allesamt Pflicht, und `resource_key`, `parameters` und `errors` decken je
-    eine Aufrufstelle ab, die es ohne sie nicht gibt. Nur `positional` ist es
-    gedeckelt: nach dem vierten Argument ist Schluss, `PLR0917` greift nicht.
+    Sprache und Ressourcen kommen aus der **Anfrage** und nicht als Argumente
+    herein: beide folgen aus ihr (`language_of`, `resources_of` in
+    `src/api/i18n.py`).
+
+    Zum `noqa`: die Signatur zaehlt sechs Argumente, `PLR0913` erlaubt fuenf.
+    Weniger sind es nicht - Anfrage, Status und Slug sind Pflicht, und
+    `resource_key`, `parameters` und `errors` decken je eine Aufrufstelle ab,
+    die es ohne sie nicht gibt. Nur `positional` ist es gedeckelt: nach dem
+    dritten Argument ist Schluss, `PLR0917` greift nicht.
     """
-    key = resource_key if resource_key is not None else slug
+    key = resource_key or slug
+    language = language_of(request)
+    resources = resources_of(request)
     return problem(
         request,
         http_status,

@@ -28,7 +28,7 @@ from src.contexts.shared_kernel import Err, Ok
 )
 def test_a_known_form_is_accepted_and_normalized(raw: str, erwartet: str) -> None:
     """Beleg: beide Formen gehen durch, der Versatz in genau einer Schreibweise."""
-    assert UserTimeZone.parse(raw) == Ok(UserTimeZone(erwartet))
+    assert UserTimeZone.parse(raw) == Ok(UserTimeZone.hydrate(erwartet))
 
 
 @pytest.mark.parametrize("raw", ["UTCGMT+01:00", "+25:00", "Europe/Nirgendwo", "GMTGMT+01:00"])

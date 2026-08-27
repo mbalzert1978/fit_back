@@ -226,7 +226,6 @@ async def test_email_error_codes_und_parameter_sind_in_der_response() -> None:
     assert "email" in result.errors
     email_errors = result.errors["email"]
     assert len(email_errors) >= 1
-    # Jeden Email-Error-Code verifizieren
     codes_found = {code for code, _ in email_errors}
     assert codes_found >= {"email-needs-exactly-one-at-sign"}
 

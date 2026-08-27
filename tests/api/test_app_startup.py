@@ -17,7 +17,7 @@ wenn der Lifespan wirklich laeuft. Deshalb faehrt dieser Test ihn ueber das rohe
 ASGI-Protokoll - genau dieser Aufruf ist es, der die Middleware-Kette baut.
 """
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, MutableMapping
 from typing import Any
 
 import pytest
@@ -34,7 +34,7 @@ def test_der_einstiegspunkt_laesst_sich_importieren() -> None:
     Import - sonst waere jedes Werkzeug, das das Modul nur laden will, an eine
     vollstaendige Umgebung gebunden.
     """
-    from src import main
+    from src import main  # noqa: PLC0415 -- der Import selbst ist die Zusicherung
 
     assert main.app.title == "Fit-back API"
 
@@ -46,23 +46,23 @@ def test_die_anwendung_kennt_ihre_endpunkte(path: str) -> None:
     FastAPI haengt eingebundene Router als Referenz ein, statt ihre Routen
     flachzuziehen; das Schema ist die verlaessliche Aufzaehlung.
     """
-    from src import main
+    from src import main  # noqa: PLC0415 -- im Modulkopf entwertete er den Import-Test oben
 
     assert path in main.app.openapi()["paths"]
 
 
-async def _run_lifespan(app: FastAPI, message: str) -> dict[str, Any]:
-    """Schicke eine Lifespan-Nachricht durch die App und gib deren Antwort zurueck.
+async def _run_lifespan(app: FastAPI, message: str) -> MutableMapping[str, Any]:
+    """Fahre den Lifespan ueber das rohe ASGI-Protokoll.
 
-    Bewusst das rohe ASGI-Protokoll statt eines Test-Clients: nur dieser Weg
-    baut die Middleware-Kette so auf, wie uvicorn es tut.
+    Bewusst kein Test-Client: nur dieser Weg baut die Middleware-Kette so auf,
+    wie uvicorn es tut.
     """
-    answers: list[dict[str, Any]] = []
+    answers: list[MutableMapping[str, Any]] = []
 
-    async def receive() -> dict[str, Any]:
+    async def receive() -> MutableMapping[str, Any]:
         return {"type": message}
 
-    async def send(event: dict[str, Any]) -> None:
+    async def send(event: MutableMapping[str, Any]) -> None:
         answers.append(event)
 
     await app({"type": "lifespan", "asgi": {"version": "3.0"}}, receive, send)
@@ -81,7 +81,7 @@ async def gestartete_app(
     monkeypatch.setenv("DB_PASSWORD", "test")
     monkeypatch.setenv("JWT_SECRET", "test-geheimnis-mit-mindestens-32-zeichen")
 
-    from src import main
+    from src import main  # noqa: PLC0415 -- nach den Umgebungsvariablen, nicht im Modulkopf
 
     startup = await _run_lifespan(main.app, "lifespan.startup")
     assert startup["type"] == "lifespan.startup.complete", startup.get("message")

@@ -4,11 +4,6 @@ Verbindlich seit `docs/decisions/2026-08-06-1340-unix-epoch-statt-datetime.md`:
 ein Zeitpunkt ist ueberall in Domaene und Persistenz ein `int` Unix-Sekunden,
 gewrappt in dieses Value Object - nie ein rohes `datetime`
 (.rules/python/python-data-access.md, "Zeitpunkte als Unix-Sekunden-Value-Object").
-
-Der Grund ist Speichernaehe: ein `int` verhaelt sich in jeder Engine gleich -
-PostgreSQL `bigint`, SQLite `INTEGER` - und kennt weder Zeitzonen- noch
-Serialisierungs-Mehrdeutigkeit. Die Umrechnung nach `datetime` passiert nur am
-Rand, wenn eine Anzeige oder ein ISO-8601-Transportwert noetig ist.
 """
 
 from dataclasses import dataclass

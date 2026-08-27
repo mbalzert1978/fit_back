@@ -1,15 +1,7 @@
-"""Internes Command des Use Case RegisterUser - fertig geparste Value Objects."""
+"""Internes Command des Use Case RegisterUser - die Rohwerte des Vertrags, ohne DTO."""
 
 from dataclasses import dataclass, field
 from typing import final
-
-from src.contexts.identity.domain import (
-    DisplayName,
-    Email,
-    Locale,
-    Password,
-    UserTimeZone,
-)
 
 __all__ = ["RegisterUserCommand"]
 
@@ -17,15 +9,14 @@ __all__ = ["RegisterUserCommand"]
 @final
 @dataclass(frozen=True, slots=True)
 class RegisterUserCommand:
-    """Was der Handler braucht - kein Primitiv mehr, kein DTO.
+    """Was der Handler braucht - kein DTO mehr, und noch kein Value Object.
 
-    Die Konstruktion ist infallibel: die Collect-all-Validierung ist eine Ebene
-    hoeher bereits gelaufen, also braucht das Command keinen eigenen Fehlerkanal
-    (.rules/python/python-rule-pattern.md).
+    Die Konstruktion prueft nichts. Geprueft wird ausschliesslich in
+    `User.create` (docs/decisions/2026-08-26-2330-die-wurzel-sammelt-ihre-befunde-selbst.md).
     """
 
-    email: Email
-    password: Password = field(repr=False)
-    display_name: DisplayName
-    locale: Locale
-    time_zone: UserTimeZone
+    email: str
+    password: str = field(repr=False)
+    display_name: str
+    locale: str
+    time_zone: str

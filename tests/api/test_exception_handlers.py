@@ -44,11 +44,12 @@ class TestValidationErrorHandler:
             @classmethod
             def password_min_length(cls, v: str) -> str:
                 if len(v) < 10:
-                    raise ValueError("Must be at least 10 characters")
+                    msg = "Must be at least 10 characters"
+                    raise ValueError(msg)
                 return v
 
         @app.post("/api/v1/register")
-        async def register(data: RegisterRequest) -> dict:
+        async def register(_data: RegisterRequest) -> dict:
             return {"success": True}
 
         transport = ASGITransport(app=app)
@@ -67,7 +68,6 @@ class TestValidationErrorHandler:
         assert data["errors"]
 
     def test_der_handler_ist_registriert(self) -> None:
-        """`register_exception_handlers` haengt den Handler tatsaechlich an die App."""
         app = FastAPI()
         register_exception_handlers(app)
 

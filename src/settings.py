@@ -7,15 +7,31 @@ from typing import final
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import URL
 
-__all__ = ["JWT_SECRET_MINIMUM_LENGTH", "Settings", "get_settings"]
+__all__ = [
+    "DEFAULT_API_VERSION",
+    "JWT_SECRET_MINIMUM_LENGTH",
+    "Settings",
+    "get_api_version",
+    "get_settings",
+]
 
 JWT_SECRET_MINIMUM_LENGTH = 32
 """RFC 7518 Abschnitt 3.2: der HMAC-Schluessel ist mindestens so lang wie der Hash."""
+
+DEFAULT_API_VERSION = "1"
+"""Die Version dieser API, wenn die Umgebung keine nennt - dieselbe wie im Pfadpraefix `/api/v1`."""
 
 
 @final
 class Settings(BaseModel):
     """Die Einstellungen der Anwendung, samt Pruefung ihrer Werte."""
+
+    api_version: str = Field(default=DEFAULT_API_VERSION, min_length=1)
+    """Was `meta.apiVersion` und `info.version` nennen.
+
+    Wer sie verstellt, verstellt das Pfadpraefix der Router mit - sonst nennt die
+    Antwort eine andere Version als der Pfad, unter dem sie kam.
+    """
 
     db_host: str = Field(default="localhost")
     db_port: int = Field(default=5432, ge=1, le=65535)
@@ -60,6 +76,19 @@ def _required_from_environment(name: str) -> str:
 
 
 @lru_cache(maxsize=1)
+def get_api_version() -> str:
+    """Die Version dieser API - allein aus `API_VERSION`, ohne den Rest der Konfiguration.
+
+    Eigener Weg herein und nicht ueber `get_settings`: der Einstiegspunkt
+    verdrahtet Middleware und OpenAPI-Nachtrag beim **Import**, und dort darf
+    noch keine vollstaendige Umgebung noetig sein
+    (`tests/api/test_app_startup.py`). Diese eine Angabe hat als einzige einen
+    Default und braucht deshalb keinen.
+    """
+    return os.getenv("API_VERSION", DEFAULT_API_VERSION)
+
+
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Die eine Konfiguration des Prozesses - gelesen und geprueft beim ersten Aufruf.
 
@@ -68,6 +97,7 @@ def get_settings() -> Settings:
     """
     try:
         return Settings(
+            api_version=get_api_version(),
             db_host=os.getenv("DB_HOST", "localhost"),
             db_port=int(os.getenv("DB_PORT", "5432")),
             db_name=os.getenv("DB_NAME", "fit_back"),

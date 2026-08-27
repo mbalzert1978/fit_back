@@ -10,10 +10,10 @@ Testtabelle in `contexts/identity/specs/domain/test_email.py` prueft sie Fall
 fuer Fall.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from ipaddress import ip_address
-from typing import Self, final
+from typing import Final, Self, final
 
 from src.contexts.identity.domain.email_errors import (
     EmailAddressLiteralInvalid,
@@ -33,7 +33,7 @@ from src.contexts.identity.domain.email_errors import (
     EmailNeedsExactlyOneAtSign,
 )
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
-from src.contexts.shared_kernel import Err, Ok, Result
+from src.contexts.shared_kernel import ConstructionKey, Err, Ok, Result, deny_foreign_key
 from src.contexts.shared_kernel.validation import ResultRule, chain
 
 __all__ = ["MAX_DOMAIN_LENGTH", "MAX_LABEL_LENGTH", "MAX_LOCAL_LENGTH", "Email"]
@@ -246,6 +246,9 @@ _RULES: ResultRule[str, EmailError] = chain(
     domain_fits_length,
 )
 
+_KEY: Final = ConstructionKey()
+"""Der modul-private Schluessel - nur `parse` und `hydrate` unten haben ihn."""
+
 
 @final
 @dataclass(frozen=True, slots=True)
@@ -257,6 +260,16 @@ class Email:
     """
 
     value: str
+    key: ConstructionKey = field(repr=False, compare=False, kw_only=True)
+
+    def __post_init__(self) -> None:
+        """Weise jeden Bau ab, der nicht durch `parse` oder `hydrate` ging.
+
+        Geprueft wird der **Weg**, nicht der Wert: `domain_is_valid` braucht den
+        IDN-Port, und ein `__post_init__` bekommt ihn nicht
+        (docs/decisions/2026-08-26-2030-die-wurzel-haelt-ihre-invarianten-selbst.md).
+        """
+        deny_foreign_key(self.key, _KEY)
 
     @classmethod
     def parse(cls, raw: str, idn: IdnEncoder) -> Result[Self, EmailError]:
@@ -265,7 +278,11 @@ class Email:
         `domain_is_valid` steht nicht in `_RULES`, weil sie als einzige den
         IDN-Port braucht - `bind` gibt ihr dieselbe Fail-fast-Semantik.
         """
-        return _RULES(raw).bind(lambda checked: domain_is_valid(checked, idn)).map(cls)
+        return (
+            _RULES(raw)
+            .bind(lambda checked: domain_is_valid(checked, idn))
+            .map(lambda checked: cls(checked, key=_KEY))
+        )
 
     @classmethod
     def hydrate(cls, raw: str, idn: IdnEncoder) -> Email:

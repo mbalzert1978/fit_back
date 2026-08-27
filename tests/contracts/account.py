@@ -41,10 +41,11 @@ class Account:
         self._password = password
 
     async def create(self) -> None:
-        """Deliberately does **not** clean up first: a taken address is meant to
-        hit `uq_users_email`. A setup that clears its own way would hide a
-        failed teardown - and with it the case where two interactions of the
-        same state interfere with each other.
+        """Deliberately does **not** clean up first.
+
+        A taken address is meant to hit `uq_users_email`. A setup that clears
+        its own way would hide a failed teardown - and with it the case where
+        two interactions of the same state interfere with each other.
         """
         password_hash = await Argon2PasswordHasher().hash_password(self._password)
         async with self._engine.begin() as connection:

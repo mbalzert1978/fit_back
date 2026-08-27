@@ -12,7 +12,13 @@ um jeden Test herum.
 
 import pytest
 
-from src.settings import JWT_SECRET_MINIMUM_LENGTH, Settings, get_settings
+from src.settings import (
+    DEFAULT_API_VERSION,
+    JWT_SECRET_MINIMUM_LENGTH,
+    Settings,
+    get_api_version,
+    get_settings,
+)
 
 GUELTIGES_GEHEIMNIS = "g" * JWT_SECRET_MINIMUM_LENGTH
 """Ein Signaturgeheimnis, das lang genug ist - die Tests hier pruefen anderes."""
@@ -111,6 +117,31 @@ def test_die_werte_kommen_aus_der_umgebung(monkeypatch: pytest.MonkeyPatch) -> N
     assert settings.db_user == "eigener_nutzer"
 
 
+def test_die_api_version_kommt_aus_der_umgebung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ohne `API_VERSION` gilt der Default, mit ihr gewinnt sie."""
+    monkeypatch.delenv("API_VERSION", raising=False)
+    assert get_api_version() == DEFAULT_API_VERSION
+
+    get_api_version.cache_clear()
+    monkeypatch.setenv("API_VERSION", "7")
+
+    assert get_api_version() == "7"
+
+
+def test_die_api_version_braucht_keine_vollstaendige_umgebung(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Der Einstiegspunkt liest sie beim Import - da gibt es noch kein DB-Passwort.
+
+    Deshalb hat sie einen eigenen Weg herein und laeuft nicht ueber
+    `get_settings`, das ohne `DB_PASSWORD` und `JWT_SECRET` scheitert.
+    """
+    monkeypatch.delenv("DB_PASSWORD", raising=False)
+    monkeypatch.delenv("JWT_SECRET", raising=False)
+
+    assert get_api_version() == DEFAULT_API_VERSION
+
+
 def test_die_url_faehrt_asyncpg_ueber_sqlalchemy() -> None:
     """Ein Weg zur Datenbank - der Dialekt entscheidet, welcher Treiber das ist."""
     settings = Settings(
@@ -155,7 +186,7 @@ def test_sonderzeichen_im_passwort_verschieben_die_url_nicht() -> None:
     assert url.database == "eigene_db"
 
 
-def test_die_url_zeigt_das_passwort_nicht(capsys: pytest.CaptureFixture[str]) -> None:
+def test_die_url_zeigt_das_passwort_nicht() -> None:
     """`str(url)` maskiert das Passwort - landet die URL in einem Log, geht es nicht mit."""
     settings = Settings(
         db_host="datenbank",
@@ -166,6 +197,4 @@ def test_die_url_zeigt_das_passwort_nicht(capsys: pytest.CaptureFixture[str]) ->
         jwt_secret=GUELTIGES_GEHEIMNIS,
     )
 
-    print(settings.database_url)
-
-    assert "streng-geheim" not in capsys.readouterr().out
+    assert "streng-geheim" not in str(settings.database_url)
