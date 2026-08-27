@@ -201,14 +201,8 @@ def get_language_from_header(accept_language: str | None) -> str:
 def language_of(request: Request) -> str:
     """Die ausgehandelte Sprache dieser Anfrage.
 
-    Die eine Stelle, an der `Accept-Language` ausgewertet wird - mehrere Kopien
-    waeren mehrere Stellen, an denen die Regel auseinanderlaufen koennte.
-
-    **Ohne Zwischenspeicher am `request.state`.** Er war einer zu viel:
-    `get_language_from_header` ist rein und liest einen Header, der sich
-    waehrend einer Anfrage nicht mehr aendert - zweimal gefragt kommt zweimal
-    dasselbe heraus. Ein Speicher haette nur einen Zustand hinzugefuegt, den
-    jemand von aussen anders setzen kann als der Header es sagt.
+    Die eine Stelle, an der `Accept-Language` ausgewertet wird. Ohne
+    Zwischenspeicher - mehrfach gefragt kommt mehrfach dasselbe heraus.
     """
     return get_language_from_header(request.headers.get("accept-language"))
 
@@ -216,15 +210,9 @@ def language_of(request: Request) -> str:
 def resources_of(request: Request) -> ResourcesCache:
     """Die beim Start geladenen Ressourcen dieser Anwendung.
 
-    Der Lifespan legt sie in `app.state.resources` ab und prueft sie dort auf
-    Vollstaendigkeit (`src/main.py`); hier werden sie nur geholt. Als Funktion
-    und nicht als Attributzugriff je Aufrufstelle, damit der Ablageort an einer
-    Stelle steht.
-
-    Fehlen sie, bricht der Aufruf **hier** ab statt weiter unten in `translate`.
-    Ohne die Pruefung waere der Fehler ein `AttributeError` auf `State`, der
-    weder die Ursache noch die Stelle nennt, an der man sie behebt. Der Fall
-    bedeutet immer dasselbe: die App lief ohne ihren Lifespan.
+    Vorbedingung: der Lifespan in `src/main.py` hat sie in `app.state.resources`
+    abgelegt. Fehlen sie, bricht der Aufruf **hier** ab statt weiter unten in
+    `translate`.
     """
     resources: ResourcesCache | None = getattr(request.app.state, "resources", None)
     if resources is None:

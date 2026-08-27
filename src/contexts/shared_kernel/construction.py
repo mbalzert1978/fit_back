@@ -7,12 +7,15 @@ __all__ = ["ConstructionKey", "deny_foreign_key"]
 
 @final
 class ConstructionKey:
-    """Der Beleg, dass ein Value Object durch seine eigene Factory gebaut wurde.
+    """Der Beleg, dass ein Typ durch die Factory seines eigenen Moduls gebaut wurde.
 
-    Jedes Value-Object-Modul haelt genau eine Instanz davon, modul-privat. Wer von
-    aussen konstruieren will, hat sie nicht - und der Konstruktor weist ihn ab.
-    Damit ist "nur ueber `parse` oder `hydrate`" keine Bitte in einer Docstring
-    mehr, sondern eine Sperre, die auch der haelt, der die Docstring nicht liest.
+    Jedes Modul, dessen Typ eine Regel ueber einem Rohwert haelt, legt genau eine
+    Instanz davon an, modul-privat. Wer von aussen konstruieren will, hat sie
+    nicht - und der Konstruktor weist ihn ab
+    (docs/decisions/2026-08-26-2030-die-wurzel-haelt-ihre-invarianten-selbst.md).
+
+    Eine Tagged Union ohne Rohwert - `Locale`, `AccountStatus` - hat keine solche
+    Regel und traegt deshalb keinen Schluessel.
     """
 
     __slots__ = ()
@@ -22,8 +25,7 @@ def deny_foreign_key(actual: ConstructionKey, expected: ConstructionKey) -> None
     """Weise jeden Bau ab, der nicht durch die Factory des eigenen Moduls ging.
 
     `AssertionError` und kein `Result`: ein roher Konstruktoraufruf ist ein
-    Programmierfehler, kein erwarteter Fachfall - und ein Fehlerkanal dafuer
-    stuende in jeder Signatur, die den Wert nur weiterreicht
+    Programmierfehler, kein erwarteter Fachfall
     (.rules/python/python-error-handling.md).
     """
     if actual is expected:

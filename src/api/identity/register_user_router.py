@@ -68,23 +68,7 @@ async def register_user(
     created: CreatedHeaders,
     problems: Problems,
 ) -> RegisterUserResponse | ProblemResponse:
-    """Lege ein Konto an.
-
-    Weder `Request` noch `Response` stehen in der Signatur. Beide werden hier
-    gebraucht - fuer `instance` des Fehlerkoerpers, fuer die ausgehandelte
-    Sprache, fuer `Location` -, aber keine dieser Verwendungen ist eine
-    Entscheidung dieses Endpunkts. Sie stecken in `created` und `problems`, zwei
-    Dependencies, die bereits an die laufende Anfrage gebunden sind.
-
-    Kein `JSONResponse` als Rueckgabetyp - das sagte nur "JSON" und liesse
-    jeden beliebigen Koerper zu.
-
-    Vollstaendiges Matching mit `assert_never` als Abschluss: waechst die
-    Response-Union um einen Ausgang, faellt genau hier auf, dass die HTTP-Antwort
-    dafuer fehlt. Ohne diesen Zweig faellt der `match` still durch und die Funktion
-    liefert `None` - Python erzwingt Vollzaehligkeit zur Laufzeit nicht
-    (.rules/python/python-error-handling.md, "Jeder `match` ist vollstaendig").
-    """
+    """Lege ein Konto an."""
     outcome = await pipeline.run(body.to_request())
     match outcome:
         case RegistrationAccepted() as accepted:

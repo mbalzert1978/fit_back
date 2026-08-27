@@ -34,16 +34,7 @@ __all__ = ["Problems", "to_problem"]
 
 
 def _problems(request: Request) -> Callable[[RegisterUserFailure], ProblemResponse]:
-    """Binde `to_problem` an die laufende Anfrage.
-
-    Damit steht die Anfrage nicht mehr in der Signatur des Endpunkts. Er
-    beantwortet eine Ablehnung, ohne zu wissen, dass dafuer Pfad und
-    `Accept-Language` der Anfrage gebraucht werden - beides steckt hier drin.
-
-    Ein `partial` und keine Klasse: gebunden wird genau ein Argument, und
-    `to_problem` bleibt die gewoehnliche Funktion, die sich ohne FastAPI
-    aufrufen laesst.
-    """
+    """Binde `to_problem` an die laufende Anfrage."""
     return partial(to_problem, request)
 
 
@@ -52,12 +43,7 @@ type Problems = Annotated[Callable[[RegisterUserFailure], ProblemResponse], Depe
 
 
 def to_problem(request: Request, rejected: RegisterUserFailure) -> ProblemResponse:
-    """Beantworte einen abgelehnten Registrierungsversuch als `problem+json`.
-
-    Waechst die Fehlerhaelfte der Pipeline um einen Ausgang, faellt genau hier
-    auf, dass die HTTP-Antwort dafuer fehlt - `RegisterUserFailure` ist
-    geschlossen, und `assert_never` schliesst den `match`.
-    """
+    """Beantworte einen abgelehnten Registrierungsversuch als `problem+json`."""
     match rejected:
         case EmailAlreadyTaken(email=email):
             return translated_problem(
@@ -85,8 +71,7 @@ def _rendered(
     """Uebersetze die Fehlercodes je Feld in Saetze der ausgehandelten Sprache.
 
     Ueber die Naht des Use Case kommen Code und Parameter, nie ein fertiger Satz
-    (`.rules/python/python-feature-slices.md`). Der Satz entsteht erst hier, weil
-    erst hier bekannt ist, in welcher Sprache der Aufrufer ihn lesen will.
+    (`.rules/python/python-feature-slices.md`).
     """
     resources = resources_of(request)
     language = language_of(request)

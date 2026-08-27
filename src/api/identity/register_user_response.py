@@ -40,14 +40,10 @@ Teil des Vertrags dieser Antwort ist und nicht Teil jenes Endpunkts.
 type TokenType = Literal["Bearer"]
 """Das Schema, in dem der Access-Token vorzulegen ist (RFC 6750).
 
-Steht ohne Matcher im Vertrag und ist damit bindend - ein Typ mit genau einem
-bewohnbaren Wert und kein Wert, den irgendwer waehlen koennte. Als Typ und
-nicht als Konstante, weil `Literal[...]` nur echte Literale annimmt: ein Name
-darin ist zur Laufzeit unauffaellig und statisch ungueltig.
+Steht ohne Matcher im Vertrag und ist damit bindend.
 
-Das Feld traegt bewusst **keinen** Default: ein Default nimmt es aus `required`
-des Schemas, und dann behauptet die Dokumentation, ein bindendes Feld duerfe
-fehlen. Der Wert wird an der Aufrufstelle gesetzt.
+Das Feld traegt bewusst **keinen** Default: ein Default naehme es aus `required`
+des Schemas. Der Wert wird an der Aufrufstelle gesetzt.
 """
 
 
@@ -109,15 +105,10 @@ class RegisterUserResponse(BaseModel):
 def _created_headers(response: Response, request: Request) -> Callable[[], None]:
     """Binde `apply_created_headers` an Anfrage und Antwort dieses Aufrufs.
 
-    Damit stehen `Request` und `Response` nicht mehr in der Signatur des
-    Endpunkts. Er sagt nur noch, **wann** die Kopfzeilen der 201 gelten - womit
-    sie gesetzt werden, steckt hier drin.
-
     Zurueckgegeben wird ein Aufruf und nicht direkt gesetzt: eine Dependency
     laeuft **vor** dem Endpunkt und damit auch dann, wenn die Registrierung
-    abgelehnt wird. Ein `Location` auf den 409 zu setzen und darauf zu bauen,
-    dass FastAPI ihn spaeter verwirft, waere ein stiller Verlass auf ein
-    Innenleben. So entscheidet der Endpunkt selbst, im Zweig, der die 201 baut.
+    abgelehnt wird. So setzt der Endpunkt die Kopfzeilen selbst, im Zweig, der
+    die 201 baut.
     """
     return partial(apply_created_headers, response, request)
 
@@ -129,17 +120,14 @@ type CreatedHeaders = Annotated[Callable[[], None], Depends(_created_headers)]
 def apply_created_headers(response: Response, request: Request) -> None:
     """Setze die Kopfzeilen, die zur 201 dieses Endpunkts gehoeren.
 
-    `Cache-Control` und `X-Request-Id` stehen bewusst **nicht** hier: die kommen
-    aus `ResponseEnvelopeMiddleware` und gelten fuer jede Antwort des Hosts.
-    Diese zwei gelten nur fuer diese eine.
+    `Cache-Control` und `X-Request-Id` stehen **nicht** hier: die setzt
+    `ResponseEnvelopeMiddleware` fuer jede Antwort des Hosts.
 
-    Nicht in einer Middleware, obwohl es Kopfzeilen sind: `IdempotencyKeyMiddleware`
-    zeichnet `location` und `content-language` auf und spielt sie beim
-    Wiederholungsaufruf zurueck (`REPLAYED_HEADERS`). Eine Middleware weiter
-    aussen wuerde einen frisch ausgehandelten Sprachkopf auf einen
-    aufgezeichneten Koerper kleben - eine Antwort, die etwas anderes behauptet,
-    als sie enthaelt. Die Kopfzeile bleibt deshalb bei dem Koerper, zu dem sie
-    gehoert.
+    Nicht in eine Middleware zu verschieben: `IdempotencyKeyMiddleware` zeichnet
+    `location` und `content-language` auf und spielt sie beim
+    Wiederholungsaufruf zurueck (`REPLAYED_HEADERS`). Weiter aussen gesetzt,
+    klebte ein frisch ausgehandelter Sprachkopf auf einem aufgezeichneten
+    Koerper.
     """
     response.headers["Content-Language"] = language_of(request)
     response.headers["Location"] = _SELF_URL
