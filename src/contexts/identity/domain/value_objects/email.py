@@ -265,10 +265,9 @@ class Email:
     def __post_init__(self) -> None:
         """Weise jeden Bau ab, der nicht durch `parse` oder `hydrate` ging.
 
-        Kein Nachpruefen der Regeln an dieser Stelle: `domain_is_valid` braucht
-        den IDN-Port, und ein `__post_init__` bekommt ihn nicht. Der Schluessel
-        prueft deshalb nicht den Wert, sondern den **Weg** - und der eine Weg,
-        der bleibt, prueft den Wert vollstaendig.
+        Geprueft wird der **Weg**, nicht der Wert: `domain_is_valid` braucht den
+        IDN-Port, und ein `__post_init__` bekommt ihn nicht
+        (docs/decisions/2026-08-26-2030-die-wurzel-haelt-ihre-invarianten-selbst.md).
         """
         deny_foreign_key(self.key, _KEY)
 

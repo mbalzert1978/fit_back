@@ -92,16 +92,13 @@ def _is_enveloped(request: Request, response: Response) -> bool:
 def _is_the_api_description(request: Request) -> bool:
     """Sage, ob dieser Pfad das OpenAPI-Dokument der App selbst ist.
 
-    Der Umschlag gilt fuer die Antworten **dieser** API, nicht fuer die
-    Beschreibung, in der FastAPI sie ausliefert. Eingepackt waere sie keine
-    Beschreibung mehr: `/docs` sucht `openapi` und `paths` an der Wurzel und
-    faende `data` und `meta`.
+    Eingepackt waere die Beschreibung keine mehr: `/docs` sucht `openapi` und
+    `paths` an der Wurzel und faende `data` und `meta`.
 
     `/docs` und `/redoc` brauchen keinen eigenen Zweig - sie antworten in HTML
     und scheitern schon an der Pruefung des Content-Type.
 
-    Gelesen wird die Adresse **an der App** und nicht als Literal: wer sie ueber
-    `FastAPI(openapi_url=...)` verschiebt oder mit `None` abschaltet, verschiebt
-    sie damit auch hier. Ein Literal koennte gegen sie driften.
+    Wer die Adresse ueber `FastAPI(openapi_url=...)` verschiebt oder mit `None`
+    abschaltet, verschiebt sie damit auch hier.
     """
     return request.url.path == getattr(request.app, "openapi_url", None)

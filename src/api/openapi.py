@@ -78,19 +78,13 @@ def document_middleware_effects(app: FastAPI, api_version: str) -> None:
     Aufzurufen, **nachdem** alle Router eingehaengt sind: der Nachtrag laeuft
     ueber die Pfade des fertigen Dokuments.
 
-    `api_version` steht hier und nicht nur an `FastAPI(version=...)`: sonst
-    traegt der Nachtrag drei der vier Angaben, und die vierte haengt daran, dass
-    der Aufrufer sie selbst gesetzt hat.
-
-    `app.openapi()` erzeugt das Dokument und legt es in `app.openapi_schema` ab;
-    dort wird es hier ergaenzt. Jeder spaetere Aufruf - auch der von
-    `/openapi.json` - findet den Zwischenspeicher gefuellt und liefert die
+    Nebenwirkung: `app.openapi_schema` wird gefuellt. Jeder spaetere Aufruf -
+    auch der von `/openapi.json` - findet den Zwischenspeicher und liefert die
     ergaenzte Fassung.
 
-    Kein Nachbau von `get_openapi(...)`: der muesste jedes Feld der App von Hand
-    weiterreichen und ginge still schief, sobald eines dazukommt. Und kein
-    Ersetzen von `app.openapi` - eine gewoehnliche Funktion ist an dieser Stelle
-    keine Methode, und das Repo laesst dafuer kein `type: ignore` zu.
+    Die verworfenen Wege - `app.openapi` ersetzen, `get_openapi(...)` nachbauen -
+    stehen in
+    docs/decisions/2026-08-26-1700-die-beschreibung-holt-die-middleware-ein.md.
     """
     app.openapi_schema = _amended(app.openapi(), api_version)
 

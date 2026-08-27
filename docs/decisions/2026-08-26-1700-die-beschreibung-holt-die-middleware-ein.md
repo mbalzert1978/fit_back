@@ -18,6 +18,13 @@ Der Nachtrag trägt vier Dinge ein:
 3. Jede Antwort nennt `X-Request-Id` und `Cache-Control`.
 4. `info.version` ist `API_VERSION` und damit dieselbe Angabe wie `/api/v1` und `meta.apiVersion`.
 
+> **Nachgetragen am 2026-08-27:** Punkt 4 stimmte nicht. Der Nachtrag fasste `info.version` nie an —
+> gesetzt war sie allein an `FastAPI(version=...)` in `src/main.py`. Er trägt sie jetzt selbst ein.
+> Die Konstante heißt nicht mehr `API_VERSION`, sondern `DEFAULT_API_VERSION` in
+> [`src/settings.py`](../../src/settings.py) und ist über `API_VERSION` in der Umgebung
+> überschreibbar. Siehe
+> [2026-08-27-1500](2026-08-27-1500-review-durchgang-fabrik-sperre-und-api-version.md), Abschnitt 5.
+
 Was nur zu **einer** Route gehört, steht weiterhin in deren `responses` — `Location` und
 `Content-Language` der 201 von `POST /api/v1/identity/register` etwa.
 
