@@ -52,10 +52,6 @@ from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder, IdnEncode
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.ports.session_issuer import SessionIssuer
 from src.contexts.identity.domain.ports.user_registry import UserRegistry, UserRegistryError
-from src.contexts.identity.domain.token_lifetimes import (
-    ACCESS_TOKEN_LIFETIME,
-    REFRESH_TOKEN_LIFETIME,
-)
 from src.contexts.identity.domain.user_creation_errors import (
     DisplayNameRejected,
     EmailRejected,
@@ -101,10 +97,8 @@ from src.contexts.identity.domain.value_objects.user_time_zone import (
 )
 
 __all__ = [
-    "ACCESS_TOKEN_LIFETIME",
     "DEFAULT_LOCALE",
     "DEFAULT_TIME_ZONE_ID",
-    "REFRESH_TOKEN_LIFETIME",
     "AccountStatus",
     "Active",
     "DisplayName",

@@ -27,6 +27,9 @@ from src.contexts.identity.application.register_user.abstractions.session_tokens
     RefreshTokenRecord,
     RegisterUserSessionTokens,
 )
+from src.contexts.identity.application.register_user.abstractions.token_options import (
+    RegisterUserTokenOptions,
+)
 from src.contexts.identity.application.register_user.abstractions.user_store import (
     EmailTaken,
     NewUserRecord,
@@ -47,6 +50,7 @@ __all__ = [
     "RegisterUserEventLog",
     "RegisterUserPasswordHasher",
     "RegisterUserSessionTokens",
+    "RegisterUserTokenOptions",
     "RegisterUserUserStore",
     "UserInsertion",
     "UserStored",

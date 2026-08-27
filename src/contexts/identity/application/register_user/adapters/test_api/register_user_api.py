@@ -22,6 +22,7 @@ from typing import Self, final
 from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
 from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
     DeterministicPasswordHasher,
+    FixedTokenOptions,
     InMemoryEventLog,
     InMemorySessionTokens,
     InMemoryUserStore,
@@ -50,6 +51,7 @@ class RegisterUserTestApi:
         self._labels = PassthroughIdnLabels()
         self._events = InMemoryEventLog()
         self._sessions = InMemorySessionTokens()
+        self._tokens = FixedTokenOptions()
         self._clock = FakeTimeProvider(_DEFAULT_NOW)
 
     # --- Arrange ---
@@ -57,6 +59,11 @@ class RegisterUserTestApi:
     def with_registered_user(self, email: str) -> Self:
         """Es gibt bereits ein Konto zu dieser E-Mail."""
         self._store.register(_normalized(email))
+        return self
+
+    def with_unavailable_token_store(self) -> Self:
+        """Die Ablage des Refresh-Token antwortet nicht."""
+        self._sessions.fail_on_store()
         return self
 
     def at_unix_time(self, unix_seconds: int) -> Self:
@@ -69,7 +76,13 @@ class RegisterUserTestApi:
     async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
         """Fuehre das echte Request-DTO durch die echte Pipeline."""
         pipeline = build_register_user_pipeline(
-            self._store, self._hasher, self._labels, self._events, self._sessions, self._clock
+            self._store,
+            self._hasher,
+            self._labels,
+            self._events,
+            self._sessions,
+            self._clock,
+            self._tokens,
         )
         return await pipeline.run(request)
 

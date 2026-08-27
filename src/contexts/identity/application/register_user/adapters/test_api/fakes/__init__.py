@@ -18,12 +18,16 @@ from src.contexts.identity.application.register_user.adapters.test_api.fakes.idn
 from src.contexts.identity.application.register_user.adapters.test_api.fakes.session_tokens import (
     InMemorySessionTokens,
 )
+from src.contexts.identity.application.register_user.adapters.test_api.fakes.token_options import (
+    FixedTokenOptions,
+)
 from src.contexts.identity.application.register_user.adapters.test_api.fakes.user_store import (
     InMemoryUserStore,
 )
 
 __all__ = [
     "DeterministicPasswordHasher",
+    "FixedTokenOptions",
     "InMemoryEventLog",
     "InMemorySessionTokens",
     "InMemoryUserStore",

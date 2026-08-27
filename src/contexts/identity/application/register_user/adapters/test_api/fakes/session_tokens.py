@@ -34,6 +34,13 @@ class InMemorySessionTokens:
         self._minted = 0
         """Wie viele Geheimnisse schon herausgegeben wurden - haelt sie unterscheidbar."""
 
+        self._store_available = True
+        """Ob die Ablage antwortet - `fail_on_store` schaltet sie ab."""
+
+    def fail_on_store(self) -> None:
+        """Lass jede Ablage fehlschlagen, wie es eine tote Datenbank taete."""
+        self._store_available = False
+
     def mint_secret(self) -> MintedSecret:
         """Gib ein erkennbar unechtes Geheimnis heraus."""
         self._minted += 1
@@ -42,6 +49,9 @@ class InMemorySessionTokens:
 
     async def store(self, record: RefreshTokenRecord) -> None:
         """Lege die Zeile ab - festgehalten wird der Klartext hinter dem Abdruck."""
+        if not self._store_available:
+            msg = "Refresh token store is unavailable"
+            raise RuntimeError(msg)
         self.issued.append((record.user_id, record.token_hash.removeprefix(_HASH_PREFIX)))
 
     def sign_access_token(self, user_id: str, issued_at: int, expires_at: int) -> str:

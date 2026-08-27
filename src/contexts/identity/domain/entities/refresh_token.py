@@ -13,7 +13,6 @@ und werden erst dort modelliert.
 
 from typing import Final, final
 
-from src.contexts.identity.domain.token_lifetimes import REFRESH_TOKEN_LIFETIME
 from src.contexts.identity.domain.value_objects.refresh_token_id import RefreshTokenId
 from src.contexts.identity.domain.value_objects.token_hash import TokenHash
 from src.contexts.identity.domain.value_objects.user_id import UserId
@@ -52,19 +51,33 @@ class RefreshToken:
         self.expires_at = expires_at
 
     @classmethod
-    def issue(cls, user_id: UserId, token_hash: TokenHash, issued_at: Timestamp) -> RefreshToken:
+    def issue(
+        cls,
+        user_id: UserId,
+        token_hash: TokenHash,
+        issued_at: Timestamp,
+        lifetime_seconds: int,
+    ) -> RefreshToken:
         """Stelle einen Token fuer diesen Nutzer aus - der Ablauf steht hier.
 
         `issued_at` kommt herein und wird nicht von einer Uhr gelesen: es ist
         dieselbe Ablesung, aus der die Nutzer-Zeile entsteht. Eine zweite liesse
         Konto und Token um Sekunden auseinanderliegen.
+
+        `lifetime_seconds` ebenso: die Geltungsdauer ist eine Einstellung des
+        Prozesses und steht deshalb nicht hier. Geprueft wird sie trotzdem hier -
+        ein Token, der im selben Augenblick ablaeuft, in dem er entsteht, ist
+        keiner.
         """
+        if lifetime_seconds <= 0:
+            msg = f"Refresh token lifetime must be positive, got {lifetime_seconds}"
+            raise ValueError(msg)
         return cls(
             RefreshTokenId.generate(),
             user_id,
             token_hash,
             issued_at,
-            Timestamp(issued_at.unix_seconds + REFRESH_TOKEN_LIFETIME),
+            Timestamp(issued_at.unix_seconds + lifetime_seconds),
             key=_KEY,
         )
 

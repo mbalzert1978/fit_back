@@ -39,6 +39,7 @@ from src.contexts.shared_kernel.time_provider import FakeTimeProvider, SystemTim
 from src.contexts.shared_kernel.timestamp import Timestamp
 from src.infrastructure.outbox import OutboxRelay
 from src.infrastructure.outbox.publishers import RegisterUserOutbox
+from src.settings import TokenSettings
 
 pytestmark = pytest.mark.asyncio
 
@@ -86,6 +87,7 @@ async def _register(connection: AsyncConnection, request: RegisterUserRequest) -
         events=RegisterUserOutbox(connection),
         sessions=PostgresSessionTokens(connection, JwtAccessTokens("t" * 32)),
         clock=FakeTimeProvider(Timestamp(_REGISTERED_AT).to_datetime()),
+        tokens=TokenSettings(),
     )
     return await pipeline.run(request)
 

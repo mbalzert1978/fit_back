@@ -23,6 +23,7 @@ from src.contexts.identity.application.register_user.abstractions import (
     RegisterUserEventLog,
     RegisterUserPasswordHasher,
     RegisterUserSessionTokens,
+    RegisterUserTokenOptions,
     RegisterUserUserStore,
 )
 from src.contexts.identity.application.register_user.adapters import (
@@ -82,6 +83,7 @@ def build_register_user_pipeline(  # noqa: PLR0913, PLR0917 -- Fabrik: je Naht e
     events: RegisterUserEventLog,
     sessions: RegisterUserSessionTokens,
     clock: TimeProvider,
+    tokens: RegisterUserTokenOptions,
 ) -> RegisterUserPipeline:
     """Verdrahte den Slice gegen eine beliebige Implementierung der public Naht."""
     handler = RegisterUserHandler(
@@ -93,6 +95,7 @@ def build_register_user_pipeline(  # noqa: PLR0913, PLR0917 -- Fabrik: je Naht e
         registry=UserRegistryAdapter(store),
         sessions=SessionIssuerAdapter(sessions),
         events=EventPublisherAdapter(events),
+        tokens=tokens,
     )
     return RegisterUserPipeline(build_pipeline(_dispatch(handler)))
 

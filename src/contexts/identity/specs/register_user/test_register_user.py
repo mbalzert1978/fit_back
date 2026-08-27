@@ -366,3 +366,14 @@ async def test_nimmt_einen_festen_utc_versatz_als_zeitzone_an() -> None:
 
     assert isinstance(result, RegistrationAccepted)
     assert result.time_zone_id == "+01:00"
+
+
+@pytest.mark.asyncio
+async def test_wer_keinen_token_ablegen_konnte_wird_auch_nicht_gemeldet() -> None:
+    """Die Meldung behauptet Konto **und** Token - also steht sie hinter beidem."""
+    api = RegisterUserTestApi().with_unavailable_token_store()
+
+    with pytest.raises(RuntimeError):
+        await api.run(_request())
+
+    assert api.published_events == ()

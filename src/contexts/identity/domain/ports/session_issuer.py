@@ -22,6 +22,12 @@ class SessionIssuer(Protocol):
     wird nichts committet - auch der Nutzer nicht.
     """
 
-    async def issue(self, user: User) -> IssuedCredentials:
-        """Stelle die Zugangsdaten des aufgenommenen Users aus."""
+    async def issue(
+        self, user: User, access_token_seconds: int, refresh_token_seconds: int
+    ) -> IssuedCredentials:
+        """Stelle die Zugangsdaten des aufgenommenen Users aus.
+
+        Die beiden Geltungsdauern kommen als Primitive herein: sie sind
+        Konfiguration des Prozesses, kein Wissen der Domaene.
+        """
         ...

@@ -50,6 +50,7 @@ def _register_user(
         events=RegisterUserOutbox(connection),
         sessions=PostgresSessionTokens(connection, JwtAccessTokens(settings.jwt_secret)),
         clock=SystemTimeProvider(),
+        tokens=settings.tokens,
     )
 
 

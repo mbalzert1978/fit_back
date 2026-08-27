@@ -9,7 +9,6 @@ Geheimnis signiert waere. Deshalb wird hier das Token selbst aufgemacht.
 import jwt
 import pytest
 
-from src.contexts.identity.domain import ACCESS_TOKEN_LIFETIME
 from src.contexts.identity.infrastructure.tokens.jwt_access_tokens import (
     ALGORITHM,
     JwtAccessTokens,
@@ -17,15 +16,15 @@ from src.contexts.identity.infrastructure.tokens.jwt_access_tokens import (
 
 GEHEIMNIS = "ein-geheimnis-mit-mindestens-32-zeichen"
 AUSGESTELLT_AM = 1700000000
+GELTUNGSDAUER = 900
+"""Sekunden - hier eine Vorgabe des Tests, keine Konstante der Produktion."""
 """Unix-Sekunden, 2023-11-14 - bewusst in der Vergangenheit: ein `iat` in der
 Zukunft lehnt `pyjwt` als "not yet valid" ab, und das waere hier nicht der Punkt.
 """
 
 
 def _token(user_id: str = "01920000-0000-7000-8000-000000000001") -> str:
-    return JwtAccessTokens(GEHEIMNIS).sign(
-        user_id, AUSGESTELLT_AM, AUSGESTELLT_AM + ACCESS_TOKEN_LIFETIME
-    )
+    return JwtAccessTokens(GEHEIMNIS).sign(user_id, AUSGESTELLT_AM, AUSGESTELLT_AM + GELTUNGSDAUER)
 
 
 def test_das_token_nennt_den_nutzer_und_seinen_ablauf() -> None:
@@ -34,7 +33,7 @@ def test_das_token_nennt_den_nutzer_und_seinen_ablauf() -> None:
 
     assert claims["sub"] == "01920000-0000-7000-8000-000000000001"
     assert claims["iat"] == AUSGESTELLT_AM
-    assert claims["exp"] - claims["iat"] == ACCESS_TOKEN_LIFETIME
+    assert claims["exp"] - claims["iat"] == GELTUNGSDAUER
 
 
 def test_ein_fremdes_geheimnis_oeffnet_das_token_nicht() -> None:

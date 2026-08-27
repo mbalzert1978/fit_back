@@ -8,9 +8,12 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import URL
 
 __all__ = [
+    "DEFAULT_ACCESS_TOKEN_LIFETIME",
     "DEFAULT_API_VERSION",
+    "DEFAULT_REFRESH_TOKEN_LIFETIME",
     "JWT_SECRET_MINIMUM_LENGTH",
     "Settings",
+    "TokenSettings",
     "get_api_version",
     "get_settings",
 ]
@@ -20,6 +23,24 @@ JWT_SECRET_MINIMUM_LENGTH = 32
 
 DEFAULT_API_VERSION = "1"
 """Die Version dieser API, wenn die Umgebung keine nennt - dieselbe wie im Pfadpraefix `/api/v1`."""
+
+DEFAULT_ACCESS_TOKEN_LIFETIME = 900
+"""15 Minuten in Sekunden - die Zusage aus BACKEND.md Abschnitt 0, Punkt 8."""
+
+DEFAULT_REFRESH_TOKEN_LIFETIME = 5_184_000
+"""60 Tage in Sekunden - dieselbe Zusage."""
+
+
+@final
+class TokenSettings(BaseModel):
+    """Die Geltungsdauern der beiden Token, in Sekunden.
+
+    Erfuellt `RegisterUserTokenOptions` - die Feldnamen sind deshalb die des
+    Vertrags und nicht die der Umgebungsvariablen.
+    """
+
+    access_token_seconds: int = Field(default=DEFAULT_ACCESS_TOKEN_LIFETIME, gt=0)
+    refresh_token_seconds: int = Field(default=DEFAULT_REFRESH_TOKEN_LIFETIME, gt=0)
 
 
 @final
@@ -43,6 +64,9 @@ class Settings(BaseModel):
     eine Hintertuer waere
     (`docs/decisions/2026-08-05-1130-security-gate-triage-ticket-0002-und-agent-integritaets-incident.md`).
     """
+
+    tokens: TokenSettings = Field(default_factory=TokenSettings)
+    """Eigene Sektion, weil die beiden Werte zusammen gehoert und zusammen gereicht werden."""
 
     @property
     def database_url(self) -> URL:
@@ -104,6 +128,14 @@ def get_settings() -> Settings:
             db_user=os.getenv("DB_USER", "fit_user"),
             db_password=_required_from_environment("DB_PASSWORD"),
             jwt_secret=_required_from_environment("JWT_SECRET"),
+            tokens=TokenSettings(
+                access_token_seconds=int(
+                    os.getenv("ACCESS_TOKEN_LIFETIME", str(DEFAULT_ACCESS_TOKEN_LIFETIME))
+                ),
+                refresh_token_seconds=int(
+                    os.getenv("REFRESH_TOKEN_LIFETIME", str(DEFAULT_REFRESH_TOKEN_LIFETIME))
+                ),
+            ),
         )
     except (ValidationError, ValueError) as e:
         msg = "Configuration validation failed: invalid environment variables"

@@ -7,7 +7,6 @@ from src.contexts.identity.application.register_user.abstractions import (
     RegisterUserSessionTokens,
 )
 from src.contexts.identity.domain import (
-    ACCESS_TOKEN_LIFETIME,
     IssuedCredentials,
     RefreshToken,
     TokenHash,
@@ -30,7 +29,9 @@ class SessionIssuerAdapter:
         """Nimm die Naht-Implementierung entgegen (Fake oder Aussteller)."""
         self._sessions = sessions
 
-    async def issue(self, user: User) -> IssuedCredentials:
+    async def issue(
+        self, user: User, access_token_seconds: int, refresh_token_seconds: int
+    ) -> IssuedCredentials:
         """Stelle den Refresh-Token aus, lege ihn ab und signiere den Zugang.
 
         Als Zeitpunkt dient `registered_at` des Aggregats. Das ist dieselbe
@@ -42,15 +43,16 @@ class SessionIssuerAdapter:
             user_id=user.id,
             token_hash=TokenHash.hydrate(secret.hashed),
             issued_at=user.registered_at,
+            lifetime_seconds=refresh_token_seconds,
         )
         await self._sessions.store(_as_record(token))
         return IssuedCredentials.hydrate(
             access_token=self._sessions.sign_access_token(
                 str(user.id),
                 user.registered_at.unix_seconds,
-                user.registered_at.unix_seconds + ACCESS_TOKEN_LIFETIME,
+                user.registered_at.unix_seconds + access_token_seconds,
             ),
-            expires_in=ACCESS_TOKEN_LIFETIME,
+            expires_in=access_token_seconds,
             refresh_token=secret.plaintext,
             refresh_expires_in=token.lifetime_seconds,
         )
