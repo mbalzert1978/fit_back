@@ -25,11 +25,11 @@ from src.contexts.identity.application.register_user.adapters import (
     IdnEncoderAdapter,
     PasswordHasherAdapter,
 )
-from src.contexts.identity.application.register_user.errors import request_invalid
-from src.contexts.identity.application.register_user.fakes import (
+from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
     DeterministicPasswordHasher,
     PassthroughIdnLabels,
 )
+from src.contexts.identity.application.register_user.errors import request_invalid
 from src.contexts.identity.application.register_user.mappers.register_user_response_mapper import (
     to_response,
 )

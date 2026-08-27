@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from typing import Self, final
 
 from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
-from src.contexts.identity.application.register_user.fakes import (
+from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
     DeterministicPasswordHasher,
     InMemoryEventLog,
     InMemorySessionTokens,

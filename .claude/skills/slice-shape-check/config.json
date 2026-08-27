@@ -2,7 +2,13 @@
   "use_case_glob": "src/contexts/*/application/*",
   "use_case_exclude_names": ["shared", "__pycache__"],
   "required_files": ["pipeline.py"],
-  "required_dirs": ["abstractions", "adapters", "mappers", "fakes", "test_api"],
+  "required_dirs": [
+    "abstractions",
+    "adapters",
+    "adapters/test_api",
+    "adapters/test_api/fakes",
+    "mappers"
+  ],
   "spec_glob": "src/contexts/*/specs/*",
   "spec_exclude_dir_names": ["domain", "contracts", "__pycache__"],
   "spec_file_patterns": ["test_*.py", "*_test.py"],

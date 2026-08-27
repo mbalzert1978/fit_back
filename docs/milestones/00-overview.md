@@ -51,7 +51,7 @@ frei, bevor Stufe 2 beginnt:
 
 | Stufe | Was entsteht | Fertig, wenn |
 |-------|--------------|--------------|
-| **1 — Slice** | `domain/` (VOs, Entitäten, Aggregatwurzel, Ports, Regeln), `application/<use_case>/` (Command, Handler, beide Mapper, Validatoren, Port-Adapter, public Naht), `test_api.py` + `fakes/`, Verhaltens-Specs | Die Specs sind **grün ohne jede Infrastruktur** — keine Datenbank, kein HTTP, kein Container. Ab hier ist das Verhalten des Use Case vollständig spezifiziert. |
+| **1 — Slice** | `domain/` (VOs, Entitäten, Aggregatwurzel, Ports, Regeln), `application/<use_case>/` (Command, Handler, beide Mapper, Validatoren, Port-Adapter, public Naht), `adapters/test_api/` + dessen `fakes/`, Verhaltens-Specs | Die Specs sind **grün ohne jede Infrastruktur** — keine Datenbank, kein HTTP, kein Container. Ab hier ist das Verhalten des Use Case vollständig spezifiziert. |
 | **2 — Infrastruktur** | Naht-Implementierung (SQLAlchemy-Repository, externer Adapter), Alembic-Migration, Outbox-Publikation, Integrationstest gegen Testcontainers | Der Slice läuft gegen echte Persistenz, Verhalten unverändert. |
 | **3 — HTTP** | `src/api/<context>/`-Router, ProblemDetails-Mapping, Idempotency-Header, curl-Beispiel, End-to-End-Test | Der Endpunkt ist erreichbar und liefert das spezifizierte Verhalten. |
 
@@ -79,7 +79,7 @@ mit Stufe 1, egal ob ihn jemals ein HTTP-Request auslöst.
 Ein Ticket darf mehrere Use Cases liefern, und tut es regelmäßig: „GetGoals + UpdateGoals" ist
 **ein** Ticket mit **zwei** Use-Case-Ordnern (`application/get_goals/` und
 `application/update_goals/`), jeder mit eigenem Command, eigenem Handler, eigenen beiden Mappern,
-**eigener `test_api.py` und eigenen `fakes/`**. Sie teilen sich die Domäne des Contexts und den
+**eigenem `adapters/test_api/` samt eigenen `fakes/` darin**. Sie teilen sich die Domäne des Contexts und den
 `DomainError`, sonst nichts.
 
 Was es **nie** gibt, ist ein zusammengelegter Use Case wie `get_and_update_goals`. Eine Abfrage und

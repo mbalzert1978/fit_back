@@ -18,9 +18,10 @@ never again costs an LLM review cycle — and never again silently passes.
 
 ## Verdict
 
-**BLOCK** — at least one inspected use-case package is missing its Test-API or its
-`fakes/` directory, or at least one inspected spec imports a module matching a
-forbidden fragment (reaching past the Test-API).
+**BLOCK** — at least one inspected use-case package is missing its
+`adapters/test_api/` directory or the `fakes/` directory inside it, or at least one
+inspected spec imports a module matching a forbidden fragment (reaching past the
+Test-API).
 
 **APPROVE** — every inspected use case carries both, and every inspected spec stays
 behind the Test-API.
@@ -34,10 +35,12 @@ this repo genuinely has zero use-case packages until the first slice lands, so a
 ## Criteria
 
 1. **Test-API present** — every inspected `src/contexts/<ctx>/application/<use_case>/`
-   contains `test_api.py` (`required_files`). The Test-API is a shipped part of the
-   slice, not test scaffolding — correctness.
-2. **Fakes present** — the same directory contains a `fakes/` subdirectory
-   (`required_dirs`) — correctness.
+   contains an `adapters/test_api/` directory (`required_dirs`). The Test-API is a
+   shipped part of the slice, not test scaffolding, and it lives under `adapters/`
+   because it is itself an adapter onto the seam — correctness.
+2. **Fakes present** — that Test-API directory contains a `fakes/` subdirectory
+   (`required_dirs`). The fakes sit *inside* the Test-API, not beside it: nothing
+   outside the Test-API consumes them — correctness.
 3. **Specs stay behind the Test-API** — no spec under
    `src/contexts/<ctx>/specs/<use_case>/` imports a module whose dotted path contains
    any `spec_forbidden_import_fragments` entry (`.domain`, `.infrastructure`,

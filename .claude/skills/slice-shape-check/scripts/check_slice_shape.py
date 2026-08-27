@@ -8,8 +8,8 @@
 Three path/import-level checks, all deterministic — no code is judged, only
 structure:
 
-  1. every use-case package carries a Test-API (`test_api.py`)
-  2. every use-case package carries in-memory fakes (`fakes/`)
+  1. every use-case package carries a Test-API (`adapters/test_api/`)
+  2. the Test-API carries its in-memory fakes (`adapters/test_api/fakes/`)
   3. no spec reaches past the Test-API — a spec may import the Test-API and the
      public request/response DTOs, never the domain, the handler, the mappers,
      the fakes, or infrastructure

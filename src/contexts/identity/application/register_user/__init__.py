@@ -22,6 +22,7 @@ from src.contexts.identity.application.register_user.abstractions import (
     UserInsertion,
     UserStored,
 )
+from src.contexts.identity.application.register_user.adapters.test_api import RegisterUserTestApi
 from src.contexts.identity.application.register_user.pipeline import (
     RegisterUserPipeline,
     build_register_user_pipeline,
@@ -34,7 +35,6 @@ from src.contexts.identity.application.register_user.response import (
     RegistrationAccepted,
     RegistrationInvalid,
 )
-from src.contexts.identity.application.register_user.test_api import RegisterUserTestApi
 
 __all__ = [
     "AsciiLabel",

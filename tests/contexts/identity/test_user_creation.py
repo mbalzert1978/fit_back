@@ -13,7 +13,7 @@ from src.contexts.identity.application.register_user.adapters import (
     IdnEncoderAdapter,
     PasswordHasherAdapter,
 )
-from src.contexts.identity.application.register_user.fakes import (
+from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
     DeterministicPasswordHasher,
     PassthroughIdnLabels,
 )
