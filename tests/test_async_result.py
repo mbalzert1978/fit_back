@@ -26,7 +26,6 @@ class Spion:
         self.laeufe: list[str] = []
 
     def merke(self, name: str) -> None:
-        """Halte einen gelaufenen Schritt fest."""
         self.laeufe.append(name)
 
 
@@ -38,8 +37,6 @@ class TestOkAsyncArme:
 
     @pytest.mark.asyncio
     async def test_map_async_transformiert_den_wert(self) -> None:
-        """map_async hebt eine asynchrone Funktion auf den Erfolgs-Wert."""
-
         async def verdoppelt(value: int) -> int:
             return value * 2
 
@@ -47,7 +44,6 @@ class TestOkAsyncArme:
 
     @pytest.mark.asyncio
     async def test_map_err_async_wird_uebersprungen(self) -> None:
-        """Es liegt kein Fehler vor - die Transformation laeuft nicht."""
         spion = Spion()
 
         async def nie(error: str) -> str:
@@ -59,7 +55,6 @@ class TestOkAsyncArme:
 
     @pytest.mark.asyncio
     async def test_or_else_async_wird_uebersprungen(self) -> None:
-        """Es liegt kein Fehler vor - die Alternative laeuft nicht."""
         spion = Spion()
 
         async def nie(error: str) -> Result[int, str]:
@@ -71,7 +66,6 @@ class TestOkAsyncArme:
 
     @pytest.mark.asyncio
     async def test_fold_async_nimmt_den_erfolgs_arm(self) -> None:
-        """Nur der Erfolgs-Arm laeuft, und sein Wert ist das Ergebnis."""
         spion = Spion()
 
         async def angenommen(value: int) -> str:
@@ -112,7 +106,6 @@ class TestErrAsyncArme:
 
     @pytest.mark.asyncio
     async def test_map_async_wird_uebersprungen(self) -> None:
-        """Es liegt kein Erfolgs-Wert vor - die Transformation laeuft nicht."""
         spion = Spion()
 
         async def nie(value: int) -> int:
@@ -136,8 +129,6 @@ class TestErrAsyncArme:
 
     @pytest.mark.asyncio
     async def test_map_err_async_transformiert_den_fehler(self) -> None:
-        """map_err_async hebt eine asynchrone Funktion auf den Fehler."""
-
         async def laut(error: str) -> str:
             return error.upper()
 
@@ -145,8 +136,6 @@ class TestErrAsyncArme:
 
     @pytest.mark.asyncio
     async def test_or_else_async_nimmt_die_alternative(self) -> None:
-        """Die Alternative darf den Fehlschlag in einen Erfolg drehen."""
-
         async def rettung(error: str) -> Result[int, str]:
             return Ok(len(error))
 
@@ -154,8 +143,6 @@ class TestErrAsyncArme:
 
     @pytest.mark.asyncio
     async def test_or_else_async_darf_erneut_scheitern(self) -> None:
-        """Die Alternative darf auch einen neuen Fehler liefern."""
-
         async def schlaegt_fehl(error: str) -> Result[int, int]:
             return Err(len(error))
 
@@ -163,7 +150,6 @@ class TestErrAsyncArme:
 
     @pytest.mark.asyncio
     async def test_fold_async_nimmt_den_fehler_arm(self) -> None:
-        """Nur der Fehler-Arm laeuft, und sein Wert ist das Ergebnis."""
         spion = Spion()
 
         async def angenommen(value: int) -> str:
@@ -178,7 +164,6 @@ class TestErrAsyncArme:
 
     @pytest.mark.asyncio
     async def test_inspect_async_loest_keine_nebenwirkung_aus(self) -> None:
-        """Es liegt kein Erfolgs-Wert vor - gemeldet wird nichts."""
         spion = Spion()
 
         async def melde(value: int) -> None:
@@ -196,12 +181,10 @@ class TestAsyncResultAwait:
 
     @pytest.mark.asyncio
     async def test_erfolg_kommt_durch(self) -> None:
-        """Aus einem ausstehenden Ok wird nach dem await ein Ok."""
         assert await AsyncResult(_pending(Ok(1))) == Ok(1)
 
     @pytest.mark.asyncio
     async def test_fehlschlag_kommt_durch(self) -> None:
-        """Aus einem ausstehenden Err wird nach dem await ein Err."""
         assert await AsyncResult(_pending(Err("kaputt"))) == Err("kaputt")
 
 
@@ -213,12 +196,10 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_map_auf_ok(self) -> None:
-        """map hebt eine sync-Funktion auf den ausstehenden Erfolgs-Wert."""
         assert await AsyncResult(_pending(Ok(21))).map(lambda value: value * 2) == Ok(42)
 
     @pytest.mark.asyncio
     async def test_map_auf_err(self) -> None:
-        """Auf dem Fehler-Zweig laeuft die Funktion nicht."""
         spion = Spion()
 
         def nie(value: int) -> int:
@@ -230,8 +211,6 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_map_async_auf_ok(self) -> None:
-        """map_async hebt eine async-Funktion auf den ausstehenden Erfolgs-Wert."""
-
         async def verdoppelt(value: int) -> int:
             return value * 2
 
@@ -239,7 +218,6 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_map_async_auf_err(self) -> None:
-        """Auf dem Fehler-Zweig laeuft die Funktion nicht."""
         spion = Spion()
 
         async def nie(value: int) -> int:
@@ -258,14 +236,12 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_bind_darf_scheitern(self) -> None:
-        """Der verkettete Schritt darf den Ausgang auf Err drehen."""
         kette = AsyncResult(_pending(Ok(21))).bind(lambda value: Err(f"zu gross: {value}"))
 
         assert await kette == Err("zu gross: 21")
 
     @pytest.mark.asyncio
     async def test_bind_auf_err(self) -> None:
-        """Auf dem Fehler-Zweig laeuft die Fortsetzung nicht."""
         spion = Spion()
 
         def nie(value: int) -> Result[int, str]:
@@ -286,7 +262,6 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_bind_async_auf_err(self) -> None:
-        """Auf dem Fehler-Zweig laeuft die Fortsetzung nicht."""
         spion = Spion()
 
         async def nie(value: int) -> Result[int, str]:
@@ -298,14 +273,12 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_map_err_auf_err(self) -> None:
-        """map_err transformiert den ausstehenden Fehler."""
         kette = AsyncResult(_pending(Err("kaputt"))).map_err(str.upper)
 
         assert await kette == Err("KAPUTT")
 
     @pytest.mark.asyncio
     async def test_map_err_auf_ok(self) -> None:
-        """Auf dem Erfolgs-Zweig laeuft die Transformation nicht."""
         spion = Spion()
 
         def nie(error: str) -> str:
@@ -317,8 +290,6 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_map_err_async_auf_err(self) -> None:
-        """map_err_async transformiert den ausstehenden Fehler asynchron."""
-
         async def laut(error: str) -> str:
             return error.upper()
 
@@ -326,7 +297,6 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_map_err_async_auf_ok(self) -> None:
-        """Auf dem Erfolgs-Zweig laeuft die Transformation nicht."""
         spion = Spion()
 
         async def nie(error: str) -> str:
@@ -338,14 +308,12 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_or_else_auf_err(self) -> None:
-        """or_else darf den ausstehenden Fehlschlag in einen Erfolg drehen."""
         kette = AsyncResult(_pending(Err("kaputt"))).or_else(lambda error: Ok(len(error)))
 
         assert await kette == Ok(6)
 
     @pytest.mark.asyncio
     async def test_or_else_auf_ok(self) -> None:
-        """Auf dem Erfolgs-Zweig laeuft die Alternative nicht."""
         spion = Spion()
 
         def nie(error: str) -> Result[int, str]:
@@ -357,8 +325,6 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_or_else_async_auf_err(self) -> None:
-        """or_else_async darf den ausstehenden Fehlschlag asynchron auffangen."""
-
         async def rettung(error: str) -> Result[int, str]:
             return Ok(len(error))
 
@@ -366,7 +332,6 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_or_else_async_auf_ok(self) -> None:
-        """Auf dem Erfolgs-Zweig laeuft die Alternative nicht."""
         spion = Spion()
 
         async def nie(error: str) -> Result[int, str]:
@@ -389,7 +354,6 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_inspect_async_auf_err(self) -> None:
-        """Auf dem Fehler-Zweig laeuft die Nebenwirkung nicht."""
         spion = Spion()
 
         async def melde(value: int) -> None:
@@ -452,7 +416,6 @@ class TestKetteAmStueck:
 
     @pytest.mark.asyncio
     async def test_err_kurzschliesst_mitten_in_der_kette(self) -> None:
-        """Ab dem ersten Err laeuft kein weiterer Schritt an."""
         spion = Spion()
 
         def erster_schritt(value: int) -> Result[int, str]:
@@ -573,7 +536,6 @@ class TestDieDreiTraegerBleibenDeckungsgleich:
 
 @pytest.mark.asyncio
 async def test_zip_legt_einen_fertigen_ausgang_neben_die_kette() -> None:
-    """Beleg: `zip` gibt es auch auf der noch nicht erwarteten Form."""
     kette: AsyncResult[int, str] = AsyncResult(_pending(Ok(1)))
 
     assert await kette.zip(Ok("zwei")) == Ok((1, "zwei"))
@@ -581,7 +543,6 @@ async def test_zip_legt_einen_fertigen_ausgang_neben_die_kette() -> None:
 
 @pytest.mark.asyncio
 async def test_zip_kuerzt_die_kette_bei_einem_fehler_ab() -> None:
-    """Beleg: liegt in der Kette ein Fehler, bleibt er das Ergebnis."""
     kette: AsyncResult[int, str] = AsyncResult(_pending(Err("kaputt")))
 
     assert await kette.zip(Ok("zwei")) == Err("kaputt")
@@ -589,7 +550,6 @@ async def test_zip_kuerzt_die_kette_bei_einem_fehler_ab() -> None:
 
 @pytest.mark.asyncio
 async def test_zip_all_legt_einen_fertigen_ausgang_neben_die_kette() -> None:
-    """Beleg: `zip_all` gibt es auch auf der noch nicht erwarteten Form."""
     kette: AsyncResult[int, list[str]] = AsyncResult(_pending(Ok(1)))
 
     assert await kette.zip_all(Ok("zwei")) == Ok((1, "zwei"))

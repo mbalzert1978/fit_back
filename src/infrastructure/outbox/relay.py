@@ -6,9 +6,9 @@ weitere Worker-Instanz die bereits gesperrten **ueberspringen** statt auf sie zu
 warten. Damit sieht kein Event zwei Worker gleichzeitig, ohne dass irgendwo ein
 globales Lock, eine Leader-Wahl oder ein Broker noetig waere.
 
-Wen der Relay beliefert, gibt er nicht vor: er schlaegt den Event-Typ in der
-`EventRegistry` nach. Die Contexts tragen sich dort beim Aufbau ein, der Relay
-kennt keinen von ihnen.
+Wen der Relay beliefert, gibt er nicht vor - er schlaegt den Event-Typ in der
+`EventRegistry` nach (Begruendung:
+`docs/decisions/2026-08-06-1120-outbox-mechanismus-statt-naht.md`).
 """
 
 import json
@@ -107,9 +107,10 @@ class OutboxRelay:
         `0` heisst: gerade nichts faellig. Der Aufrufer (`OutboxWorker`) nimmt das
         als Signal, sich schlafen zu legen, statt weiterzudrehen.
 
-        Zustellung und Statuswechsel liegen in **einer** Transaktion. Bricht der
-        Prozess dazwischen ab, verfaellt die Sperre und das Event ist wieder
-        faellig - deshalb at-least-once und nicht exactly-once.
+        Zustellung und Statuswechsel liegen in **einer** Transaktion - daher
+        at-least-once, nicht exactly-once (siehe
+        `docs/decisions/2026-08-06-1120-outbox-mechanismus-statt-naht.md`,
+        Abschnitt "Zustellgarantie").
         """
         now = self._clock.now()
         async with self._engine.begin() as connection:
@@ -145,13 +146,11 @@ class OutboxRelay:
         )
 
         try:
-            # Scheitert ein Handler, gilt das **ganze** Event als nicht
-            # zugestellt und wird spaeter erneut allen Handlern angeboten.
-            # Deshalb steht in `EventHandler`, dass eine Reaktion idempotent
-            # sein muss - ein bereits erfolgreicher Handler laeuft dann noch
-            # einmal. Die Alternative waere, Zustellzustand je Handler zu
-            # fuehren; das lohnt sich erst, wenn ein Event tatsaechlich viele
-            # teure Reaktionen hat.
+            # Scheitert ein Handler, gilt das **ganze** Event als nicht zugestellt
+            # und wird spaeter erneut allen Handlern angeboten - deshalb muss eine
+            # Reaktion idempotent sein (siehe `EventHandler` sowie
+            # `docs/decisions/2026-08-06-1120-outbox-mechanismus-statt-naht.md`,
+            # Abschnitt "Zustellgarantie").
             for handler in self._registry.handlers_for(event.event_type):
                 await handler.handle(event)
         except Exception as failure:  # noqa: BLE001 -- ein Consumer darf beliebig scheitern

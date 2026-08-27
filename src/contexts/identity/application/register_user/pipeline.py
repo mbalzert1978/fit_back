@@ -4,9 +4,8 @@ Das ist die eine Stelle, an der der Slice zusammengesteckt wird
 (.rules/python/python-factories.md). Produktion und Test-API benutzen **dieselbe**
 Fabrik; getauscht wird ausschliesslich, was hinter der public Naht steckt.
 
-Die Kette (`shared_kernel/pipeline.py`) ersetzt seit Stufe 4 von Ticket 0011 den
-frueheren Wrapper mit `if`: dort standen zwei Fehlerkanaele und zwei Folds in
-dieselbe Response-Union. Jetzt gibt es einen Kanal und am Ende ein Fold.
+Warum eine Kette und kein Wrapper mit `if`:
+docs/decisions/2026-08-17-0937-pipeline-als-behavior-kette-im-shared-kernel.md.
 
 Ein Validierungs-Behavior steht **nicht** mehr davor - es pruefte dieselben
 Felder wie `User.create`. `validating` bleibt als Baustein bestehen, fuer Regeln,

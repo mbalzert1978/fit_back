@@ -13,10 +13,6 @@ class ConstructionKey:
     aussen konstruieren will, hat sie nicht - und der Konstruktor weist ihn ab.
     Damit ist "nur ueber `parse` oder `hydrate`" keine Bitte in einer Docstring
     mehr, sondern eine Sperre, die auch der haelt, der die Docstring nicht liest.
-
-    Eine eigene Klasse und kein `object()`: so steht in der Signatur des Feldes,
-    wofuer der Wert da ist, und ein versehentlich durchgereichtes `None` faellt
-    schon dem Typpruefer auf statt erst zur Laufzeit.
     """
 
     __slots__ = ()

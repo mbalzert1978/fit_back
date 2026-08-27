@@ -3,15 +3,12 @@
 Ein Fall je Fehlerursache, jeder mit **typisierter Nutzlast statt vorformatiertem
 Text**.
 
-`DomainError` ist die **Summe** aller Faelle, nicht mehr der eine `E`, den jeder
-Port spricht. Die frueher hier stehende Zusage ("alle Domain-Ports sprechen
-`Result[T, DomainError]` mit diesem `E`") ist mit Stufe 4 von Ticket 0011
-entfallen: **jeder Port traegt seine eigene, schmale Fehler-Union** (`UserRegistryError`
-in [`ports/user_registry.py`](./ports/user_registry.py), `IdnEncoderError` in
-[`ports/idn_encoder.py`](./ports/idn_encoder.py), `EmailError` fuer `Email.parse`
-und so fort). Der Sammeltyp verlangte an jeder Auswertungsstelle einen `match`
-ueber zwei Dutzend Faelle, von denen einer eintreten konnte - eine Aufzaehlung,
-die nichts mehr aussagte.
+`DomainError` ist die **Summe** aller Faelle, nicht der eine `E`, den ein Port
+spricht - jeder Port traegt seine eigene, schmale Fehler-Union
+(`UserRegistryError` in [`ports/user_registry.py`](./ports/user_registry.py),
+`IdnEncoderError` in [`ports/idn_encoder.py`](./ports/idn_encoder.py),
+`EmailError` fuer `Email.parse` und so fort). Warum:
+docs/decisions/2026-08-17-0933-fehler-union-je-port-statt-domainerror-als-sammeltyp.md.
 
 Wozu die Summe trotzdem gebraucht wird: sie ist die Liste, gegen die die
 Fehlercode- und i18n-Drift-Pruefungen zaehlen (`shared_kernel/coded_error.py`,

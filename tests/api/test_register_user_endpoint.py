@@ -132,7 +132,6 @@ async def test_der_ausgegebene_refresh_token_ist_abgelegt(
 async def test_die_transaktion_wird_committet(
     client: AsyncClient, postgres_engine: AsyncEngine
 ) -> None:
-    """Nach der Antwort stehen Nutzer, Ereignis und Refresh-Token wirklich in der Datenbank."""
     await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
     async with postgres_engine.begin() as connection:
@@ -143,7 +142,6 @@ async def test_die_transaktion_wird_committet(
 
 
 async def test_vergebene_adresse_wird_zu_409(client: AsyncClient) -> None:
-    """Zweite Registrierung derselben Adresse: 409 als problem+json."""
     await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
     response = await client.post("/api/v1/identity/register", json=_VALID_BODY)

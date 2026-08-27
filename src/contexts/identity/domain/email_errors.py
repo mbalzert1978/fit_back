@@ -2,9 +2,9 @@
 
 Physisch getrennt von [`errors.py`](./errors.py), fachlich **nicht**: sie sind
 Teil der `DomainError`-**Summe**, die dort zusammengesetzt wird - der Liste,
-gegen die die Fehlercode- und i18n-Drift-Pruefungen zaehlen. Das eine `E`, das
-ein Port spricht, ist sie seit Stufe 4 von Ticket 0011 nicht mehr: die Faelle
-dieses Moduls bilden die eigene, schmale Union der Operation, die sie erzeugt.
+gegen die die Fehlercode- und i18n-Drift-Pruefungen zaehlen. Warum die Faelle
+dieses Moduls trotzdem ihre eigene, schmale Union bilden statt eines
+Sammeltyps: docs/decisions/2026-08-17-0933-fehler-union-je-port-statt-domainerror-als-sammeltyp.md.
 Der Grund fuer die Trennung ist ein Importzyklus - `errors.py` braucht das
 `Email`-Value-Object fuer `EmailAlreadyRegistered`, und `email.py` braucht diese
 Faelle. Da hier ausschliesslich Primitive als Nutzlast vorkommen, haengt dieses

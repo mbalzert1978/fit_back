@@ -16,7 +16,6 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_ohne_engine_meldet_der_health_check_503() -> None:
-    """Keine Datenbank, keine Gesundheit - und kein Absturz."""
     app = FastAPI()
     app.include_router(health_router)
 

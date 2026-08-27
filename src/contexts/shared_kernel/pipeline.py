@@ -7,12 +7,9 @@ beiden Eigenschaften, um die es geht: **Reihenfolge** (das erste Behavior ist da
 aeusserste) und **Abkuerzen** (wer `Err` liefert, ohne den naechsten Schritt zu
 rufen, beendet den Durchlauf).
 
-Dieses Modul beantwortet **nur**, wie eine Kette gefaltet und gerufen wird - kein
-einziges konkretes Behavior. Die liegen je Aufgabe in einer eigenen Einheit unter
-[`behaviors/`](./behaviors/) und haengen von hier ab, nicht umgekehrt: sonst
-zoege jedes weitere Querschnitts-Behavior (Transaktionsklammer, Idempotenz,
-Messung, Logging) eine weitere Abhaengigkeit in die Naht, die alle teilen.
-
+Dieses Modul beantwortet **nur**, wie eine Kette gefaltet und gerufen wird; die
+konkreten Behaviors liegen unter [`behaviors/`](./behaviors/), siehe
+docs/decisions/2026-08-17-0937-pipeline-als-behavior-kette-im-shared-kernel.md.
 Bewusst **nur stdlib**.
 """
 
@@ -37,8 +34,6 @@ def build_pipeline[TIn, TOut, E](
 
     Von innen nach aussen gefaltet, damit die Aufrufreihenfolge die
     Argumentreihenfolge ist: `build_pipeline(h, a, b)` laeuft `a` -> `b` -> `h`.
-    Das Ergebnis ist selbst wieder ein `Handler` und laesst sich erneut
-    umschliessen - eine Kette und keine Sonderform.
     """
     chained = handler
     for behavior in reversed(behaviors):

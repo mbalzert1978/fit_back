@@ -46,9 +46,7 @@ def _register_responses() -> dict[str, Any]:
 
 
 def test_die_erfolgsantwort_wird_als_umschlag_beschrieben() -> None:
-    """Die 201 liefert `{data, meta}` und nicht den nackten Koerper.
-
-    Vorher nannte das Dokument `RegisterUserResponse` an der Wurzel. Ein daraus
+    """Vorher nannte das Dokument `RegisterUserResponse` an der Wurzel. Ein daraus
     erzeugter Client haette `user` dort gesucht und `data` gefunden.
     """
     schema = _register_responses()["201"]["content"]["application/json"]["schema"]
@@ -59,9 +57,7 @@ def test_die_erfolgsantwort_wird_als_umschlag_beschrieben() -> None:
 
 
 def test_fehlerkoerper_werden_als_problem_json_beschrieben() -> None:
-    """409 und 422 gehen als RFC 7807 hinaus - und nur so.
-
-    `application/json` daneben behauptete, der Aufrufer duerfe sich einen
+    """`application/json` daneben behauptete, der Aufrufer duerfe sich einen
     Media-Type aussuchen; diese API bietet nur den einen an.
     """
     for code in ("409", "422"):

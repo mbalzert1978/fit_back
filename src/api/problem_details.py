@@ -175,12 +175,8 @@ def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
 ) -> ProblemResponse:
     """Baue eine RFC-7807-Antwort samt ihren beiden Uebersetzungen.
 
-    Die eine Stelle, an der eine Fehlerantwort dieser API **entsteht**. Vorher
-    standen an jeder Aufrufstelle zwei `translate`-Aufrufe unmittelbar vor
-    `problem()`, und `(slug, title, detail, language_tag)` reisten ueberall
-    zusammen - vier Werte, von denen drei aus dem ersten folgen. Hier folgen sie
-    wirklich aus ihm: `title` steht unter `<resource_key>`, `detail` unter
-    `<resource_key>-detail`.
+    Die eine Stelle, an der eine Fehlerantwort dieser API **entsteht**: `title`
+    steht unter `<resource_key>`, `detail` unter `<resource_key>-detail`.
 
     `resource_key` faellt auf `slug` zurueck, weil beide fast ueberall
     deckungsgleich sind. Der Rueckfall ist ein `or` und kein `is not None`: ein
@@ -198,16 +194,14 @@ def translated_problem(  # noqa: PLR0913 -- siehe Hinweis im Docstring
     Platzhalter ignoriert sie.
 
     Sprache und Ressourcen kommen aus der **Anfrage** und nicht als Argumente
-    herein. Beide folgen aus ihr, und sie liegt ohnehin schon vor: vorher stand
-    an jeder der sechs Aufrufstellen dasselbe Paar Zeilen davor, das sie aus ihr
-    holte (`language_of`, `resources_of` in `src/api/i18n.py`).
+    herein: beide folgen aus ihr (`language_of`, `resources_of` in
+    `src/api/i18n.py`).
 
-    Zum `noqa`: die Signatur zaehlt sechs Argumente, `PLR0913` erlaubt fuenf. Es
-    waren acht, bevor Sprache und Ressourcen aus der Anfrage kamen. Weniger sind
-    es nicht - Anfrage, Status und Slug sind Pflicht, und `resource_key`,
-    `parameters` und `errors` decken je eine Aufrufstelle ab, die es ohne sie
-    nicht gibt. Nur `positional` ist es gedeckelt: nach dem dritten Argument ist
-    Schluss, `PLR0917` greift nicht.
+    Zum `noqa`: die Signatur zaehlt sechs Argumente, `PLR0913` erlaubt fuenf.
+    Weniger sind es nicht - Anfrage, Status und Slug sind Pflicht, und
+    `resource_key`, `parameters` und `errors` decken je eine Aufrufstelle ab,
+    die es ohne sie nicht gibt. Nur `positional` ist es gedeckelt: nach dem
+    dritten Argument ist Schluss, `PLR0917` greift nicht.
     """
     key = resource_key or slug
     language = language_of(request)

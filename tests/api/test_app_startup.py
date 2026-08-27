@@ -52,9 +52,7 @@ def test_die_anwendung_kennt_ihre_endpunkte(path: str) -> None:
 
 
 async def _run_lifespan(app: FastAPI, message: str) -> dict[str, Any]:
-    """Schicke eine Lifespan-Nachricht durch die App und gib deren Antwort zurueck.
-
-    Bewusst das rohe ASGI-Protokoll statt eines Test-Clients: nur dieser Weg
+    """Bewusst das rohe ASGI-Protokoll statt eines Test-Clients: nur dieser Weg
     baut die Middleware-Kette so auf, wie uvicorn es tut.
     """
     answers: list[dict[str, Any]] = []

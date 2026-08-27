@@ -76,9 +76,8 @@ async def register_user(
     Entscheidung dieses Endpunkts. Sie stecken in `created` und `problems`, zwei
     Dependencies, die bereits an die laufende Anfrage gebunden sind.
 
-    Der Rueckgabetyp nennt beide Formen dieser Route: die 201 als Modell, die
-    Ablehnung als `ProblemResponse`. Kein `JSONResponse` - das sagte nur "JSON"
-    und liesse jeden beliebigen Koerper zu.
+    Kein `JSONResponse` als Rueckgabetyp - das sagte nur "JSON" und liesse
+    jeden beliebigen Koerper zu.
 
     Vollstaendiges Matching mit `assert_never` als Abschluss: waechst die
     Response-Union um einen Ausgang, faellt genau hier auf, dass die HTTP-Antwort

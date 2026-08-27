@@ -98,7 +98,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Start und nicht erst die erste Anfrage.
     settings = get_settings()
 
-    # Lade und validiere i18n Resource-Files beim Start
     app.state.resources = create_resources()
     logger.info("i18n Resource-Dateien geladen")
 

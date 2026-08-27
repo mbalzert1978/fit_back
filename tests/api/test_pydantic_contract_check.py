@@ -16,14 +16,12 @@ from src.api.pydantic_contract_check import verify_pydantic_contract
 
 
 def test_der_echte_stand_geht_durch() -> None:
-    """Mit dem installierten Pydantic muss die Anwendung starten koennen."""
     verify_pydantic_contract()
 
 
 def test_ein_verschwundener_fehlertyp_stoppt_den_start(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Wird ein behandelter Typ umbenannt oder entfernt, faellt der Start aus."""
     monkeypatch.setattr(
         pydantic_contract_check,
         "HANDLED_PYDANTIC_ERROR_TYPES",

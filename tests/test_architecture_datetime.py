@@ -26,23 +26,14 @@ _TIMESTAMP_ONLY_LAYERS = ("domain", "contracts")
 
 
 def test_no_direct_datetime_calls_without_timezone() -> None:
-    """
-    Stelle sicher, dass kein Modul unter src/ direkt datetime.utcnow() oder
-    datetime.now() ohne Timezone aufruft (ausserhalb der TimeProvider-Implementierung).
-
-    Diese Regel wird durchgesetzt durch statische Code-Analyse: Durchsuche alle
-    Python-Dateien unter src/ nach den verbotenen Patterns.
-    """
     src_root = Path(__file__).parent.parent / "src"
     errors: list[tuple[Path, int, str]] = []
 
-    # Dateien, die NICHT überprüft werden (TimeProvider selbst)
     exclude_patterns = [
         "shared_kernel/time_provider.py",
     ]
 
     for py_file in src_root.rglob("*.py"):
-        # Überspringe ausgeschlossene Dateien
         relative_path = py_file.relative_to(src_root)
         if any(relative_path.as_posix().endswith(pat) for pat in exclude_patterns):
             continue
@@ -54,17 +45,14 @@ def test_no_direct_datetime_calls_without_timezone() -> None:
             with open(py_file, encoding="utf-8") as f:
                 content = f.read()
 
-            # Parse den AST
             try:
                 tree = ast.parse(content)
             except SyntaxError as e:
                 errors.append((py_file, e.lineno or 0, f"SyntaxError: {e}"))
                 continue
 
-            # Durchsuche nach Calls zu datetime.utcnow() oder datetime.now()
             for node in ast.walk(tree):
                 if isinstance(node, ast.Call):
-                    # Überprüfe auf datetime.utcnow()
                     if (
                         isinstance(node.func, ast.Attribute)
                         and node.func.attr == "utcnow"
@@ -79,14 +67,12 @@ def test_no_direct_datetime_calls_without_timezone() -> None:
                             )
                         )
 
-                    # Überprüfe auf datetime.now() ohne tzinfo-Argument
                     if (
                         isinstance(node.func, ast.Attribute)
                         and node.func.attr == "now"
                         and isinstance(node.func.value, ast.Name)
                         and node.func.value.id == "datetime"
                     ):
-                        # Prüfe, ob tz oder tzinfo als Argument gesetzt ist
                         has_tzinfo = False
                         for keyword in node.keywords:
                             if keyword.arg in ("tz", "tzinfo"):

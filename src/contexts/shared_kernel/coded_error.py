@@ -1,15 +1,5 @@
 """Der Vertrag, den jeder Fehlerfall erfuellt: er traegt seinen Code selbst.
 
-Der Code ist der veroeffentlichte, sprachunabhaengige Teil eines Fehlers - `title` und
-`detail` sind die Kosmetik darueber. Er steht deshalb **auf dem Fall** und wird
-ausdruecklich **nicht** aus dem Klassennamen abgeleitet: eine Umbenennung beim
-Refactoring darf den Vertrag nach aussen nicht still aendern.
-
-Warum das hier liegt und nicht je Context: es ist eine Querschnitts-Regel, und die
-werden laut CLAUDE.md einmalig im Shared Kernel festgehalten. Der Fehler**typ** selbst
-bleibt dagegen context-eigen (`.rules/python/python-feature-slices.md`) - dieses Modul
-beschreibt nur die eine Eigenschaft, die jeder Fall haben muss, nicht den Typ.
-
 Entscheidung: docs/decisions/2026-08-07-0805-fehlercodes-werden-abgeleitet-nicht-gepflegt.md
 """
 
@@ -29,10 +19,6 @@ class CodedError(Protocol):
 
 def error_cases(*unions: object) -> tuple[type, ...]:
     """Zaehle die Faelle einer oder mehrerer Fehler-Unions auf, verschachtelt aufgeloest.
-
-    Die Unions dieses Repos sind ineinander geschachtelt - `DomainError` enthaelt
-    `EmailError`, das selbst eine Union ist. `get_args` liefert dort den Alias, nicht
-    dessen Faelle, deshalb wird rekursiv aufgeloest, bis nur noch Klassen uebrig sind.
 
     Ein einzelner, nicht-unionierter Typ ist eine Union mit einem Fall und wird
     genauso behandelt - der Aufrufer muss nicht wissen, welche Form er hat.
@@ -59,9 +45,8 @@ def codes_of(*unions: object) -> dict[str, type]:
     """Bilde Code -> Fehlerfall ueber alle Faelle der uebergebenen Unions.
 
     Wirft `ValueError`, wenn ein Fall keinen Code traegt oder zwei Faelle sich
-    denselben Code teilen. Beides ist ein Programmierfehler, der beim Start auffallen
-    soll und nicht im Betrieb: ein `Protocol` allein prueft in diesem Stack niemand
-    (kein mypy/pyright, siehe .rules/python/README.md), diese Aufzaehlung schon.
+    denselben Code teilen - siehe
+    docs/decisions/2026-08-07-0805-fehlercodes-werden-abgeleitet-nicht-gepflegt.md.
     """
     by_code: dict[str, type] = {}
     uncoded: list[str] = []

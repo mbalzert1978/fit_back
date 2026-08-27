@@ -6,7 +6,6 @@
 """Prueft die Voraussetzungen der Claude-Seite dieses Repos.
 
 Aufruf ueber `./make.ps1 claude-doctor`, `uv run scripts/claude_doctor.py` oder direkt.
-Ein Befund ist ein eigener Fall, kein Satz: was gefunden wurde, steht im Typ, nicht im Text.
 Exit 1, sobald ein Befund existiert, sonst 0.
 """
 
@@ -24,8 +23,7 @@ TOOLS: Final = ("uv", "gh", "semble")
 SETTINGS: Final = (".claude/settings.json", ".claude/settings.local.json")
 
 # ponytail: ein Hook-Kommando ist eine Shell-Zeile; pruefenswert ist daran nur der
-# Skriptpfad, auf den sie zeigt - alles zwischen $CLAUDE_PROJECT_DIR/ und dem
-# schliessenden Anfuehrungszeichen.
+# Skriptpfad, auf den sie zeigt.
 HOOK_PATH: Final = re.compile(r"\$CLAUDE_PROJECT_DIR/([^\"']+)")
 
 
@@ -111,8 +109,8 @@ def _event_references(matchers: object) -> tuple[str, ...]:
 def hook_references(document: object) -> tuple[str, ...]:
     """Liest die Skriptpfade aller `type: command`-Hooks aus einem rohen Settings-Dokument.
 
-    Die einzige Stelle, an der ungetyptes JSON vorkommt. Jede Ebene ist ein `match` auf die
-    Struktur, die sie erwartet; was nicht passt, traegt keine Pfade und faellt lautlos raus.
+    Jede Ebene ist ein `match` auf die Struktur, die sie erwartet; was nicht passt, traegt
+    keine Pfade und faellt lautlos raus.
     """
     match document:
         case {"hooks": {**events}}:

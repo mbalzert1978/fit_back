@@ -1,14 +1,9 @@
 """Die public Naht des Use Case RegisterUser.
 
-Drei Eigenschaften machen das zur Naht *dieses* Use Case und nicht zu einem
-geteilten Identity-Gateway (.rules/python/python-feature-slices.md):
-
-1. Nur die Operationen, die `register_user` wirklich braucht - kein `save`,
-   kein `delete`, kein `find_by_id`, die andere Use Cases spaeter brauchen.
-2. Ueber die Naht wandern ausschliesslich Primitive. Kein Value Object, keine
-   Entitaet, kein Aggregat; die Uebersetzung ist Sache der Port-Adapter.
-3. Jede fallible Operation liefert ihre **eigene**, einfache Tagged Union -
-   nicht `Result[T, E]`. Der Fehlerkanal der Domaene bleibt drinnen.
+Eigene, schmale Vertraege statt eines geteilten Identity-Gateways
+(.rules/python/python-feature-slices.md): nur die Operationen, die
+`register_user` wirklich braucht, ausschliesslich Primitive ueber der Naht, und
+je fallibler Operation ihre eigene, einfache Tagged Union statt `Result[T, E]`.
 
 Je Mitspieler ein eigener Vertrag: Nutzerbestand, Hash-Verfahren und
 IDN-Umwandlung haben nichts miteinander zu tun und werden von verschiedenen

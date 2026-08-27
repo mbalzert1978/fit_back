@@ -1,13 +1,8 @@
 """Das Behavior, das die Eingabe prueft, bevor irgendetwas anderes laeuft.
 
-Es haengt an beidem: an der Pipeline-Naht ([`../pipeline.py`](../pipeline.py))
-fuer die Form eines Behaviors und an [`../validation.py`](../validation.py) fuer
-die Regelform. Genau deshalb liegt es hier und nicht in der Naht - die soll von
-`validation.py` nichts wissen muessen.
-
-Bewusst **kein** Ersatz fuer `validation.py`: `Rule`, `all_of`/`all_of_async` und
-`FieldError` bleiben dort und werden hier nur benutzt. Dieses Modul weiss,
-*wann* validiert wird, nicht *was* gilt.
+Weiss, *wann* validiert wird, nicht *was* gilt - Letzteres bleibt in
+[`../validation.py`](../validation.py); siehe
+docs/decisions/2026-08-17-0937-pipeline-als-behavior-kette-im-shared-kernel.md.
 """
 
 from collections.abc import Callable, Sequence
@@ -22,13 +17,9 @@ __all__ = ["validating"]
 def validating[TIn, TOut, E](
     rule: AsyncRule[TIn], on_invalid: Callable[[Sequence[FieldError]], E]
 ) -> Behavior[TIn, TOut, E]:
-    """Baue das Behavior, das die Eingabe prueft, bevor irgendetwas anderes laeuft.
+    """Baue das Behavior, das die Eingabe prueft und bei Verstoss abkuerzt.
 
-    Es hebt die gesammelten `FieldError` in den **einen** Fehlerkanal der
-    Pipeline - `on_invalid` sagt, wie der Fall dieses Use Case dafuer heisst -
-    und kuerzt ab. Damit fallen die beiden frueher getrennten Fehlerkanaele
-    (Feldfehler hier, Domaenenfehler dort) zusammen und der Slice braucht nur
-    noch **einen** Fold am Ende.
+    `on_invalid` hebt die gesammelten `FieldError` in den Fehlerkanal dieser Pipeline.
     """
 
     def behave(request: TIn, inner: Handler[TIn, TOut, E]) -> AsyncResult[TOut, E]:

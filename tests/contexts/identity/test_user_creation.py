@@ -104,9 +104,7 @@ async def test_gueltige_rohwerte_werden_zur_aktiven_wurzel() -> None:
 async def test_ein_ungueltiges_feld_wird_mit_seinem_namen_abgelehnt(
     abweichend: dict[str, str], erwartet: object
 ) -> None:
-    """Beleg: der Fehler sagt, **welches** Feld gescheitert ist - nicht nur, dass eines.
-
-    Der Grund fuer die fuenf Huellen in `user_creation_errors.py`: eine flache
+    """Der Grund fuer die fuenf Huellen in `user_creation_errors.py`: eine flache
     Union der Parser-Fehler liesse die Zuordnung zum Feld nur erraten.
     """
     assert await _create(**abweichend) == Err(UserRejected((erwartet,)))
@@ -114,10 +112,7 @@ async def test_ein_ungueltiges_feld_wird_mit_seinem_namen_abgelehnt(
 
 @pytest.mark.asyncio
 async def test_alle_ungueltigen_felder_werden_auf_einmal_gemeldet() -> None:
-    """Beleg: die Wurzel sammelt ihre Befunde, statt beim ersten abzubrechen.
-
-    Solange `create` das leistet, braucht der Slice kein zweites Regelwerk davor.
-    """
+    """Solange `create` das leistet, braucht der Slice kein zweites Regelwerk davor."""
     abgelehnt = await _create(email="   ", password="zu-kurz", locale="fr")
 
     assert abgelehnt == Err(
@@ -133,7 +128,6 @@ async def test_alle_ungueltigen_felder_werden_auf_einmal_gemeldet() -> None:
 
 @pytest.mark.asyncio
 async def test_die_reihenfolge_der_befunde_ist_die_feldreihenfolge() -> None:
-    """Beleg: gemeldet wird in der Reihenfolge der Felder, nicht nach Zufall."""
     abgelehnt = await _create(display_name="a", time_zone="Europe/Nirgendwo", password="kurz")
 
     match abgelehnt:

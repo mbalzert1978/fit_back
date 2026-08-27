@@ -41,7 +41,6 @@ class DummyAggregateChanged:
     occurred_at: Timestamp
 
     def to_payload(self) -> Mapping[str, JsonValue]:
-        """Gib die Nutzlast heraus."""
         return {"index": self.index}
 
 
@@ -49,11 +48,9 @@ class RecordingHandler:
     """Test-Consumer: haelt fest, was ihm zugestellt wurde."""
 
     def __init__(self) -> None:
-        """Beginne ohne Zustellungen."""
         self.delivered: list[DeliveredEvent] = []
 
     async def handle(self, event: DeliveredEvent) -> None:
-        """Merke die Zustellung."""
         self.delivered.append(event)
 
 
@@ -84,7 +81,6 @@ async def clean_outbox(postgres_engine: AsyncEngine) -> AsyncGenerator[AsyncEngi
 
 
 def _clock_at(unix_seconds: int) -> FakeTimeProvider:
-    """Baue eine feststehende Uhr auf einen Unix-Zeitpunkt."""
     return FakeTimeProvider(datetime.fromtimestamp(unix_seconds, UTC))
 
 
@@ -94,7 +90,6 @@ def _relay(
     unix_seconds: int = 1_000_000,
     config: RelayConfig | None = None,
 ) -> OutboxRelay:
-    """Baue einen Relay auf einer feststehenden Uhr."""
     return OutboxRelay(engine, registry, _clock_at(unix_seconds), config)
 
 
@@ -234,7 +229,6 @@ async def test_worker_stellt_ohne_polling_intervall_zu(clean_outbox: AsyncEngine
 async def test_fehlschlag_verschiebt_die_faelligkeit_statt_zu_warten(
     clean_outbox: AsyncEngine,
 ) -> None:
-    """Ein gescheiterter Versuch wird zur Faelligkeit, nicht zu einer Schlafphase."""
     handler = FailingHandler(failures=1)
     registry = EventRegistry()
     registry.register(DummyAggregateChanged, handler)
@@ -308,7 +302,6 @@ async def test_aufgegebenes_event_gilt_nicht_als_zugestellt(clean_outbox: AsyncE
     assert row["failed_at"] is not None
     assert row["processed_at"] is None
 
-    # Ein aufgegebenes Event wird nicht erneut angefasst.
     assert await _relay(clean_outbox, registry, now + 3600, config).relay_due_events() == 0
 
 

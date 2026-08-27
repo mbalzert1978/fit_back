@@ -1,15 +1,8 @@
 """Der Schreibvorgang der Outbox - Zeile anlegen und den Zusteller wecken.
 
-Dieses Modul ist **Mechanismus, keine Naht**. Es formuliert keine Schnittstelle,
-die ein Slice zu erfuellen haette, sondern ist die Bibliothek, die eine duenne
-Slice-Implementierung aufruft - dieselbe Rolle, die `idna` fuer die
-E-Mail-Pruefung spielt.
-
-Der eigentliche Trick steckt darin, was *nicht* passiert: es wird nicht
-committet. Die Zeile entsteht in der Transaktion des Aufrufers, gemeinsam mit
-seinem Aggregate-Write. Damit gibt es die beiden Ausgaenge "Aggregat gespeichert,
-Event verloren" und "Event verschickt, Aggregat verworfen" nicht - genau dafuer
-existiert eine Outbox.
+Committet nicht selbst: die Zeile entsteht in der laufenden Transaktion des
+Aufrufers, gemeinsam mit dessen Aggregate-Write. Architektur-Begruendung siehe
+`docs/decisions/2026-08-06-1120-outbox-mechanismus-statt-naht.md`.
 """
 
 import json
@@ -53,12 +46,9 @@ class OutboxTransaction(Protocol):
         ...
 
 
-# `next_attempt_at = 0` heisst "sofort faellig". Bewusst **nicht** `occurred_at`:
-# das ist der fachliche Zeitpunkt des Ereignisses, kein Termin. Geht die Uhr des
-# schreibenden Context vor - oder traegt ein Ereignis absichtlich ein spaeteres
-# Datum -, laege die Zeile sonst still, bis die Wanduhr aufgeholt hat. Die Null
-# haelt den ersten Versuch ausserdem von jedem Uhrenvergleich frei; erst die
-# Retries planen ueber die Uhr des Relays, und die vergleicht nur mit sich selbst.
+# `next_attempt_at = 0` heisst "sofort faellig", bewusst **nicht** `occurred_at`
+# (Begruendung: `docs/decisions/2026-08-06-1120-outbox-mechanismus-statt-naht.md`,
+# Abschnitt "next_attempt_at ist ein Termin, occurred_at ein fachlicher Zeitpunkt").
 _INSERT_EVENT: TextClause = text("""
     INSERT INTO shared_kernel.outbox (id, event_type, payload, occurred_at, next_attempt_at)
     VALUES (:id, :event_type, CAST(:payload AS jsonb), :occurred_at, 0)

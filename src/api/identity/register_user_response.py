@@ -86,8 +86,7 @@ class RegisterUserResponse(BaseModel):
 
         Der Use Case gibt die vier Sitzungsfelder flach heraus; ihre Gliederung
         unter `user` und `session` ist Sache dieser Grenze und steht deshalb
-        hier. Vorher stand sie im Router und machte ihn zur einzigen Stelle, die
-        beide Formen kennen musste.
+        hier.
         """
         return cls(
             user=RegisteredUser(

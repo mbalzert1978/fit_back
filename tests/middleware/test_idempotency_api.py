@@ -164,7 +164,6 @@ async def test_der_eintrag_traegt_alle_geforderten_felder(
 async def test_verschiedene_schluessel_stoeren_sich_nicht(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Zwei Schluessel, zwei Vorgaenge - kein Treffer im Zwischenspeicher."""
     app = _build_app(clean_idempotency_keys, user_id=uuid4())
 
     async with await _client(app) as client:
@@ -182,7 +181,6 @@ async def test_verschiedene_schluessel_stoeren_sich_nicht(
 async def test_ohne_schluessel_geht_die_anfrage_durch(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Ohne Header greift die Middleware nicht ein."""
     app = _build_app(clean_idempotency_keys, user_id=uuid4())
 
     async with await _client(app) as client:
@@ -221,7 +219,6 @@ async def test_ohne_angemeldeten_nutzer_greift_der_schluessel_trotzdem(
 async def test_ungueltige_uuid_im_header_geht_durch(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Ein unlesbarer Schluessel bricht die Anfrage nicht ab."""
     app = _build_app(clean_idempotency_keys, user_id=uuid4())
 
     async with await _client(app) as client:
@@ -349,7 +346,6 @@ async def test_eine_abgelehnte_anfrage_gibt_den_schluessel_frei(
 async def test_eine_gescheiterte_anfrage_gibt_den_schluessel_frei(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """Auch eine geworfene Ausnahme darf den Schluessel nicht dauerhaft verbrennen."""
     app = _build_app(clean_idempotency_keys, user_id=uuid4())
     key = str(uuid4())
 
@@ -367,7 +363,6 @@ async def test_eine_gescheiterte_anfrage_gibt_den_schluessel_frei(
 async def test_put_wird_ebenfalls_zwischengespeichert(
     clean_idempotency_keys: AsyncEngine,
 ) -> None:
-    """PUT faellt unter dieselbe Regel wie POST."""
     app = _build_app(clean_idempotency_keys, user_id=uuid4())
     key = str(uuid4())
 

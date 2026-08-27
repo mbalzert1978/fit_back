@@ -43,9 +43,7 @@ def test_der_rohe_konstruktor_verlangt_einen_schluessel() -> None:
     ],
 )
 def test_ein_fremder_schluessel_wird_abgewiesen(bauen: type, rohwert: str) -> None:
-    """Beleg: auch ein selbst gebauter Schluessel oeffnet den Konstruktor nicht.
-
-    Der Wert ist jeweils ein **gueltiger** - abgewiesen wird also der Weg und
+    """Der Wert ist jeweils ein **gueltiger** - abgewiesen wird also der Weg und
     nicht der Inhalt. Genau darauf kommt es an: sonst liesse sich die Sperre mit
     einem Wert umgehen, den die Regeln zufaellig auch akzeptiert haetten.
     """

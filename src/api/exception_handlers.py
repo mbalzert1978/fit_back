@@ -45,9 +45,7 @@ HANDLED_PYDANTIC_ERROR_TYPES = frozenset(
         "value_error",
     }
 )
-"""Die Pydantic-Fehlertypen, die an diesem Handler ankommen koennen.
-
-Gemessen statt geschaetzt: `tests/api/test_pydantic_error_contract.py` haelt die Menge in
+"""Gemessen statt geschaetzt: `tests/api/test_pydantic_error_contract.py` haelt die Menge in
 beide Richtungen fest.
 """
 

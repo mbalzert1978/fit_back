@@ -84,14 +84,12 @@ class ResourcesCache:
         """Übersetze einen Code + Parameter zu Text."""
         template = self.get(language, code)
         if template is None:
-            # Fallback auf Default-Sprache
             template = self.get(DEFAULT_LANGUAGE, code)
         if template is None:
             # Sollte nie vorkommen, da beim Start geprüft
             msg = f"Code '{code}' not found in any language"
             raise AssertionError(msg)
 
-        # Benannte Platzhalter aus Parametern ausfüllen
         try:
             return template.format(**parameters)
         except KeyError as e:
@@ -102,9 +100,6 @@ class ResourcesCache:
 def create_resources() -> ResourcesCache:
     """Erstelle und validiere die Resource-Dateien beim Startup.
 
-    Diese Funktion wird von der Anwendung während der Initialisierung
-    aufgerufen, um sicherzustellen, dass alle Fehlercodes in allen Sprachen
-    definiert sind. Die Instanz wird in app.state.resources gespeichert.
     Wirft TypeError für malformed JSON, ValueError für fehlende Codes.
     """
     return ResourcesCache()
@@ -119,8 +114,7 @@ def translate(
     """Übersetze einen Code + Parameter zu Text in einer Sprache.
 
     Args:
-        resources: Die ResourcesCache-Instanz (aus request.app.state.resources,
-            garantiert im Lifespan)
+        resources: Die geladenen Sprachdateien.
         code: Der zu übersetzende Fehlercode (aus Fehler-Union, beim Start gegen
             Ressourcen geprüft)
         parameters: Optional dict mit Parametern für Template-Platzhalter
@@ -207,10 +201,8 @@ def get_language_from_header(accept_language: str | None) -> str:
 def language_of(request: Request) -> str:
     """Die ausgehandelte Sprache dieser Anfrage.
 
-    Die eine Stelle, an der `Accept-Language` ausgewertet wird. Vorher stand
-    dieselbe Zeile an vier Stellen nebeneinander - im Router, im
-    Validierungs-Handler und in beiden Middlewares. Vier Kopien sind vier
-    Stellen, an denen die Regel auseinanderlaufen kann.
+    Die eine Stelle, an der `Accept-Language` ausgewertet wird - mehrere Kopien
+    waeren mehrere Stellen, an denen die Regel auseinanderlaufen koennte.
 
     **Ohne Zwischenspeicher am `request.state`.** Er war einer zu viel:
     `get_language_from_header` ist rein und liest einen Header, der sich

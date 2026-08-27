@@ -70,7 +70,6 @@ class TestAcceptLanguageInfluencesResponse:
     """HTTP-Anfragen mit unterschiedlichen Accept-Language geben unterschiedliche Texte."""
 
     async def test_email_already_registered_auf_de(self, client: AsyncClient) -> None:
-        """Accept-Language: de-DE liefert deutsche Texte."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         response = await client.post(
@@ -86,7 +85,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "bereits mit einem anderen Konto" in problem["detail"]
 
     async def test_email_already_registered_auf_en(self, client: AsyncClient) -> None:
-        """Accept-Language: en-US liefert englische Texte."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         response = await client.post(
@@ -102,7 +100,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "already associated" in problem["detail"]
 
     async def test_type_und_status_sprachenunabhaengig(self, client: AsyncClient) -> None:
-        """Sprachwahl aendert type und status nicht."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         response_de = await client.post(
@@ -126,7 +123,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "email-already-registered" in problem_en["type"]
 
     async def test_validation_failed_auf_de(self, client: AsyncClient) -> None:
-        """Validierungsfehler werden auf Deutsch uebersetzt."""
         response = await client.post(
             "/api/v1/identity/register",
             json={**_VALID_BODY, "password": "kurz", "locale": "fr"},
@@ -139,7 +135,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "ungültig" in problem["title"]
 
     async def test_validation_failed_auf_en(self, client: AsyncClient) -> None:
-        """Validierungsfehler werden auf Englisch uebersetzt."""
         response = await client.post(
             "/api/v1/identity/register",
             json={**_VALID_BODY, "password": "kurz", "locale": "fr"},
@@ -152,7 +147,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "invalid" in problem["title"]
 
     async def test_fehlender_header_faellt_auf_de_default(self, client: AsyncClient) -> None:
-        """Ohne Accept-Language kommt de-DE (Standardsprache)."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         response = await client.post(
@@ -167,7 +161,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "Diese E-Mail-Adresse ist bereits registriert" in problem["title"]
 
     async def test_unknown_language_faellt_auf_de_default(self, client: AsyncClient) -> None:
-        """Unbekannte Sprache faellt auf de-DE zurueck."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         response = await client.post(
@@ -182,7 +175,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "Diese E-Mail-Adresse ist bereits registriert" in problem["title"]
 
     async def test_case_insensitive_matching(self, client: AsyncClient) -> None:
-        """EN-us und en-US sind austauschbar."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         response = await client.post(
@@ -197,7 +189,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "already registered" in problem["title"]
 
     async def test_region_fallback_de_at_zu_de_de(self, client: AsyncClient) -> None:
-        """de-AT faellt auf de-DE zurueck."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         response = await client.post(
@@ -212,7 +203,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "Diese E-Mail-Adresse ist bereits registriert" in problem["title"]
 
     async def test_region_fallback_en_gb_zu_en_us(self, client: AsyncClient) -> None:
-        """en-GB faellt auf en-US zurueck."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         response = await client.post(
@@ -227,7 +217,6 @@ class TestAcceptLanguageInfluencesResponse:
         assert "already registered" in problem["title"]
 
     async def test_q_weights_influence_choice(self, client: AsyncClient) -> None:
-        """Q-Gewichte beeinflussen die Sprachwahl."""
         await client.post("/api/v1/identity/register", json=_VALID_BODY)
 
         # de;q=0.5,en-US;q=0.9 sollte en-US waehlen

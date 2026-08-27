@@ -67,7 +67,6 @@ class TestValidationErrorHandler:
         assert data["errors"]
 
     def test_der_handler_ist_registriert(self) -> None:
-        """`register_exception_handlers` haengt den Handler tatsaechlich an die App."""
         app = FastAPI()
         register_exception_handlers(app)
 

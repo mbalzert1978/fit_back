@@ -55,7 +55,6 @@ def _offene_match_stellen() -> list[tuple[str, int]]:
 
 
 def test_jeder_match_endet_laut() -> None:
-    """Kein `match` darf still durchfallen und `None` liefern."""
     unerlaubt = [f"src/{datei}:{zeile}" for datei, zeile in _offene_match_stellen()]
 
     assert not unerlaubt, (
