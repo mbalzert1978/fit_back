@@ -20,14 +20,17 @@ from collections.abc import Awaitable, Callable, Generator
 from dataclasses import dataclass
 from typing import Final, final
 
+type _Unit = object
+"""Der Rueckgabewert, den niemand liest - `()` aus Rust.
 
-def _lifted[T, E](outcome: Result[T, E]) -> AsyncResult[T, E]:
-    """Hebe einen fertigen Ausgang in eine bereits abgeschlossene Kette."""
+`object` und nicht `Any`: `Any` schaltet jede Pruefung ab, `object` verbietet
+jeden Zugriff auf den Wert.
+"""
 
-    async def run() -> Result[T, E]:
-        return outcome
 
-    return AsyncResult(run())
+async def _ready[T, E](outcome: Result[T, E]) -> Result[T, E]:
+    """Bringe einen fertigen Ausgang in die Form eines Awaitable."""
+    return outcome
 
 
 @final
@@ -101,7 +104,7 @@ class Ok[T]:
 
     def map_err_async[E, F](self, _: Callable[[E], Awaitable[F]], /) -> AsyncResult[T, F]:
         """Ignoriere die asynchrone Fehler-Transformation (es liegt kein Fehler vor)."""
-        return self._settled()
+        return AsyncResult(_ready(self))
 
     def or_else[U, F, G](self, _: Callable[[F], Result[U, G]], /) -> Ok[T]:
         """Nimm die Alternative nicht (es liegt kein Fehler vor)."""
@@ -111,7 +114,7 @@ class Ok[T]:
         self, _: Callable[[F], Awaitable[Result[U, G]]], /
     ) -> AsyncResult[T, G]:
         """Nimm die asynchrone Alternative nicht (es liegt kein Fehler vor)."""
-        return self._settled()
+        return AsyncResult(_ready(self))
 
     def fold[U, E](self, on_ok: Callable[[T], U], _on_err: Callable[[E], U], /) -> U:
         """Nimm den Erfolgs-Arm - der Fehler-Arm wird nie aufgerufen."""
@@ -123,16 +126,10 @@ class Ok[T]:
         """Nimm den asynchronen Erfolgs-Arm - der Fehler-Arm wird nie aufgerufen."""
         return await on_ok(self.value)
 
-    def inspect_async[E](self, f: Callable[[T], Awaitable[object]], /) -> AsyncResult[T, E]:
-        """Loese eine Nebenwirkung auf dem Erfolgs-Wert aus und gib das Result unveraendert zurueck.
+    def inspect_async[E](self, f: Callable[[T], Awaitable[_Unit]], /) -> AsyncResult[T, E]:
+        """Loese eine Nebenwirkung auf dem Erfolgs-Wert aus, ohne die Kette zu aendern.
 
-        Der Unterschied zu `map`/`bind`: die Kette bleibt stehen. `f` darf den
-        Wert lesen, aber weder ersetzen noch den Ausgang aendern - das macht
-        genau die Faelle ausdrueckbar, in denen ein Erfolg nach aussen gemeldet
-        werden muss, ohne dass die Meldung selbst zum Ergebnis wird.
-
-        Der Rueckgabewert von `f` wird bewusst verworfen. Waere er von Belang,
-        waere `bind` das richtige Werkzeug.
+        Waere der Rueckgabewert von `f` von Belang, waere `bind` das Werkzeug.
         """
 
         async def run() -> Result[T, E]:
@@ -140,10 +137,6 @@ class Ok[T]:
             return self
 
         return AsyncResult(run())
-
-    def _settled[E](self) -> AsyncResult[T, E]:
-        """Reiche diesen fertigen Erfolg als bereits abgeschlossene Kette weiter."""
-        return _lifted(self)
 
 
 @final
@@ -159,7 +152,7 @@ class Err[E]:
 
     def map_async[T, U](self, _: Callable[[T], Awaitable[U]], /) -> AsyncResult[U, E]:
         """Ignoriere den Fehler (asynchrone Transformation nicht möglich)."""
-        return self._settled()
+        return AsyncResult(_ready(self))
 
     def zip[U, F](self, _: Result[U, F], /) -> Err[E]:
         """Es liegt schon ein Fehler vor - der zweite Ausgang aendert daran nichts."""
@@ -185,7 +178,7 @@ class Err[E]:
         Das ist die Abkuerzung, von der die Behavior-Kette lebt: liegt ein Fehler
         vor, laeuft der naechste Schritt gar nicht erst an.
         """
-        return self._settled()
+        return AsyncResult(_ready(self))
 
     def map_err[F](self, f: Callable[[E], F]) -> Err[F]:
         """Transformiere den Fehler - z. B. Domänenfehler in eine Anzeigemeldung."""
@@ -223,13 +216,9 @@ class Err[E]:
         """Nimm den asynchronen Fehler-Arm - der Erfolgs-Arm wird nie aufgerufen."""
         return await on_err(self.error)
 
-    def inspect_async[T](self, _: Callable[[T], Awaitable[object]], /) -> AsyncResult[T, E]:
+    def inspect_async[T](self, _: Callable[[T], Awaitable[_Unit]], /) -> AsyncResult[T, E]:
         """Loese keine Nebenwirkung aus (es liegt kein Erfolgs-Wert vor)."""
-        return self._settled()
-
-    def _settled[T](self) -> AsyncResult[T, E]:
-        """Reiche diesen fertigen Fehlschlag als bereits abgeschlossene Kette weiter."""
-        return _lifted(self)
+        return AsyncResult(_ready(self))
 
 
 type Result[T, E] = Ok[T] | Err[E]
@@ -334,7 +323,7 @@ class AsyncResult[T, E]:
         """Versuche die **asynchrone** Alternative auf dem Fehler-Zweig."""
         return self._then_async(lambda outcome: outcome.or_else_async(f))
 
-    def inspect_async(self, f: Callable[[T], Awaitable[object]], /) -> AsyncResult[T, E]:
+    def inspect_async(self, f: Callable[[T], Awaitable[_Unit]], /) -> AsyncResult[T, E]:
         """Loese eine Nebenwirkung auf dem Erfolgs-Wert aus, ohne die Kette zu veraendern."""
         return self._then_async(lambda outcome: outcome.inspect_async(f))
 

@@ -10,6 +10,7 @@ Die verbindlichen Coding-Standards dieses Repos. Eine **gemeinsame** Schicht plu
 ├── common/          # sprachunabhängige Prinzipien
 │   ├── anti-anemic-domain.md
 │   ├── coding-style.md
+│   ├── docstrings-und-kommentare.md
 │   ├── escalation.md
 │   ├── git-workflow.md
 │   ├── patterns.md
