@@ -1,10 +1,9 @@
 """Signiert Access-Token als JWT (HS256) - ueber `pyjwt`, nicht von Hand.
 
 Kennt die Domaene nicht: Nutzer-Id und Zeitfenster hinein, ein Token-String
-heraus. **Wie lange** ein Zugang gilt, steht nicht hier, sondern in
-`src/contexts/identity/domain/token_lifetimes.py`; der Aufrufer bringt den
-Ablauf mit. Die Naht `RegisterUserSessionTokens` erfuellt
-`postgres_session_tokens.py`, das dieses Modul benutzt.
+heraus - der Aufrufer bringt den Ablauf mit. Die Naht
+`RegisterUserSessionTokens` erfuellt `postgres_session_tokens.py`, das dieses
+Modul benutzt.
 """
 
 from typing import final

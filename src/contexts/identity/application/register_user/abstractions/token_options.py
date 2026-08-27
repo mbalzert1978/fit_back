@@ -8,9 +8,10 @@ __all__ = ["RegisterUserTokenOptions"]
 class RegisterUserTokenOptions(Protocol):
     """Zwei Sekundenwerte aus der Konfiguration des Prozesses.
 
-    Kein Domain-Port: die Domaene entscheidet nicht, wie lange ein Zugang gilt,
-    sie bekommt die Zahl als Primitiv gereicht. Erfuellt wird der Vertrag in der
-    Produktion aus `Settings`, in Specs aus einem Fake.
+    Kein Domain-Port: **welcher** Wert gilt, entscheidet die Umgebung. Ob er
+    zulaessig ist, entscheidet `TokenLifetime`; die Fabrik (`pipeline.py`)
+    wandelt an dieser Naht um. Erfuellt wird der Vertrag in der Produktion aus
+    `Settings`, in Specs aus einem Fake.
     """
 
     @property

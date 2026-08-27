@@ -10,6 +10,7 @@ from src.contexts.identity.domain import (
     IssuedCredentials,
     RefreshToken,
     TokenHash,
+    TokenLifetime,
     User,
 )
 
@@ -20,9 +21,8 @@ __all__ = ["SessionIssuerAdapter"]
 class SessionIssuerAdapter:
     """Uebersetzt zwischen Aggregat und Naht - in beide Richtungen.
 
-    Das Aggregat entsteht in der Domaene (`RefreshToken.issue`), die Zeile
-    entsteht hier, und der Klartext des Geheimnisses geht an der Domaene vorbei
-    direkt in die Zugangsdaten - er wird nie abgelegt.
+    Der Klartext des Geheimnisses geht an der Domaene vorbei direkt in die
+    Zugangsdaten - er wird nie abgelegt.
     """
 
     def __init__(self, sessions: RegisterUserSessionTokens) -> None:
@@ -30,29 +30,28 @@ class SessionIssuerAdapter:
         self._sessions = sessions
 
     async def issue(
-        self, user: User, access_token_seconds: int, refresh_token_seconds: int
+        self, user: User, access_lifetime: TokenLifetime, refresh_lifetime: TokenLifetime
     ) -> IssuedCredentials:
         """Stelle den Refresh-Token aus, lege ihn ab und signiere den Zugang.
 
-        Als Zeitpunkt dient `registered_at` des Aggregats. Das ist dieselbe
-        Uhrablesung, aus der auch die Nutzer-Zeile entsteht; eine zweite liesse
-        Konto und Token auseinanderliegen, ohne dass jemand davon etwas haette.
+        Als Zeitpunkt dient `registered_at` des Aggregats - dieselbe Uhrablesung,
+        aus der auch die Nutzer-Zeile entsteht.
         """
         secret = self._sessions.mint_secret()
         token = RefreshToken.issue(
             user_id=user.id,
             token_hash=TokenHash.hydrate(secret.hashed),
             issued_at=user.registered_at,
-            lifetime_seconds=refresh_token_seconds,
+            lifetime=refresh_lifetime,
         )
         await self._sessions.store(_as_record(token))
         return IssuedCredentials.hydrate(
             access_token=self._sessions.sign_access_token(
                 str(user.id),
                 user.registered_at.unix_seconds,
-                user.registered_at.unix_seconds + access_token_seconds,
+                access_lifetime.expires_from(user.registered_at).unix_seconds,
             ),
-            expires_in=access_token_seconds,
+            expires_in=access_lifetime.seconds,
             refresh_token=secret.plaintext,
             refresh_expires_in=token.lifetime_seconds,
         )

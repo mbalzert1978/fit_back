@@ -1,9 +1,7 @@
 """Aggregat RefreshToken - der abgelegte Anspruch, eine Sitzung zu verlaengern.
 
-Ein eigenes Aggregat neben `User` (BACKEND.md Abschnitt 1) und kein Teil von
-ihm: ein Nutzer hat viele davon, sie kommen und gehen ohne ihn, und keine
-Regel muss ueber beide zugleich gelten. Der Verweis geht deshalb nur in **eine**
-Richtung - der Token nennt seinen Nutzer, der Nutzer weiss von keinem Token.
+Warum ein eigenes Aggregat neben `User`:
+docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md.
 
 Was hier steht, sind genau die Spalten von `identity.refresh_tokens`
 (alembic/identity/versions/003_create_refresh_tokens_table.py). Widerruf und
@@ -15,6 +13,7 @@ from typing import Final, final
 
 from src.contexts.identity.domain.value_objects.refresh_token_id import RefreshTokenId
 from src.contexts.identity.domain.value_objects.token_hash import TokenHash
+from src.contexts.identity.domain.value_objects.token_lifetime import TokenLifetime
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.shared_kernel import ConstructionKey, Timestamp, deny_foreign_key
 
@@ -28,8 +27,9 @@ _KEY: Final = ConstructionKey()
 class RefreshToken:
     """Ein ausgestellter Refresh-Token - identitaetsbasierte Gleichheit.
 
-    Gebaut wird ausschliesslich ueber `issue`. Der Konstruktor prueft nichts
-    mehr; er ist deren letzter Schritt und kein zweiter Weg herein.
+    Gebaut wird ausschliesslich ueber `issue`. Zustandswechsel entstehen als
+    **neues** Aggregat mit derselben Identitaet, nicht durch Mutation
+    (docs/decisions/2026-08-27-2120-entitaeten-wechseln-ihren-zustand-als-neue-instanz.md).
     """
 
     def __init__(  # noqa: PLR0913 -- Aggregat: fuenf Value Objects, so viele wie Spalten
@@ -56,39 +56,25 @@ class RefreshToken:
         user_id: UserId,
         token_hash: TokenHash,
         issued_at: Timestamp,
-        lifetime_seconds: int,
+        lifetime: TokenLifetime,
     ) -> RefreshToken:
-        """Stelle einen Token fuer diesen Nutzer aus - der Ablauf steht hier.
+        """Stelle einen Token fuer diesen Nutzer aus.
 
         `issued_at` kommt herein und wird nicht von einer Uhr gelesen: es ist
-        dieselbe Ablesung, aus der die Nutzer-Zeile entsteht. Eine zweite liesse
-        Konto und Token um Sekunden auseinanderliegen.
-
-        `lifetime_seconds` ebenso: die Geltungsdauer ist eine Einstellung des
-        Prozesses und steht deshalb nicht hier. Geprueft wird sie trotzdem hier -
-        ein Token, der im selben Augenblick ablaeuft, in dem er entsteht, ist
-        keiner.
+        dieselbe Ablesung, aus der die Nutzer-Zeile entsteht.
         """
-        if lifetime_seconds <= 0:
-            msg = f"Refresh token lifetime must be positive, got {lifetime_seconds}"
-            raise ValueError(msg)
         return cls(
             RefreshTokenId.generate(),
             user_id,
             token_hash,
             issued_at,
-            Timestamp(issued_at.unix_seconds + lifetime_seconds),
+            lifetime.expires_from(issued_at),
             key=_KEY,
         )
 
     @property
     def lifetime_seconds(self) -> int:
-        """Wie lange dieser Token gilt - die Differenz, nicht die Konstante.
-
-        Die Antwort nach aussen nennt diese Zahl. Sie hier auszurechnen statt
-        die Konstante ein zweites Mal zu lesen heisst: was in der Ablage steht
-        und was der Nutzer erfaehrt, koennen nicht auseinanderlaufen.
-        """
+        """Wie lange dieser Token gilt - die Differenz, nicht die Konstante."""
         return self.expires_at.unix_seconds - self.issued_at.unix_seconds
 
     def __eq__(self, other: object) -> bool:

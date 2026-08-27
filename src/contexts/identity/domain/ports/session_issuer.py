@@ -4,6 +4,7 @@ from typing import Protocol
 
 from src.contexts.identity.domain.entities.user import User
 from src.contexts.identity.domain.value_objects.issued_credentials import IssuedCredentials
+from src.contexts.identity.domain.value_objects.token_lifetime import TokenLifetime
 
 __all__ = ["SessionIssuer"]
 
@@ -23,11 +24,7 @@ class SessionIssuer(Protocol):
     """
 
     async def issue(
-        self, user: User, access_token_seconds: int, refresh_token_seconds: int
+        self, user: User, access_lifetime: TokenLifetime, refresh_lifetime: TokenLifetime
     ) -> IssuedCredentials:
-        """Stelle die Zugangsdaten des aufgenommenen Users aus.
-
-        Die beiden Geltungsdauern kommen als Primitive herein: sie sind
-        Konfiguration des Prozesses, kein Wissen der Domaene.
-        """
+        """Stelle die Zugangsdaten des aufgenommenen Users aus."""
         ...

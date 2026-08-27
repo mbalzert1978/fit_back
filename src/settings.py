@@ -37,10 +37,14 @@ class TokenSettings(BaseModel):
 
     Erfuellt `RegisterUserTokenOptions` - die Feldnamen sind deshalb die des
     Vertrags und nicht die der Umgebungsvariablen.
+
+    Ohne eigene Grenzen: welche Dauer zulaessig ist, entscheidet `TokenLifetime`
+    in der Domaene und sonst niemand
+    (docs/decisions/2026-08-27-2115-die-obergrenze-der-geltungsdauer-steht-in-der-domaene.md).
     """
 
-    access_token_seconds: int = Field(default=DEFAULT_ACCESS_TOKEN_LIFETIME, gt=0)
-    refresh_token_seconds: int = Field(default=DEFAULT_REFRESH_TOKEN_LIFETIME, gt=0)
+    access_token_seconds: int = DEFAULT_ACCESS_TOKEN_LIFETIME
+    refresh_token_seconds: int = DEFAULT_REFRESH_TOKEN_LIFETIME
 
 
 @final

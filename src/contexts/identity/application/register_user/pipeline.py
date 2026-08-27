@@ -54,6 +54,7 @@ from src.contexts.identity.domain import (
     UserFactory,
     UserRejected,
 )
+from src.contexts.identity.domain.value_objects.token_lifetime import TokenLifetime
 from src.contexts.shared_kernel import AsyncResult, TimeProvider
 from src.contexts.shared_kernel.pipeline import Handler, build_pipeline
 
@@ -95,7 +96,8 @@ def build_register_user_pipeline(  # noqa: PLR0913, PLR0917 -- Fabrik: je Naht e
         registry=UserRegistryAdapter(store),
         sessions=SessionIssuerAdapter(sessions),
         events=EventPublisherAdapter(events),
-        tokens=tokens,
+        access_lifetime=TokenLifetime.access(tokens.access_token_seconds),
+        refresh_lifetime=TokenLifetime.refresh(tokens.refresh_token_seconds),
     )
     return RegisterUserPipeline(build_pipeline(_dispatch(handler)))
 

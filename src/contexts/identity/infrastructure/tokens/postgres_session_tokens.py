@@ -3,7 +3,7 @@
 Was hier passiert, ist ausschliesslich Handwerk: Zufall ziehen, Abdruck bilden,
 eine **fertige** Zeile schreiben, ein Token signieren. Welche Felder die Zeile
 traegt und wie lange ein Token gilt, entscheidet die Domaene
-(`domain/entities/refresh_token.py`, `domain/token_lifetimes.py`).
+(`domain/entities/refresh_token.py`, `domain/value_objects/token_lifetime.py`).
 
 Der Refresh-Token verlaesst dieses Modul im Klartext nach **aussen** und geht im
 **Hash** in die Datenbank. Der Klartext ist ein Geheimnis wie ein Passwort: wer

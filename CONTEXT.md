@@ -90,6 +90,14 @@ _Avoid_: Session-Zeile, Token-Record, Sitzungs-Aggregat
 → [`pyjwt` hinter der Naht](docs/decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md)
 → [Das Aggregat `RefreshToken`](docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md)
 
+**Geltungsdauer**:
+Wie lange ein ausgegebener Token gilt, in Sekunden — innen `TokenLifetime`. *Welcher* Wert gilt,
+entscheidet die Umgebung; *ob* er zulässig ist, entscheidet die Domäne: über null und höchstens so
+lang wie die Zusage aus BACKEND.md Abschnitt 0, Punkt 8. Kürzer ist erlaubt, länger nicht.
+_Avoid_: Lebensdauer, TTL, Ablauf, `lifetime_seconds`
+→ [Die Obergrenze der Geltungsdauer steht in der Domäne](docs/decisions/2026-08-27-2115-die-obergrenze-der-geltungsdauer-steht-in-der-domaene.md)
+→ [Die Geltungsdauern sind Konfiguration](docs/decisions/2026-08-27-1930-geltungsdauern-sind-konfiguration-nicht-domaene.md)
+
 **Ereignis**:
 Eine Tatsache, die ein Context veröffentlicht, nachdem sie eingetreten ist. Es existiert genau
 einmal, als Vertrag — nicht als Paar aus Domänen-Ereignis und Transport-DTO.

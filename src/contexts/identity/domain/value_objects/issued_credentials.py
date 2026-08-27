@@ -1,13 +1,11 @@
 """Value Object IssuedCredentials - was der Nutzer bei der Aufnahme mitbekommt.
 
-Bewusst **kein** Aggregat und bewusst nicht "die Sitzung": hier steht der
-Refresh-Token im **Klartext**, und der wird nie abgelegt. Was abgelegt wird, ist
-das Aggregat `RefreshToken` - Id, Nutzer, Abdruck, Ablauf. Beides trug frueher
-denselben Namen `Session` und war damit zweierlei unter einem Wort.
+Hier steht der Refresh-Token im **Klartext**, und der wird nie abgelegt; was
+abgelegt wird, ist das Aggregat `RefreshToken`
+(docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md).
 
 Kein `parse` neben `hydrate`: die vier Werte entstehen beim Aussteller und sonst
-nirgends. Die Sperre steht trotzdem - Zugangsdaten entstehen ausschliesslich
-ueber `hydrate`, niemand sonst im Code kann welche erfinden.
+nirgends.
 """
 
 from dataclasses import dataclass, field

@@ -3,7 +3,7 @@
 Draussen bleibt genau das, was die Domaene nicht entscheiden kann: woher der
 Zufall kommt, wie ein Abdruck gebildet wird, wohin die Zeile geht und wie
 signiert wird. **Wie lange** ein Token gilt und **welche Felder** er traegt,
-entscheidet ab jetzt die Domaene (`domain/token_lifetimes.py`,
+entscheidet die Domaene (`domain/value_objects/token_lifetime.py`,
 `domain/entities/refresh_token.py`); die Gegenseite bekommt eine fertige Zeile
 und schreibt sie.
 
@@ -73,7 +73,6 @@ class RegisterUserSessionTokens(Protocol):
     def sign_access_token(self, user_id: str, issued_at: int, expires_at: int) -> str:
         """Signiere den Access-Token fuer dieses Zeitfenster.
 
-        Beide Zeitpunkte kommen herein und werden nicht drueben ausgerechnet:
-        wie lange ein Zugang gilt, steht in der Domaene, nicht im Signierer.
+        Beide Zeitpunkte kommen herein und werden nicht drueben ausgerechnet.
         """
         ...
