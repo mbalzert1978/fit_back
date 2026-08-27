@@ -73,15 +73,22 @@ einer Middleware und gehört keinem Endpunkt; Fehlerkörper tragen ihn nicht.
 _Avoid_: Envelope, Wrapper, Response-Hülle
 → [Der Antwort-Umschlag ist Middleware](docs/decisions/2026-08-21-2215-antwort-umschlag-als-middleware-und-tag-fehlertypen.md)
 
-**Sitzung**:
-Das Paar aus Access- und Refresh-Token samt ihren Lebensdauern, das ein Use Case ausstellt. Sie ist
-**nicht Teil des `User`-Aggregats** — `User` weiß nichts von Tokens — und verweist über die
-Nutzer-Id auf ihn. Der Refresh-Token dahinter ist ein **eigenes Aggregat** (BACKEND.md Abschnitt 1),
-heute noch nicht modelliert: `register_user` lässt ihn nur ausstellen und lädt oder ändert keinen.
-Auf der Innenseite heißt sie `Session`, auf der public Naht `IssuedSession`.
-_Avoid_: Session-DTO, Token-Paar, Credentials
-→ [`pyjwt` hinter der Naht](docs/decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md)
+**Zugangsdaten**:
+Das Paar aus Access- und Refresh-Token samt ihren Lebensdauern, das ein Use Case **ausgibt**. Der
+Refresh-Token steht darin im **Klartext**, deshalb werden Zugangsdaten nie abgelegt. Sie heißen
+innen `IssuedCredentials`; über die public Naht wandern sie nicht mehr als Ganzes.
+_Avoid_: Sitzung, Session, Session-DTO, Token-Paar
 → [Die Sitzung entsteht im Handler](docs/decisions/2026-08-27-1630-die-sitzung-entsteht-im-handler.md)
+→ [Das Aggregat `RefreshToken`](docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md)
+
+**Refresh-Token**:
+Der abgelegte Anspruch, eine Sitzung zu verlängern — ein **eigenes Aggregat** neben `User`
+(BACKEND.md Abschnitt 1): `RefreshTokenId`, `UserId`, `TokenHash`, `issued_at`, `expires_at`. Es
+verweist über die Nutzer-Id auf den `User`; der `User` kennt keinen Token. Abgelegt wird nur der
+**Abdruck**, nie der Klartext — der lebt allein in den → Zugangsdaten.
+_Avoid_: Session-Zeile, Token-Record, Sitzungs-Aggregat
+→ [`pyjwt` hinter der Naht](docs/decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md)
+→ [Das Aggregat `RefreshToken`](docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md)
 
 **Ereignis**:
 Eine Tatsache, die ein Context veröffentlicht, nachdem sie eingetreten ist. Es existiert genau

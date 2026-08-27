@@ -41,7 +41,7 @@ from src.contexts.identity.application.register_user.response import (
 from src.contexts.identity.domain import (
     Email,
     EmailAlreadyRegistered,
-    Session,
+    IssuedCredentials,
     User,
     UserFactory,
 )
@@ -88,14 +88,14 @@ async def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
     """Der Erfolgsfall traegt Stammdaten und Sitzung als Primitive nach aussen."""
     user = await _user()
 
-    session = Session.hydrate(
+    credentials = IssuedCredentials.hydrate(
         access_token="ein-access-token",
         expires_in=900,
         refresh_token="ein-refresh-token",
         refresh_expires_in=5_184_000,
     )
 
-    antwort = to_response(Ok(Registration(user, session)))
+    antwort = to_response(Ok(Registration(user, credentials)))
 
     assert antwort == RegistrationAccepted(
         user_id=str(user.id),

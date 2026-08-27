@@ -3,33 +3,65 @@
 from typing import final
 
 from src.contexts.identity.application.register_user.abstractions import (
+    RefreshTokenRecord,
     RegisterUserSessionTokens,
 )
-from src.contexts.identity.domain import Session, User
+from src.contexts.identity.domain import (
+    ACCESS_TOKEN_LIFETIME,
+    IssuedCredentials,
+    RefreshToken,
+    TokenHash,
+    User,
+)
 
 __all__ = ["SessionIssuerAdapter"]
 
 
 @final
 class SessionIssuerAdapter:
-    """Uebersetzt Aggregat -> Primitive und die Naht-Antwort -> `Session`."""
+    """Uebersetzt zwischen Aggregat und Naht - in beide Richtungen.
+
+    Das Aggregat entsteht in der Domaene (`RefreshToken.issue`), die Zeile
+    entsteht hier, und der Klartext des Geheimnisses geht an der Domaene vorbei
+    direkt in die Zugangsdaten - er wird nie abgelegt.
+    """
 
     def __init__(self, sessions: RegisterUserSessionTokens) -> None:
-        """Nimm die Naht-Implementierung entgegen (Fake oder Signierer)."""
+        """Nimm die Naht-Implementierung entgegen (Fake oder Aussteller)."""
         self._sessions = sessions
 
-    async def issue(self, user: User) -> Session:
-        """Lass die Sitzung ausstellen und hole ihre Werte nach innen.
+    async def issue(self, user: User) -> IssuedCredentials:
+        """Stelle den Refresh-Token aus, lege ihn ab und signiere den Zugang.
 
-        Als Zeitpunkt geht `registered_at` des Aggregats ueber die Naht. Das ist
-        dieselbe Uhrablesung, aus der auch die Nutzer-Zeile entsteht; eine
-        zweite liesse Konto und Token um Millisekunden auseinanderliegen, ohne
-        dass jemand davon etwas haette.
+        Als Zeitpunkt dient `registered_at` des Aggregats. Das ist dieselbe
+        Uhrablesung, aus der auch die Nutzer-Zeile entsteht; eine zweite liesse
+        Konto und Token auseinanderliegen, ohne dass jemand davon etwas haette.
         """
-        issued = await self._sessions.issue(str(user.id), user.registered_at.unix_seconds)
-        return Session.hydrate(
-            access_token=issued.access_token,
-            expires_in=issued.expires_in,
-            refresh_token=issued.refresh_token,
-            refresh_expires_in=issued.refresh_expires_in,
+        secret = self._sessions.mint_secret()
+        token = RefreshToken.issue(
+            user_id=user.id,
+            token_hash=TokenHash.hydrate(secret.hashed),
+            issued_at=user.registered_at,
         )
+        await self._sessions.store(_as_record(token))
+        return IssuedCredentials.hydrate(
+            access_token=self._sessions.sign_access_token(
+                str(user.id),
+                user.registered_at.unix_seconds,
+                user.registered_at.unix_seconds + ACCESS_TOKEN_LIFETIME,
+            ),
+            expires_in=ACCESS_TOKEN_LIFETIME,
+            refresh_token=secret.plaintext,
+            refresh_expires_in=token.lifetime_seconds,
+        )
+
+
+def _as_record(token: RefreshToken) -> RefreshTokenRecord:
+    """Falte das Aggregat auf die flache Zeile der Naht."""
+    return RefreshTokenRecord(
+        token_id=str(token.id),
+        user_id=str(token.user_id),
+        token_hash=token.token_hash.value,
+        issued_at=token.issued_at.unix_seconds,
+        expires_at=token.expires_at.unix_seconds,
+    )

@@ -3,13 +3,13 @@
 from typing import Protocol
 
 from src.contexts.identity.domain.entities.user import User
-from src.contexts.identity.domain.value_objects.session import Session
+from src.contexts.identity.domain.value_objects.issued_credentials import IssuedCredentials
 
 __all__ = ["SessionIssuer"]
 
 
 class SessionIssuer(Protocol):
-    """Stellt einem aufgenommenen User seine Sitzung aus.
+    """Stellt einem aufgenommenen User seine Zugangsdaten aus.
 
     Bewusst **nicht** fallibel deklariert - wie `PasswordHasher` und aus
     demselben Grund: es gibt keinen *erwarteten* Fehlschlag. Eine tote Datenbank
@@ -22,6 +22,6 @@ class SessionIssuer(Protocol):
     wird nichts committet - auch der Nutzer nicht.
     """
 
-    async def issue(self, user: User) -> Session:
-        """Stelle die Sitzung des aufgenommenen Users aus."""
+    async def issue(self, user: User) -> IssuedCredentials:
+        """Stelle die Zugangsdaten des aufgenommenen Users aus."""
         ...

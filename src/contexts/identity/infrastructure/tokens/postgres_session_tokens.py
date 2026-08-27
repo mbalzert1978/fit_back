@@ -1,7 +1,9 @@
-"""Erfuellt die Naht `RegisterUserSessionTokens`: signieren und ablegen.
+"""Erfuellt die Naht `RegisterUserSessionTokens`: Geheimnis, Ablage, Signatur.
 
-Beides in einem, weil der Vertrag beides zusagt - ein herausgegebener
-Refresh-Token, den niemand einloesen kann, waere eine Luege (Ticket #95).
+Was hier passiert, ist ausschliesslich Handwerk: Zufall ziehen, Abdruck bilden,
+eine **fertige** Zeile schreiben, ein Token signieren. Welche Felder die Zeile
+traegt und wie lange ein Token gilt, entscheidet die Domaene
+(`domain/entities/refresh_token.py`, `domain/token_lifetimes.py`).
 
 Der Refresh-Token verlaesst dieses Modul im Klartext nach **aussen** und geht im
 **Hash** in die Datenbank. Der Klartext ist ein Geheimnis wie ein Passwort: wer
@@ -15,24 +17,20 @@ Verfahren schuetzen muesste.
 
 import hashlib
 import secrets
-from typing import final
-from uuid import uuid7
+from typing import Final, final
 
 from sqlalchemy import TextClause, text
 
-from src.contexts.identity.application.register_user.abstractions import IssuedSession
-from src.contexts.identity.infrastructure.persistence.user_store import UserStoreTransaction
-from src.contexts.identity.infrastructure.tokens.jwt_access_tokens import (
-    ACCESS_TOKEN_LIFETIME,
-    JwtAccessTokens,
+from src.contexts.identity.application.register_user.abstractions import (
+    MintedSecret,
+    RefreshTokenRecord,
 )
+from src.contexts.identity.infrastructure.persistence.user_store import UserStoreTransaction
+from src.contexts.identity.infrastructure.tokens.jwt_access_tokens import JwtAccessTokens
 
-__all__ = ["REFRESH_TOKEN_LIFETIME", "PostgresSessionTokens"]
+__all__ = ["PostgresSessionTokens"]
 
-REFRESH_TOKEN_LIFETIME = 5_184_000
-"""60 Tage in Sekunden, BACKEND.md Abschnitt 8."""
-
-_TOKEN_BYTES = 32
+_TOKEN_BYTES: Final = 32
 """256 Bit aus `secrets.token_urlsafe` - die Groesse, ab der Raten ausfaellt."""
 
 _INSERT_REFRESH_TOKEN: TextClause = text("""
@@ -41,14 +39,9 @@ _INSERT_REFRESH_TOKEN: TextClause = text("""
 """)
 
 
-def _hashed(token: str) -> str:
-    """Bilde den Token auf seinen Ablage-Wert ab."""
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
 @final
 class PostgresSessionTokens:
-    """Stellt die Sitzung aus und legt ihren Refresh-Token nach `identity.refresh_tokens`."""
+    """Stellt Geheimnisse aus und legt Refresh-Token nach `identity.refresh_tokens`."""
 
     def __init__(self, transaction: UserStoreTransaction, access_tokens: JwtAccessTokens) -> None:
         """Nimm die laufende Transaktion des Vorgangs und den Signierer entgegen.
@@ -60,22 +53,27 @@ class PostgresSessionTokens:
         self._transaction = transaction
         self._access_tokens = access_tokens
 
-    async def issue(self, user_id: str, issued_at: int) -> IssuedSession:
-        """Signiere den Access-Token, erzeuge den Refresh-Token und lege ihn ab."""
-        refresh_token = secrets.token_urlsafe(_TOKEN_BYTES)
+    def mint_secret(self) -> MintedSecret:
+        """Ziehe 256 Bit Zufall und bilde seinen SHA-256-Abdruck."""
+        plaintext = secrets.token_urlsafe(_TOKEN_BYTES)
+        return MintedSecret(
+            plaintext=plaintext,
+            hashed=hashlib.sha256(plaintext.encode()).hexdigest(),
+        )
+
+    async def store(self, record: RefreshTokenRecord) -> None:
+        """Schreibe die fertige Zeile - hier wird nichts mehr ausgerechnet."""
         await self._transaction.execute(
             _INSERT_REFRESH_TOKEN,
             {
-                "token_id": str(uuid7()),
-                "user_id": user_id,
-                "token_hash": _hashed(refresh_token),
-                "issued_at": issued_at,
-                "expires_at": issued_at + REFRESH_TOKEN_LIFETIME,
+                "token_id": record.token_id,
+                "user_id": record.user_id,
+                "token_hash": record.token_hash,
+                "issued_at": record.issued_at,
+                "expires_at": record.expires_at,
             },
         )
-        return IssuedSession(
-            access_token=self._access_tokens.sign(user_id, issued_at),
-            expires_in=ACCESS_TOKEN_LIFETIME,
-            refresh_token=refresh_token,
-            refresh_expires_in=REFRESH_TOKEN_LIFETIME,
-        )
+
+    def sign_access_token(self, user_id: str, issued_at: int, expires_at: int) -> str:
+        """Reiche das Zeitfenster an den Signierer durch."""
+        return self._access_tokens.sign(user_id, issued_at, expires_at)

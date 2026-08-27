@@ -1,19 +1,20 @@
 """In-Memory-Sitzungsausstellung: deterministisch, ohne Signaturverfahren."""
 
-from typing import final
+from typing import Final, final
 
-from src.contexts.identity.application.register_user.abstractions import IssuedSession
+from src.contexts.identity.application.register_user.abstractions import (
+    MintedSecret,
+    RefreshTokenRecord,
+)
 
-__all__ = ["ACCESS_TOKEN_LIFETIME", "REFRESH_TOKEN_LIFETIME", "InMemorySessionTokens"]
+__all__ = ["InMemorySessionTokens"]
 
-ACCESS_TOKEN_LIFETIME = 900
-REFRESH_TOKEN_LIFETIME = 5_184_000
-"""Dieselben Lebensdauern wie in der Produktion (BACKEND.md Abschnitt 8).
+_HASH_PREFIX: Final = "fake-hash-of-"
+"""Ein umkehrbarer "Abdruck" - genau deshalb erkennbar unecht.
 
-Abgeschrieben und nicht importiert: die Produktionswerte stehen in der
-Infrastruktur, und die Fakes sind Teil des Slice - er darf sie nicht kennen.
-Ein Spec, der eine Lebensdauer prueft, prueft damit die des Fakes; die der
-Produktion prueft der Vertragslauf.
+Die Produktion legt SHA-256 ab und kaeme nie an den Klartext zurueck. Der Fake
+muss es koennen: die Test-API zeigt den abgelegten Token, damit ein Spec ihn
+gegen den ausgegebenen halten kann.
 """
 
 
@@ -21,23 +22,28 @@ Produktion prueft der Vertragslauf.
 class InMemorySessionTokens:
     """Erfuellt `RegisterUserSessionTokens` fuer Specs.
 
-    Merkt sich, was sie ausgestellt hat - der abgelegte Refresh-Token ist in der
-    Produktion eine Datenbankzeile, hier eine Liste, und in beiden Faellen
-    nachprueftbar.
+    Merkt sich, was abgelegt wurde - in der Produktion ist das eine
+    Datenbankzeile, hier eine Liste, und in beiden Faellen nachprueftbar.
     """
 
     def __init__(self) -> None:
-        """Starte ohne ausgestellte Sitzung."""
+        """Starte ohne ausgestellten Token."""
         self.issued: list[tuple[str, str]] = []
-        """Je Ausstellung `(user_id, refresh_token)` - in der Reihenfolge des Ausstellens."""
+        """Je Ablage `(user_id, token)` - in der Reihenfolge des Ausstellens."""
 
-    async def issue(self, user_id: str, issued_at: int) -> IssuedSession:
-        """Stelle eine erkennbar unechte Sitzung aus und lege sie ab."""
-        refresh_token = f"fake-refresh-{user_id}-{issued_at}"
-        self.issued.append((user_id, refresh_token))
-        return IssuedSession(
-            access_token=f"fake-access-{user_id}-{issued_at}",
-            expires_in=ACCESS_TOKEN_LIFETIME,
-            refresh_token=refresh_token,
-            refresh_expires_in=REFRESH_TOKEN_LIFETIME,
-        )
+        self._minted = 0
+        """Wie viele Geheimnisse schon herausgegeben wurden - haelt sie unterscheidbar."""
+
+    def mint_secret(self) -> MintedSecret:
+        """Gib ein erkennbar unechtes Geheimnis heraus."""
+        self._minted += 1
+        plaintext = f"fake-refresh-{self._minted}"
+        return MintedSecret(plaintext=plaintext, hashed=f"{_HASH_PREFIX}{plaintext}")
+
+    async def store(self, record: RefreshTokenRecord) -> None:
+        """Lege die Zeile ab - festgehalten wird der Klartext hinter dem Abdruck."""
+        self.issued.append((record.user_id, record.token_hash.removeprefix(_HASH_PREFIX)))
+
+    def sign_access_token(self, user_id: str, issued_at: int, expires_at: int) -> str:
+        """Gib ein erkennbar unechtes Access-Token heraus."""
+        return f"fake-access-{user_id}-{issued_at}-{expires_at}"

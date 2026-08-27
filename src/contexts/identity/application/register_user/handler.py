@@ -75,13 +75,13 @@ class RegisterUserHandler:
             )
             .bind_async(self._registry.add)
             .inspect_async(self._announce)
-            .map_async(self._with_session)
+            .map_async(self._with_credentials)
         )
 
     async def _announce(self, user: User) -> None:
         """Melde die abgeschlossene Registrierung nach aussen."""
         await self._events.publish(user_registered(user))
 
-    async def _with_session(self, user: User) -> Registration:
-        """Stelle die Sitzung aus und binde sie an den aufgenommenen User."""
+    async def _with_credentials(self, user: User) -> Registration:
+        """Stelle die Zugangsdaten aus und binde sie an den aufgenommenen User."""
         return Registration(user, await self._sessions.issue(user))

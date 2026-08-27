@@ -33,6 +33,7 @@ from src.contexts.identity.domain.email_errors import (
     EmailNeedsExactlyOneAtSign,
     UnencodableDomainLabel,
 )
+from src.contexts.identity.domain.entities.refresh_token import RefreshToken
 from src.contexts.identity.domain.entities.user import User, UserFactory
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.events import user_registered
@@ -51,6 +52,10 @@ from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder, IdnEncode
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.ports.session_issuer import SessionIssuer
 from src.contexts.identity.domain.ports.user_registry import UserRegistry, UserRegistryError
+from src.contexts.identity.domain.token_lifetimes import (
+    ACCESS_TOKEN_LIFETIME,
+    REFRESH_TOKEN_LIFETIME,
+)
 from src.contexts.identity.domain.user_creation_errors import (
     DisplayNameRejected,
     EmailRejected,
@@ -75,6 +80,7 @@ from src.contexts.identity.domain.value_objects.account_status import (
 )
 from src.contexts.identity.domain.value_objects.display_name import DisplayName
 from src.contexts.identity.domain.value_objects.email import Email
+from src.contexts.identity.domain.value_objects.issued_credentials import IssuedCredentials
 from src.contexts.identity.domain.value_objects.locale import (
     DEFAULT_LOCALE,
     English,
@@ -86,7 +92,8 @@ from src.contexts.identity.domain.value_objects.locale import (
 )
 from src.contexts.identity.domain.value_objects.password import Password
 from src.contexts.identity.domain.value_objects.password_hash import PasswordHash
-from src.contexts.identity.domain.value_objects.session import Session
+from src.contexts.identity.domain.value_objects.refresh_token_id import RefreshTokenId
+from src.contexts.identity.domain.value_objects.token_hash import TokenHash
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import (
     DEFAULT_TIME_ZONE_ID,
@@ -94,8 +101,10 @@ from src.contexts.identity.domain.value_objects.user_time_zone import (
 )
 
 __all__ = [
+    "ACCESS_TOKEN_LIFETIME",
     "DEFAULT_LOCALE",
     "DEFAULT_TIME_ZONE_ID",
+    "REFRESH_TOKEN_LIFETIME",
     "AccountStatus",
     "Active",
     "DisplayName",
@@ -127,6 +136,7 @@ __all__ = [
     "German",
     "IdnEncoder",
     "IdnEncoderError",
+    "IssuedCredentials",
     "Locale",
     "LocaleError",
     "LocaleIsEmpty",
@@ -142,10 +152,12 @@ __all__ = [
     "PasswordTooLong",
     "PasswordTooShort",
     "PendingDeletion",
-    "Session",
+    "RefreshToken",
+    "RefreshTokenId",
     "SessionIssuer",
     "Suspended",
     "TimeZoneRejected",
+    "TokenHash",
     "UnencodableDomainLabel",
     "User",
     "UserCreationError",

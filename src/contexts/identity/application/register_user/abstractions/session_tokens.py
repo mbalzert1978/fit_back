@@ -1,44 +1,79 @@
-"""Naht zur Sitzungsausstellung - eine Operation, weil es eine gibt.
+"""Naht zur Sitzungsausstellung - drei Operationen, weil drei Dinge draussen sind.
 
-Ausstellen heisst hier **ausstellen und ablegen**: der Refresh-Token wird
-zurueckgegeben *und* gespeichert. Beides in einer Operation, weil ein
-zurueckgegebener Refresh-Token, den niemand einloesen kann, eine Luege waere -
-und weil nur die Gegenseite weiss, in welcher Transaktion sie ihn ablegt.
+Draussen bleibt genau das, was die Domaene nicht entscheiden kann: woher der
+Zufall kommt, wie ein Abdruck gebildet wird, wohin die Zeile geht und wie
+signiert wird. **Wie lange** ein Token gilt und **welche Felder** er traegt,
+entscheidet ab jetzt die Domaene (`domain/token_lifetimes.py`,
+`domain/entities/refresh_token.py`); die Gegenseite bekommt eine fertige Zeile
+und schreibt sie.
+
+Ein Vertrag und nicht drei, obwohl es drei Operationen sind: sie werden von
+**einem** Mitspieler erfuellt - dem Aussteller. In der Produktion ist das
+`PostgresSessionTokens`, in Specs `InMemorySessionTokens`.
 
 Ueber die Naht wandern ausschliesslich Primitive: welches Verfahren signiert
-(HS256) und wie der Token abgelegt wird (als Hash), geht den Slice nichts an.
+(HS256) und welches den Abdruck bildet (SHA-256), geht den Slice nichts an.
 """
 
 from dataclasses import dataclass, field
 from typing import Protocol, final
 
-__all__ = ["IssuedSession", "RegisterUserSessionTokens"]
+__all__ = ["MintedSecret", "RefreshTokenRecord", "RegisterUserSessionTokens"]
 
 
 @final
 @dataclass(frozen=True, slots=True)
-class IssuedSession:
-    """Die ausgestellte Sitzung - zwei Token und ihre Lebensdauern in Sekunden.
+class MintedSecret:
+    """Ein frisches Token-Geheimnis in seinen beiden Gestalten.
 
-    Die Lebensdauern kommen mit heraus statt aus einer Konstanten am HTTP-Rand:
-    wer den Token ausstellt, entscheidet, wie lange er gilt. Zwei Stellen mit
-    derselben Zahl waeren zwei Stellen, die auseinanderlaufen koennen.
+    Der Klartext geht nach aussen in die Antwort, der Abdruck in die Ablage.
+    Beide entstehen zusammen und in einem Zug, weil nur die Gegenseite weiss,
+    welches Verfahren den Abdruck bildet.
+
+    Beide Felder tragen `repr=False`: sie sind Geheimnisse wie ein Passwort.
     """
 
-    access_token: str = field(repr=False)
-    expires_in: int
-    refresh_token: str = field(repr=False)
-    refresh_expires_in: int
+    plaintext: str = field(repr=False)
+    hashed: str = field(repr=False)
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class RefreshTokenRecord:
+    """Der zu schreibende Datensatz - flach und primitiv, kein Aggregat.
+
+    `issued_at` und `expires_at` sind Unix-Sekunden (siehe
+    `shared_kernel.Timestamp`), damit die Naht in jeder Engine gleich aussieht.
+    Der Klartext des Token steht bewusst **nicht** darin.
+    """
+
+    token_id: str
+    user_id: str
+    token_hash: str = field(repr=False)
+    issued_at: int
+    expires_at: int
 
 
 class RegisterUserSessionTokens(Protocol):
     """Naht zur Sitzungsausstellung."""
 
-    async def issue(self, user_id: str, issued_at: int) -> IssuedSession:
-        """Stelle die Sitzung des Users aus und lege den Refresh-Token ab.
+    def mint_secret(self) -> MintedSecret:
+        """Erzeuge ein frisches Geheimnis und bilde seinen Abdruck."""
+        ...
 
-        `issued_at` sind Unix-Sekunden und kommen aus der Zeitquelle des Slice -
-        die Gegenseite liest keine eigene Uhr, sonst haetten Nutzer-Zeile und
-        Token zwei verschiedene Zeitpunkte.
+    async def store(self, record: RefreshTokenRecord) -> None:
+        """Lege den fertigen Datensatz ab.
+
+        Kein Ergebnistyp: es gibt keinen *erwarteten* Fehlschlag. Die Id ist
+        frisch, der Abdruck ist eindeutig - was hier schiefgeht, ist ein
+        Betriebsfall und faellt bis zur Middleware durch.
+        """
+        ...
+
+    def sign_access_token(self, user_id: str, issued_at: int, expires_at: int) -> str:
+        """Signiere den Access-Token fuer dieses Zeitfenster.
+
+        Beide Zeitpunkte kommen herein und werden nicht drueben ausgerechnet:
+        wie lange ein Zugang gilt, steht in der Domaene, nicht im Signierer.
         """
         ...

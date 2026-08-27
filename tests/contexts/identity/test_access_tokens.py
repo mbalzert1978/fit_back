@@ -9,8 +9,8 @@ Geheimnis signiert waere. Deshalb wird hier das Token selbst aufgemacht.
 import jwt
 import pytest
 
+from src.contexts.identity.domain import ACCESS_TOKEN_LIFETIME
 from src.contexts.identity.infrastructure.tokens.jwt_access_tokens import (
-    ACCESS_TOKEN_LIFETIME,
     ALGORITHM,
     JwtAccessTokens,
 )
@@ -23,7 +23,9 @@ Zukunft lehnt `pyjwt` als "not yet valid" ab, und das waere hier nicht der Punkt
 
 
 def _token(user_id: str = "01920000-0000-7000-8000-000000000001") -> str:
-    return JwtAccessTokens(GEHEIMNIS).sign(user_id, AUSGESTELLT_AM)
+    return JwtAccessTokens(GEHEIMNIS).sign(
+        user_id, AUSGESTELLT_AM, AUSGESTELLT_AM + ACCESS_TOKEN_LIFETIME
+    )
 
 
 def test_das_token_nennt_den_nutzer_und_seinen_ablauf() -> None:

@@ -1,21 +1,13 @@
-"""Value Object Session - die ausgestellte Sitzung auf der Innenseite.
+"""Value Object IssuedCredentials - was der Nutzer bei der Aufnahme mitbekommt.
 
-Das Gegenstueck zu `IssuedSession` der public Naht: dieselben vier Werte, aber
-innen. Damit kreuzt kein Naht-Typ mehr die Grenze zum Handler
-(.rules/python/python-feature-slices.md, "kein DTO kreuzt die Grenze zum
-Handler").
+Bewusst **kein** Aggregat und bewusst nicht "die Sitzung": hier steht der
+Refresh-Token im **Klartext**, und der wird nie abgelegt. Was abgelegt wird, ist
+das Aggregat `RefreshToken` - Id, Nutzer, Abdruck, Ablauf. Beides trug frueher
+denselben Namen `Session` und war damit zweierlei unter einem Wort.
 
-Sie ist **nicht Teil des `User`-Aggregats** - `User` weiss nichts von Tokens -
-und verweist ueber die Nutzer-Id auf ihn. Der Refresh-Token dahinter ist ein
-eigenes Aggregat (BACKEND.md Abschnitt 1, `RefreshToken`); modelliert wird es
-erst, wenn Einloesen und Widerruf gebaut werden. `register_user` laesst ihn nur
-ausstellen und laedt oder aendert keinen.
-
-Kein `parse` neben `hydrate`: die vier Werte entstehen beim Aussteller und
-sonst nirgends. Es gibt an ihnen nichts, was die Domaene beurteilen koennte -
-wie lange ein Token gilt, entscheidet, wer ihn signiert. Die Sperre steht
-trotzdem, und zwar genau dafuer: eine Sitzung entsteht ausschliesslich ueber
-`hydrate`, niemand sonst im Code kann eine erfinden.
+Kein `parse` neben `hydrate`: die vier Werte entstehen beim Aussteller und sonst
+nirgends. Die Sperre steht trotzdem - Zugangsdaten entstehen ausschliesslich
+ueber `hydrate`, niemand sonst im Code kann welche erfinden.
 """
 
 from dataclasses import dataclass, field
@@ -23,7 +15,7 @@ from typing import Final, Self, final
 
 from src.contexts.shared_kernel import ConstructionKey, deny_foreign_key
 
-__all__ = ["Session"]
+__all__ = ["IssuedCredentials"]
 
 _KEY: Final = ConstructionKey()
 """Der modul-private Schluessel - nur `hydrate` unten hat ihn."""
@@ -31,7 +23,7 @@ _KEY: Final = ConstructionKey()
 
 @final
 @dataclass(frozen=True, slots=True)
-class Session:
+class IssuedCredentials:
     """Access- und Refresh-Token samt ihren Lebensdauern in Sekunden.
 
     Beide Token tragen `repr=False`: sie sind Geheimnisse wie ein Passwort und

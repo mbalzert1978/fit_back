@@ -34,7 +34,7 @@ def to_response(outcome: Result[Registration, RegisterUserError]) -> RegisterUse
 
 def _accepted(registration: Registration) -> RegisterUserResponse:
     """Der erfolgreiche Ausgang - eine Registrierung wird zur Bestaetigung."""
-    user, session = registration.user, registration.session
+    user, credentials = registration.user, registration.credentials
     return RegistrationAccepted(
         user_id=str(user.id),
         email=user.email.value,
@@ -42,10 +42,10 @@ def _accepted(registration: Registration) -> RegisterUserResponse:
         locale=locale_tag(user.locale),
         time_zone_id=user.time_zone.value,
         registered_at_unix=user.registered_at.unix_seconds,
-        access_token=session.access_token,
-        expires_in=session.expires_in,
-        refresh_token=session.refresh_token,
-        refresh_expires_in=session.refresh_expires_in,
+        access_token=credentials.access_token,
+        expires_in=credentials.expires_in,
+        refresh_token=credentials.refresh_token,
+        refresh_expires_in=credentials.refresh_expires_in,
     )
 
 
