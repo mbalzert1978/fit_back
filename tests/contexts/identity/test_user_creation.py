@@ -1,4 +1,4 @@
-"""`User.create` - die Wurzel baut ihre Value Objects selbst und sammelt ihre Befunde.
+"""`UserFactory.create` - die Wurzel baut ihre Value Objects selbst und sammelt ihre Befunde.
 
 Hier steht die einzige Pruefung der Registrierung. Deshalb misst dieser Test nicht
 nur, **dass** abgelehnt wird, sondern auch **wieviel** auf einmal und **in welcher
@@ -29,8 +29,8 @@ from src.contexts.identity.domain import (
     PasswordRejected,
     PasswordTooShort,
     TimeZoneRejected,
-    User,
     UserCreationError,
+    UserFactory,
     UserRejected,
     UserTimeZoneUnknown,
 )
@@ -48,13 +48,13 @@ GUELTIG = {
 
 
 async def _create(**abweichend: str) -> object:
-    """Rufe `User.create` mit gueltiger Eingabe, ausser wo der Test abweicht."""
-    return await User.create(
-        **(GUELTIG | abweichend),
+    """Rufe `UserFactory.create` mit gueltiger Eingabe, ausser wo der Test abweicht."""
+    fabrik = UserFactory(
         idn=IdnEncoderAdapter(PassthroughIdnLabels()),
         hasher=PasswordHasherAdapter(DeterministicPasswordHasher()),
         clock=FakeTimeProvider(datetime.fromtimestamp(REGISTRIERT_AM, UTC)),
     )
+    return await fabrik.create(**(GUELTIG | abweichend))
 
 
 @pytest.mark.asyncio

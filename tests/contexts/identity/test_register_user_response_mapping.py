@@ -39,7 +39,7 @@ from src.contexts.identity.application.register_user.response import (
     RegistrationAccepted,
     RegistrationInvalid,
 )
-from src.contexts.identity.domain import Email, EmailAlreadyRegistered, User
+from src.contexts.identity.domain import Email, EmailAlreadyRegistered, User, UserFactory
 from src.contexts.shared_kernel import Err, FakeTimeProvider, Ok
 from src.contexts.shared_kernel.validation import FieldError
 
@@ -58,15 +58,17 @@ async def _user() -> User:
     einem `User` mehr. Der Test nimmt deshalb dieselben Fakes wie die Specs; die
     Uhr steht fest, damit `registered_at` pruefbar bleibt.
     """
-    erzeugt = await User.create(
+    fabrik = UserFactory(
+        idn=IdnEncoderAdapter(PassthroughIdnLabels()),
+        hasher=PasswordHasherAdapter(DeterministicPasswordHasher()),
+        clock=FakeTimeProvider(datetime.fromtimestamp(REGISTRIERT_AM, UTC)),
+    )
+    erzeugt = await fabrik.create(
         email="markus@example.de",
         password="geheim-genug-fuer-alle",
         display_name="Markus",
         locale="de",
         time_zone="Europe/Berlin",
-        idn=IdnEncoderAdapter(PassthroughIdnLabels()),
-        hasher=PasswordHasherAdapter(DeterministicPasswordHasher()),
-        clock=FakeTimeProvider(datetime.fromtimestamp(REGISTRIERT_AM, UTC)),
     )
     match erzeugt:
         case Ok(value=user):

@@ -33,7 +33,7 @@ from src.contexts.identity.domain.email_errors import (
     EmailNeedsExactlyOneAtSign,
     UnencodableDomainLabel,
 )
-from src.contexts.identity.domain.entities.user import User
+from src.contexts.identity.domain.entities.user import User, UserFactory
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.events import user_registered
 from src.contexts.identity.domain.locale_errors import (
@@ -145,6 +145,7 @@ __all__ = [
     "UnencodableDomainLabel",
     "User",
     "UserCreationError",
+    "UserFactory",
     "UserId",
     "UserIdError",
     "UserIdMalformed",

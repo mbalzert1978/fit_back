@@ -8,8 +8,8 @@ Warum eine Kette und kein Wrapper mit `if`:
 docs/decisions/2026-08-17-0937-pipeline-als-behavior-kette-im-shared-kernel.md.
 
 Ein Validierungs-Behavior steht **nicht** mehr davor - es pruefte dieselben
-Felder wie `User.create`. `validating` bleibt als Baustein bestehen, fuer Regeln,
-die keine Wurzel beantworten kann.
+Felder wie `UserFactory.create`. `validating` bleibt als Baustein bestehen, fuer
+Regeln, die keine Wurzel beantworten kann.
 
 Wo Querschnittliches hingehoert, ist damit beantwortet: als weiteres Behavior in
 diese Kette - Transaktionsklammer, Idempotenz, Messung, Logging -, nicht als
@@ -48,7 +48,12 @@ from src.contexts.identity.application.register_user.registration import Registr
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.application.register_user.response import RegisterUserResponse
 from src.contexts.identity.application.register_user.session_step import issuing_session
-from src.contexts.identity.domain import EmailAlreadyRegistered, User, UserRejected
+from src.contexts.identity.domain import (
+    EmailAlreadyRegistered,
+    User,
+    UserFactory,
+    UserRejected,
+)
 from src.contexts.shared_kernel import AsyncResult, TimeProvider
 from src.contexts.shared_kernel.pipeline import Handler, build_pipeline
 
@@ -80,13 +85,14 @@ def build_register_user_pipeline(  # noqa: PLR0913, PLR0917 -- Fabrik: je Naht e
     clock: TimeProvider,
 ) -> RegisterUserPipeline:
     """Verdrahte den Slice gegen eine beliebige Implementierung der public Naht."""
-    idn = IdnEncoderAdapter(labels)
     handler = RegisterUserHandler(
+        users=UserFactory(
+            idn=IdnEncoderAdapter(labels),
+            hasher=PasswordHasherAdapter(hasher),
+            clock=clock,
+        ),
         registry=UserRegistryAdapter(store),
-        hasher=PasswordHasherAdapter(hasher),
         events=EventPublisherAdapter(events),
-        clock=clock,
-        idn=idn,
     )
     return RegisterUserPipeline(build_pipeline(issuing_session(_dispatch(handler), sessions)))
 

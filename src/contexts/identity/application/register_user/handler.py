@@ -4,15 +4,14 @@ from typing import final
 
 from src.contexts.identity.application.register_user.command import RegisterUserCommand
 from src.contexts.identity.domain import (
-    IdnEncoder,
-    PasswordHasher,
     User,
+    UserFactory,
     UserRegistry,
     UserRegistryError,
     UserRejected,
     user_registered,
 )
-from src.contexts.shared_kernel import AsyncResult, TimeProvider
+from src.contexts.shared_kernel import AsyncResult
 from src.contexts.shared_kernel.events import EventPublisher
 
 __all__ = ["RegisterUserFailure", "RegisterUserHandler"]
@@ -32,26 +31,14 @@ class RegisterUserHandler:
 
     Kennt weder Request- noch Response-DTO - beides lebt in den Mappern. Faengt
     nichts ab und entscheidet nichts fachlich: welche Felder gueltig sind, weiss
-    `User.create`, und ob die E-Mail frei ist, weiss der Bestand.
-
-    Die Ports gehen durch ihn hindurch zur Wurzel, statt dass er selbst mit ihnen
-    arbeitet. Er haelt sie nur, damit die Wurzel sie nicht suchen muss.
+    `UserFactory`, und ob die E-Mail frei ist, weiss der Bestand.
     """
 
-    def __init__(
-        self,
-        registry: UserRegistry,
-        hasher: PasswordHasher,
-        events: EventPublisher,
-        clock: TimeProvider,
-        idn: IdnEncoder,
-    ) -> None:
-        """Nimm die Ports und die Zeitquelle per Dependency Injection entgegen."""
+    def __init__(self, users: UserFactory, registry: UserRegistry, events: EventPublisher) -> None:
+        """Nimm Fabrik, Bestand und Ereignis-Naht per Dependency Injection entgegen."""
+        self._users = users
         self._registry = registry
-        self._hasher = hasher
         self._events = events
-        self._clock = clock
-        self._idn = idn
 
     def __call__(self, command: RegisterUserCommand) -> AsyncResult[User, RegisterUserFailure]:
         """Baue den Kandidaten, reiche ihn dem Bestand und melde die Aufnahme.
@@ -60,15 +47,12 @@ class RegisterUserHandler:
         aufgenommene User, und die Meldung aendert am Ergebnis nichts.
         """
         return (
-            User.create(
+            self._users.create(
                 email=command.email,
                 password=command.password,
                 display_name=command.display_name,
                 locale=command.locale,
                 time_zone=command.time_zone,
-                idn=self._idn,
-                hasher=self._hasher,
-                clock=self._clock,
             )
             .bind_async(self._registry.add)
             .inspect_async(self._announce)

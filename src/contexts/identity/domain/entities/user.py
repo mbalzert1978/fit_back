@@ -1,16 +1,18 @@
 """Aggregatwurzel User - identitaetsbasierte Gleichheit, ausschliesslich Value Objects."""
 
+from dataclasses import dataclass
 from typing import Final, final
 
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
 from src.contexts.identity.domain.user_creation_errors import (
+    DisplayNameRejected,
+    EmailRejected,
+    LocaleRejected,
+    PasswordRejected,
+    TimeZoneRejected,
     UserRejected,
-    display_name_rejection,
-    email_rejection,
-    locale_rejection,
-    password_rejection,
-    time_zone_rejection,
+    rejection,
     user_rejected,
 )
 from src.contexts.identity.domain.value_objects.account_status import AccountStatus, Active
@@ -31,31 +33,44 @@ from src.contexts.shared_kernel import (
     deny_foreign_key,
 )
 
-__all__ = ["User"]
+__all__ = ["User", "UserFactory"]
 
 _KEY: Final = ConstructionKey()
-"""Der modul-private Schluessel - nur `create` unten hat ihn."""
+"""Der modul-private Schluessel - nur `UserFactory` unten hat ihn."""
 
 
-type _CheckedFields = tuple[tuple[tuple[tuple[Email, Password], DisplayName], Locale], UserTimeZone]
-"""Was die `zip_all`-Kette unten aufgetuermt hat - je ein Paar je Schritt.
+type _ZippedFields = tuple[tuple[tuple[tuple[Email, Password], DisplayName], Locale], UserTimeZone]
+"""Was die `zip_all`-Kette aufgetuermt hat - je ein Paar je Schritt.
 
-Ein Alias und keine Klasse: entpackt wird die Form genau einmal, in `_assembled`.
-Ein Buendel-Typ mit fuenf benannten Feldern waere derselbe Inhalt ein zweites
-Mal, nur mit Konstruktor.
+Die Reihenfolge der Klammern ist die Reihenfolge der Kette in `UserFactory.create`.
+Entpackt wird die Form genau einmal, in `_checked`.
 """
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class _CheckedFields:
+    """Die fuenf gepruefen Felder, aus denen die Wurzel entsteht - benannt statt verschachtelt."""
+
+    email: Email
+    password: Password
+    display_name: DisplayName
+    locale: Locale
+    time_zone: UserTimeZone
+
+
+def _checked(zipped: _ZippedFields) -> _CheckedFields:
+    """Loese die Paar-Verschachtelung der Kette in benannte Felder auf."""
+    ((((email, password), display_name), locale), time_zone) = zipped
+    return _CheckedFields(email, password, display_name, locale, time_zone)
 
 
 @final
 class User:
     """Der Kontoinhaber - Aggregatwurzel des Identity-Context.
 
-    Zwei User sind genau dann gleich, wenn ihre Identitaet gleich ist; ein
-    geaenderter Anzeigename macht sie nicht zu einem anderen User.
-
-    Gebaut wird ausschliesslich ueber `create`. Der Konstruktor nimmt fertige
-    Value Objects und prueft nichts mehr - er ist der letzte Schritt von `create`
-    und kein zweiter Weg herein.
+    Gebaut wird ausschliesslich ueber `UserFactory`. Der Konstruktor prueft
+    nichts mehr; er ist deren letzter Schritt und kein zweiter Weg herein.
     """
 
     def __init__(  # noqa: PLR0913, PLR0917 -- Aggregate root with 8 typed value objects
@@ -82,75 +97,6 @@ class User:
         self.status = status
         self.registered_at = registered_at
 
-    @classmethod
-    def create(  # noqa: PLR0913 -- Aggregate factory: five fields and three ports
-        cls,
-        *,
-        email: str,
-        password: str,
-        display_name: str,
-        locale: str,
-        time_zone: str,
-        idn: IdnEncoder,
-        hasher: PasswordHasher,
-        clock: TimeProvider,
-    ) -> AsyncResult[User, UserRejected]:
-        """Lege einen neuen, aktiven User aus Rohwerten an.
-
-        Rohwerte und keine fertigen Value Objects: sonst entstuenden die VOs eine
-        Schicht weiter aussen, und der Aufrufer entschiede, welche Regeln sie
-        gesehen haben.
-
-        `zip_all` und nicht `zip`: die Wurzel **sammelt** ihre Ablehnungen. Damit
-        ist sie die einzige Stelle, an der eine Registrierung geprueft wird -
-        frueher lief dieselbe Pruefung ein zweites Mal als Behavior vor der
-        Pipeline, nur damit alle Befunde auf einmal gemeldet werden konnten.
-
-        Kein `async def`, sondern ein `AsyncResult`: damit ist die Wurzel selbst
-        schon ein Kettenglied, an das der Aufrufer den Bestand haengt.
-
-        Die einzige Invariante, die hier *nicht* entschieden werden kann - die
-        Eindeutigkeit der E-Mail - gehoert dem `UserRegistry`-Port.
-        """
-        return (
-            Email.parse(email, idn)
-            .map_err(email_rejection)
-            .zip_all(Password.parse(password).map_err(password_rejection))
-            .zip_all(DisplayName.parse(display_name).map_err(display_name_rejection))
-            .zip_all(parse_locale(locale).map_err(locale_rejection))
-            .zip_all(UserTimeZone.parse(time_zone).map_err(time_zone_rejection))
-            .map_err(user_rejected)
-            .bind_async(lambda fields: cls._assembled(fields, hasher, clock))
-        )
-
-    @classmethod
-    async def _assembled(
-        cls, fields: _CheckedFields, hasher: PasswordHasher, clock: TimeProvider
-    ) -> Result[User, UserRejected]:
-        """Setze die Wurzel aus den gepruefen Feldern zusammen.
-
-        Eigener Schritt, weil das Hashen wartet: eine `zip_all`-Kette ist
-        synchron. Der Aufruf scheitert nicht mehr - `Ok` ist der einzige Ausgang
-        -, traegt die Fehlerform aber weiter, damit die Kette einen Typ behaelt.
-
-        Identitaet, Hash und Zeitpunkt entstehen **hier** und werden nicht
-        hereingereicht: sie gehoeren zum Anlegen, nicht zur Eingabe.
-        """
-        ((((address, secret), name), language), zone) = fields
-        return Ok(
-            cls(
-                user_id=UserId.generate(),
-                email=address,
-                password_hash=await hasher.hash(secret),
-                display_name=name,
-                time_zone=zone,
-                locale=language,
-                status=Active(),
-                registered_at=clock.now(),
-                key=_KEY,
-            )
-        )
-
     def __eq__(self, other: object) -> bool:
         """Vergleiche ueber die Identitaet, nicht ueber die Attribute."""
         return isinstance(other, User) and self.id == other.id
@@ -162,3 +108,64 @@ class User:
     def __repr__(self) -> str:
         """Zeige Identitaet und E-Mail - nie den Passwort-Hash."""
         return f"User(id={self.id}, email={self.email.value!r})"
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class UserFactory:
+    """Der eine Weg zu einem `User` - haelt die drei Ports, die das Anlegen braucht.
+
+    Die Ports stehen hier und nicht in `create`: sie gehoeren zur Fabrik, nicht
+    zur Eingabe eines einzelnen Aufrufs (.rules/python/python-factories.md).
+    """
+
+    idn: IdnEncoder
+    hasher: PasswordHasher
+    clock: TimeProvider
+
+    def create(
+        self, *, email: str, password: str, display_name: str, locale: str, time_zone: str
+    ) -> AsyncResult[User, UserRejected]:
+        """Lege einen neuen, aktiven User aus Rohwerten an.
+
+        Die einzige Stelle, an der eine Registrierung geprueft wird
+        (docs/decisions/2026-08-26-2330-die-wurzel-sammelt-ihre-befunde-selbst.md).
+
+        Die Eindeutigkeit der E-Mail wird hier **nicht** entschieden - sie
+        gehoert dem `UserRegistry`-Port.
+        """
+        return (
+            Email.parse(email, self.idn)
+            .map_err(rejection(EmailRejected))
+            .zip_all(Password.parse(password).map_err(rejection(PasswordRejected)))
+            .zip_all(DisplayName.parse(display_name).map_err(rejection(DisplayNameRejected)))
+            .zip_all(parse_locale(locale).map_err(rejection(LocaleRejected)))
+            .zip_all(UserTimeZone.parse(time_zone).map_err(rejection(TimeZoneRejected)))
+            .map_err(user_rejected)
+            .map(_checked)
+            .bind_async(self._assembled)
+        )
+
+    async def _assembled(self, fields: _CheckedFields) -> Result[User, UserRejected]:
+        """Setze die Wurzel aus den gepruefen Feldern zusammen.
+
+        Eigener Schritt, weil das Hashen wartet: eine `zip_all`-Kette ist
+        synchron. Scheitern kann er nicht mehr - `Ok` ist der einzige Ausgang -,
+        er traegt die Fehlerform nur weiter, damit die Kette einen Typ behaelt.
+
+        Identitaet, Hash und Zeitpunkt entstehen **hier** und werden nicht
+        hereingereicht.
+        """
+        return Ok(
+            User(
+                user_id=UserId.generate(),
+                email=fields.email,
+                password_hash=await self.hasher.hash(fields.password),
+                display_name=fields.display_name,
+                time_zone=fields.time_zone,
+                locale=fields.locale,
+                status=Active(),
+                registered_at=self.clock.now(),
+                key=_KEY,
+            )
+        )

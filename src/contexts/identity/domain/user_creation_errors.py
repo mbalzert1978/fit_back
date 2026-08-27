@@ -10,7 +10,7 @@ So sind es fuenf Faelle, einer je Feld, und der `match` darueber ist wieder eine
 Aussage statt einer Pflichtuebung (.rules/python/python-feature-slices.md).
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import final
 
@@ -28,11 +28,7 @@ __all__ = [
     "TimeZoneRejected",
     "UserCreationError",
     "UserRejected",
-    "display_name_rejection",
-    "email_rejection",
-    "locale_rejection",
-    "password_rejection",
-    "time_zone_rejection",
+    "rejection",
     "user_rejected",
 ]
 
@@ -105,26 +101,10 @@ def user_rejected(rejections: Sequence[UserCreationError]) -> UserRejected:
     return UserRejected(tuple(rejections))
 
 
-def email_rejection(error: EmailError) -> list[UserCreationError]:
-    """Hebe den E-Mail-Fehler in die Sammelform der Kette."""
-    return [EmailRejected(error)]
+def rejection[E](case: Callable[[E], UserCreationError]) -> Callable[[E], list[UserCreationError]]:
+    """Hebe einen Feldfehler in die Sammelform der Kette - `map_err(rejection(EmailRejected))`.
 
-
-def password_rejection(error: PasswordError) -> list[UserCreationError]:
-    """Hebe den Passwort-Fehler in die Sammelform der Kette."""
-    return [PasswordRejected(error)]
-
-
-def display_name_rejection(error: DisplayNameError) -> list[UserCreationError]:
-    """Hebe den Anzeigenamen-Fehler in die Sammelform der Kette."""
-    return [DisplayNameRejected(error)]
-
-
-def locale_rejection(error: LocaleError) -> list[UserCreationError]:
-    """Hebe den Sprach-Fehler in die Sammelform der Kette."""
-    return [LocaleRejected(error)]
-
-
-def time_zone_rejection(error: UserTimeZoneError) -> list[UserCreationError]:
-    """Hebe den Zeitzonen-Fehler in die Sammelform der Kette."""
-    return [TimeZoneRejected(error)]
+    Der Fall steht damit an der Aufrufstelle statt in einem eigenen Namen
+    daneben; welches Feld gemeint ist, sagt der Fall selbst.
+    """
+    return lambda error: [case(error)]
