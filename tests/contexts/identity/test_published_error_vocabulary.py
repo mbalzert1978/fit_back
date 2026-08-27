@@ -60,8 +60,10 @@ def _leaf_types(annotation: object) -> list[object]:
 
 @pytest.mark.parametrize("case", error_cases(*PUBLISHED), ids=lambda case: case.__name__)
 def test_jeder_veroeffentlichte_fall_traegt_einen_code(case: type) -> None:
-    assert isinstance(getattr(case, "code", None), str)
-    assert case.code, f"{case.__name__} traegt einen leeren Code"
+    code = getattr(case, "code", None)
+
+    assert isinstance(code, str)
+    assert code, f"{case.__name__} traegt einen leeren Code"
 
 
 def test_kein_code_ist_doppelt_vergeben() -> None:
@@ -94,6 +96,7 @@ def test_interne_faelle_bleiben_ohne_code(case: type) -> None:
 def test_jeder_veroeffentlichte_fall_ist_benennbar() -> None:
     """Die Nutzlast eines Falls ist die Menge, aus der eine Textvorlage schoepfen darf."""
     for case in error_cases(*PUBLISHED):
+        assert is_dataclass(case), f"{case.__name__} traegt keine benennbare Nutzlast"
         assert parameters_of(case) == {field.name for field in fields(case)}
 
 

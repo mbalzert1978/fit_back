@@ -21,8 +21,8 @@ from src.contexts.identity.domain import (
     Active,
     DisplayNameRejected,
     DisplayNameTooShort,
-    EmailRejected,
     EmailIsEmpty,
+    EmailRejected,
     German,
     LocaleNotSupported,
     LocaleRejected,
@@ -30,6 +30,7 @@ from src.contexts.identity.domain import (
     PasswordTooShort,
     TimeZoneRejected,
     User,
+    UserCreationError,
     UserRejected,
     UserTimeZoneUnknown,
 )
@@ -102,11 +103,9 @@ async def test_gueltige_rohwerte_werden_zur_aktiven_wurzel() -> None:
     ],
 )
 async def test_ein_ungueltiges_feld_wird_mit_seinem_namen_abgelehnt(
-    abweichend: dict[str, str], erwartet: object
+    abweichend: dict[str, str], erwartet: UserCreationError
 ) -> None:
-    """Der Grund fuer die fuenf Huellen in `user_creation_errors.py`: eine flache
-    Union der Parser-Fehler liesse die Zuordnung zum Feld nur erraten.
-    """
+    """Der Grund fuer die fuenf Huellen: eine flache Union liesse das Feld nur erraten."""
     assert await _create(**abweichend) == Err(UserRejected((erwartet,)))
 
 

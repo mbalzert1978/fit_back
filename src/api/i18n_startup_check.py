@@ -18,15 +18,36 @@ Entscheidung: docs/decisions/2026-08-07-0805-fehlercodes-werden-abgeleitet-nicht
 
 from collections.abc import Iterable
 from string import Formatter
+from typing import Protocol
 
-from src.api.i18n import ResourcesCache
 from src.contexts.shared_kernel.coded_error import codes_of, parameters_of
 
-__all__ = ["verify_error_codes_complete"]
+__all__ = ["ErrorTemplates", "verify_error_codes_complete"]
+
+
+class ErrorTemplates(Protocol):
+    """Die drei Zugriffe, die diese Pruefung auf den Sprachdateien braucht.
+
+    Ein Vertrag statt der konkreten `ResourcesCache`: die ist `@final`, ein
+    Test-Doppel koennte sie sonst weder erben noch erfuellen.
+    """
+
+    @property
+    def languages(self) -> frozenset[str]:
+        """Nenne die geladenen Sprachen."""
+        ...
+
+    def codes(self, language: str, /) -> frozenset[str]:
+        """Nenne die Codes, zu denen in dieser Sprache eine Vorlage vorliegt."""
+        ...
+
+    def get(self, language: str, code: str, /) -> str | None:
+        """Hole die Vorlage - `None`, wenn die Sprache oder der Code fehlt."""
+        ...
 
 
 def verify_error_codes_complete(
-    resources: ResourcesCache,
+    resources: ErrorTemplates,
     error_unions: Iterable[object],
     presentation_codes: frozenset[str] = frozenset(),
 ) -> None:
@@ -63,7 +84,7 @@ def verify_error_codes_complete(
         raise ValueError(msg)
 
 
-def _missing_and_orphaned(resources: ResourcesCache, expected: set[str]) -> list[str]:
+def _missing_and_orphaned(resources: ErrorTemplates, expected: set[str]) -> list[str]:
     """Ebene 2: fehlende Vorlagen je Sprache, und Vorlagen ohne Fall."""
     problems = []
     for language in sorted(resources.languages):
@@ -75,7 +96,7 @@ def _missing_and_orphaned(resources: ResourcesCache, expected: set[str]) -> list
     return problems
 
 
-def _placeholder_mismatches(resources: ResourcesCache, by_code: dict[str, type]) -> list[str]:
+def _placeholder_mismatches(resources: ErrorTemplates, by_code: dict[str, type]) -> list[str]:
     """Ebene 3: Platzhalter, die die Nutzlast ihres Falls nicht hergibt."""
     problems = []
     for language in sorted(resources.languages):

@@ -8,8 +8,12 @@ from collections.abc import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from testcontainers.community.postgres import PostgresContainer
 
 from src.settings import get_settings
@@ -25,7 +29,8 @@ def _frische_settings() -> Generator[None]:
     Tests davor. Geleert wird vorher *und* nachher: der letzte Test soll seine
     Umgebung ebenso wenig hinterlassen.
     """
-    # TODO: überschreibe mittels dependency injection, statt den Cache zu leeren.
+    # TODO(Markus Iorio): per Dependency Injection überschreiben.
+    # https://github.com/mbalzert1978/fit_back/issues/98
     # Geht heute nicht: der Lifespan (`src/main.py:98`) ruft `get_settings()` direkt
     # auf, und `dependency_overrides` greift nur in der Request-Auflösung. Ausserdem
     # loest das Leeren hier ein zweites Problem, das DI nicht anfasst: der Cache lebt
@@ -107,9 +112,8 @@ async def postgres_engine(postgres_service: PostgresContainer) -> AsyncGenerator
 async def postgres_session(
     postgres_engine: AsyncEngine,
 ) -> AsyncGenerator[AsyncSession]:
-    async_session = sessionmaker(
+    async_session = async_sessionmaker(
         postgres_engine,
-        class_=AsyncSession,
         expire_on_commit=False,
     )
 

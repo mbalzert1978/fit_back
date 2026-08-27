@@ -100,12 +100,13 @@ async def app_uses_test_database(
     the environment. Without these values it aborts at startup - and a startup
     abort is a setup bug, not a contract violation.
     """
-    # TODO: können wir das nicht auch mittels dependency injection überschreiben,
-    # statt den env zu patchen? Heute nicht: was hier gesetzt wird, liest der
-    # Lifespan (`src/main.py:98`) per direktem `get_settings()`-Aufruf, und
-    # `app.dependency_overrides` greift nur in der Request-Auflösung. Gemessen -
-    # mit Override statt `setenv` bricht der Start ab ("Configuration validation
-    # failed"). Ticket #98 baut die Factory, die es moeglich macht.
+    # TODO(Markus Iorio): Settings injizieren statt env patchen.
+    # https://github.com/mbalzert1978/fit_back/issues/98
+    # Heute nicht: was hier gesetzt wird, liest der Lifespan (`src/main.py:98`)
+    # per direktem `get_settings()`-Aufruf, und `app.dependency_overrides`
+    # greift nur in der Request-Auflösung. Gemessen - mit Override statt
+    # `setenv` bricht der Start ab ("Configuration validation failed"). Ticket
+    # #98 baut die Factory, die es moeglich macht.
     monkeypatch.setenv("DB_HOST", postgres_service.get_container_host_ip())
     monkeypatch.setenv("DB_PORT", str(postgres_service.get_exposed_port(5432)))
     monkeypatch.setenv("DB_NAME", "test")

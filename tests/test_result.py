@@ -144,7 +144,7 @@ class TestInspectAsync:
     async def test_rueckgabewert_der_nebenwirkung_wird_verworfen(self) -> None:
         result: Result[int, str] = Ok(1)
 
-        async def yields_something(value: int) -> str:
+        async def yields_something(_value: int) -> str:
             return "ignoriert"
 
         assert await result.inspect_async(yields_something) == Ok(1)
@@ -166,7 +166,7 @@ class TestBindAsync:
     async def test_ok_uebernimmt_auch_den_fehlschlag_der_fortsetzung(self) -> None:
         result: Result[int, str] = Ok(21)
 
-        async def rejects(value: int) -> Result[int, str]:
+        async def rejects(_value: int) -> Result[int, str]:
             return Err("abgelehnt")
 
         assert await result.bind_async(rejects) == Err("abgelehnt")

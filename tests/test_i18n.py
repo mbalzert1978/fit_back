@@ -8,10 +8,10 @@ _RESOURCES = create_resources()
 class TestRFC7231LanguageSelection:
     """RFC 7231 Accept-Language-Header-Auswertung."""
 
-    def test_exact_match_de_DE(self) -> None:
+    def test_exact_match_de_de(self) -> None:
         assert get_language_from_header("de-DE") == "de-DE"
 
-    def test_exact_match_en_US(self) -> None:
+    def test_exact_match_en_us(self) -> None:
         assert get_language_from_header("en-US") == "en-US"
 
     def test_case_insensitive(self) -> None:
@@ -27,7 +27,7 @@ class TestRFC7231LanguageSelection:
         assert get_language_from_header("en-GB") == "en-US"
 
     def test_language_only(self) -> None:
-        """de ohne Region wird auf de-DE abgebildet."""
+        """De ohne Region wird auf de-DE abgebildet."""
         assert get_language_from_header("de") == "de-DE"
         assert get_language_from_header("en") == "en-US"
 
@@ -41,13 +41,13 @@ class TestRFC7231LanguageSelection:
         """q=0 bedeutet ausdrückliche Ablehnung (ignoriert)."""
         assert get_language_from_header("en;q=0,de") == "de-DE"
 
-    def test_unknown_language_defaults_to_de_DE(self) -> None:
+    def test_unknown_language_defaults_to_de_de(self) -> None:
         assert get_language_from_header("fr") == "de-DE"
 
-    def test_empty_header_defaults_to_de_DE(self) -> None:
+    def test_empty_header_defaults_to_de_de(self) -> None:
         assert get_language_from_header("") == "de-DE"
 
-    def test_none_header_defaults_to_de_DE(self) -> None:
+    def test_none_header_defaults_to_de_de(self) -> None:
         assert get_language_from_header(None) == "de-DE"
 
     def test_malformed_q_ignored(self) -> None:

@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime
 
+import pytest
+
 from src.contexts.shared_kernel.time_provider import FakeTimeProvider, SystemTimeProvider
 
 
@@ -54,11 +56,8 @@ class TestFakeTimeProvider:
         """FakeTimeProvider sollte naïve datetime (ohne Timezone) ablehnen."""
         naive_time = datetime(2025, 8, 5, 12, 30, 45)  # noqa: DTZ001 - bewusst naiv, testet die Ablehnung
 
-        try:
+        with pytest.raises(ValueError, match="tz-aware"):
             FakeTimeProvider(naive_time)
-            assert False, "Sollte ValueError werfen"
-        except ValueError as e:
-            assert "tz-aware" in str(e)
 
     def test_set_time_updates_current_time(self) -> None:
         provider = FakeTimeProvider()
@@ -71,11 +70,8 @@ class TestFakeTimeProvider:
         provider = FakeTimeProvider()
         naive_time = datetime(2025, 8, 5, 12, 30, 45)  # noqa: DTZ001 - bewusst naiv, testet die Ablehnung
 
-        try:
+        with pytest.raises(ValueError, match="tz-aware"):
             provider.set_time(naive_time)
-            assert False, "Sollte ValueError werfen"
-        except ValueError as e:
-            assert "tz-aware" in str(e)
 
     def test_fake_time_is_deterministic(self) -> None:
         fixed_time = datetime(2025, 8, 5, 12, 30, 45, tzinfo=UTC)

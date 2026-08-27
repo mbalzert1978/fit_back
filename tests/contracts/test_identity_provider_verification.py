@@ -106,10 +106,10 @@ async def test_two_interactions_sharing_a_state_do_not_interfere(
     mechanik_pact: Pact,
     pact_store: Store,
 ) -> None:
-    """If the first interaction's account were left standing, the second setup
-    would run into `uq_users_email` and the run would go red.
-    `Account.create()` deliberately doesn't clean up first, so this case
-    actually occurs instead of being masked.
+    """A left-standing account sends the second setup into `uq_users_email`.
+
+    `Account.create()` deliberately doesn't clean up first, so that case
+    actually occurs here instead of being masked.
     """
     await (
         ProviderVerification.for_provider(PROVIDER, mechanik_pact)

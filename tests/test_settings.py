@@ -155,7 +155,7 @@ def test_sonderzeichen_im_passwort_verschieben_die_url_nicht() -> None:
     assert url.database == "eigene_db"
 
 
-def test_die_url_zeigt_das_passwort_nicht(capsys: pytest.CaptureFixture[str]) -> None:
+def test_die_url_zeigt_das_passwort_nicht() -> None:
     """`str(url)` maskiert das Passwort - landet die URL in einem Log, geht es nicht mit."""
     settings = Settings(
         db_host="datenbank",
@@ -166,6 +166,4 @@ def test_die_url_zeigt_das_passwort_nicht(capsys: pytest.CaptureFixture[str]) ->
         jwt_secret=GUELTIGES_GEHEIMNIS,
     )
 
-    print(settings.database_url)
-
-    assert "streng-geheim" not in capsys.readouterr().out
+    assert "streng-geheim" not in str(settings.database_url)

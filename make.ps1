@@ -91,8 +91,8 @@ $targetTable = [ordered]@{
     'typecheck' = @{
         # Issue #97: ruff prueft keine Typen. `ty` (Astral) ist der Typechecker,
         # konfiguriert samt eingefrorener Baseline in pyproject.toml.
-        Description = 'Typecheck src/ with ty'
-        Action      = { Invoke-Step 'typecheck' { uv run ty check src } }
+        Description = 'Typecheck src/ and tests/ with ty'
+        Action      = { Invoke-Step 'typecheck' { uv run ty check src tests } }
     }
 
     'import-lint' = @{
@@ -105,8 +105,8 @@ $targetTable = [ordered]@{
         # complexipy misst kognitive Komplexitaet je Funktion und faellt ab Wert 15.
         # Per uvx statt als Projekt-Dependency - das Werkzeug prueft den Code, es
         # gehoert nicht zu seiner Laufzeit.
-        Description = 'Check cognitive complexity per function (complexipy)'
-        Action      = { Invoke-Step 'complexity' { uvx complexipy -f src } }
+        Description = 'Check cognitive complexity per function, src/ and tests/ (complexipy)'
+        Action      = { Invoke-Step 'complexity' { uvx complexipy -f src tests } }
     }
 
     'migrate' = @{

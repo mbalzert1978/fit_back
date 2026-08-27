@@ -29,7 +29,8 @@ def _app_die_fliegt() -> FastAPI:
 
     @app.get("/kaputt")
     async def kaputt() -> dict[str, str]:
-        raise RuntimeError(f"Verbindung fehlgeschlagen: {_GEHEIMNIS}")
+        msg = f"Verbindung fehlgeschlagen: {_GEHEIMNIS}"
+        raise RuntimeError(msg)
 
     @app.get("/heil")
     async def heil() -> dict[str, str]:

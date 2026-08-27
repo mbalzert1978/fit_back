@@ -77,7 +77,7 @@ def _unbound_time_reads(tree: ast.Module) -> Iterator[tuple[int, str]]:
 def _signature_annotations(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> Iterator[tuple[int, ast.expr]]:
-    """Rueckgabetyp und jede Parameter-Angabe, `*args`, `**kwargs` und keyword-only eingeschlossen."""
+    """Rueckgabetyp und jede Parameter-Angabe, `*args` und `**kwargs` eingeschlossen."""
     args = node.args
     places = (
         (node.lineno, node.returns),
@@ -112,7 +112,7 @@ def _annotations(tree: ast.Module) -> Iterator[tuple[int, ast.expr]]:
 
 
 def _names_datetime(annotation: ast.expr) -> bool:
-    """Nennt die Typangabe irgendwo `datetime`?
+    """Nennt die Typangabe irgendwo `datetime`.
 
     Auch verschachtelt: `datetime | None`, `list[datetime]` und
     `Mapping[str, datetime]` halten genauso einen fest wie die nackte Angabe.
@@ -149,7 +149,7 @@ def test_die_zeit_wird_nie_am_time_provider_vorbei_abgelesen() -> None:
 
 
 def test_die_domaene_haelt_keinen_datetime() -> None:
-    """Der Test daneben prueft nur *Aufrufe* - ein Aggregat, das einen datetime bloss haelt, ruft nichts auf."""
+    """Ein Aggregat, das einen datetime bloss haelt, entgeht dem Test daneben."""
     _no_findings(
         (
             _Befund(

@@ -78,7 +78,7 @@ class EventHandler(Protocol):
     Implementierung muss das aushalten.
     """
 
-    async def handle(self, event: DeliveredEvent) -> None:
+    async def handle(self, event: DeliveredEvent, /) -> None:
         """Reagiere auf das Ereignis, oder wirf fuer einen erneuten Versuch."""
         ...
 

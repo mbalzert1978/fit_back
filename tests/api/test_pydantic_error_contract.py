@@ -74,8 +74,9 @@ class _ModellMitValidator(BaseModel):
 
     @field_validator("wert")
     @classmethod
-    def _wert_wird_abgelehnt(cls, wert: str) -> str:
-        raise ValueError("abgelehnt")
+    def _wert_wird_abgelehnt(cls, _wert: str) -> str:
+        msg = "abgelehnt"
+        raise ValueError(msg)
 
 
 @pytest_asyncio.fixture
@@ -101,11 +102,14 @@ async def messender_client() -> AsyncGenerator[tuple[AsyncClient, set[str]]]:
     async def _mit_validator(body: _ModellMitValidator) -> dict[str, str]:
         return {"wert": body.wert}
 
-    async def _mitschreiben(_: Request, exc: RequestValidationError) -> JSONResponse:
+    # Starlettes Handler-Signatur ist auf `Exception` festgelegt und nicht auf die
+    # registrierte Ausnahme; die Einengung holt der Mitschreiber selbst nach.
+    async def _mitschreiben(_: Request, exc: Exception) -> JSONResponse:
+        assert isinstance(exc, RequestValidationError)
         gesehen.update(fehler["type"] for fehler in exc.errors())
         return JSONResponse(status_code=400, content={})
 
-    app.add_exception_handler(RequestValidationError, _mitschreiben)  # type: ignore[arg-type]
+    app.add_exception_handler(RequestValidationError, _mitschreiben)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as http:

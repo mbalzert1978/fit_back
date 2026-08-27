@@ -9,6 +9,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 from httpx import ASGITransport, AsyncClient
+from httpx import Response as HttpxResponse
 
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.response_envelope import ResponseEnvelopeMiddleware
@@ -34,7 +35,7 @@ def _app() -> FastAPI:
     return app
 
 
-async def _get(pfad: str) -> object:
+async def _get(pfad: str) -> HttpxResponse:
     transport = ASGITransport(app=_app())
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         return await client.get(pfad)

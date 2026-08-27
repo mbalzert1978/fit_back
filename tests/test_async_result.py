@@ -57,7 +57,7 @@ class TestOkAsyncArme:
     async def test_or_else_async_wird_uebersprungen(self) -> None:
         spion = Spion()
 
-        async def nie(error: str) -> Result[int, str]:
+        async def nie(_error: str) -> Result[int, str]:
             spion.merke("or_else_async")
             return Ok(0)
 
@@ -80,7 +80,10 @@ class TestOkAsyncArme:
 
     @pytest.mark.asyncio
     async def test_bind_async_bleibt_chainbar(self) -> None:
-        """Das Ergebnis ist eine Kette, kein fertiges Result - hier haengt der naechste Schritt an."""
+        """Das Ergebnis ist eine Kette, kein fertiges Result.
+
+        Hier haengt der naechste Schritt an.
+        """
         kette = Ok(21).bind_async(lambda value: _pending(Ok(value * 2)))
 
         assert isinstance(kette, AsyncResult)
@@ -166,7 +169,7 @@ class TestErrAsyncArme:
     async def test_inspect_async_loest_keine_nebenwirkung_aus(self) -> None:
         spion = Spion()
 
-        async def melde(value: int) -> None:
+        async def melde(_value: int) -> None:
             spion.merke("melde")
 
         assert await Err("kaputt").inspect_async(melde) == Err("kaputt")
@@ -229,7 +232,7 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_bind_auf_ok(self) -> None:
-        """bind verkettet eine sync-Funktion, die selbst ein Result liefert."""
+        """Bind verkettet eine sync-Funktion, die selbst ein Result liefert."""
         kette = AsyncResult(_pending(Ok(21))).bind(lambda value: Ok(value * 2))
 
         assert await kette == Ok(42)
@@ -316,7 +319,7 @@ class TestAsyncResultKettenglieder:
     async def test_or_else_auf_ok(self) -> None:
         spion = Spion()
 
-        def nie(error: str) -> Result[int, str]:
+        def nie(_error: str) -> Result[int, str]:
             spion.merke("or_else")
             return Ok(0)
 
@@ -334,7 +337,7 @@ class TestAsyncResultKettenglieder:
     async def test_or_else_async_auf_ok(self) -> None:
         spion = Spion()
 
-        async def nie(error: str) -> Result[int, str]:
+        async def nie(_error: str) -> Result[int, str]:
             spion.merke("or_else_async")
             return Ok(0)
 
@@ -356,7 +359,7 @@ class TestAsyncResultKettenglieder:
     async def test_inspect_async_auf_err(self) -> None:
         spion = Spion()
 
-        async def melde(value: int) -> None:
+        async def melde(_value: int) -> None:
             spion.merke("melde")
 
         assert await AsyncResult(_pending(Err("kaputt"))).inspect_async(melde) == Err("kaputt")
@@ -364,7 +367,7 @@ class TestAsyncResultKettenglieder:
 
     @pytest.mark.asyncio
     async def test_fold_faltet_beide_ausgaenge(self) -> None:
-        """fold ist der Ausgang der Kette: zwei Zweige, ein Wert."""
+        """Fold ist der Ausgang der Kette: zwei Zweige, ein Wert."""
 
         def beschreibe_ok(value: int) -> str:
             return f"ok:{value}"

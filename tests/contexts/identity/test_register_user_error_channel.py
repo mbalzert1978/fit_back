@@ -34,6 +34,7 @@ import ast
 import inspect
 import sys
 import textwrap
+from collections.abc import Callable
 
 from src.contexts.identity.application.register_user.errors import RegisterUserError
 from src.contexts.identity.application.register_user.mappers.register_user_response_mapper import (
@@ -48,12 +49,12 @@ def _namen(*unions: object) -> set[str]:
     return {case.__name__ for case in error_cases(*unions)}
 
 
-def _baum(funktion: object) -> ast.AST:
+def _baum(funktion: Callable[..., object]) -> ast.AST:
     """Der Syntaxbaum einer Funktion, unabhaengig von ihrer Einrueckung."""
     return ast.parse(textwrap.dedent(inspect.getsource(funktion)))
 
 
-def _genannte_funktionen(funktion: object) -> list[object]:
+def _genannte_funktionen(funktion: Callable[..., object]) -> list[Callable[..., object]]:
     """Die Funktionen desselben Moduls, die `funktion` namentlich nennt - die Arme des Folds."""
     modul = sys.modules[to_response.__module__]
     genannt = sorted(

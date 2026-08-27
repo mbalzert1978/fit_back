@@ -1,4 +1,4 @@
-"""Sagt die veroeffentlichte Beschreibung dasselbe wie die Leitung?
+"""Haelt die veroeffentlichte Beschreibung gegen das, was die Leitung wirklich tut.
 
 FastAPI beschreibt den Rueckgabewert eines Endpunkts. Was der Aufrufer bekommt,
 bauen danach noch zwei Middlewares um: `{data, meta}` legt sich um jede
@@ -46,8 +46,9 @@ def _register_responses() -> dict[str, Any]:
 
 
 def test_die_erfolgsantwort_wird_als_umschlag_beschrieben() -> None:
-    """Vorher nannte das Dokument `RegisterUserResponse` an der Wurzel. Ein daraus
-    erzeugter Client haette `user` dort gesucht und `data` gefunden.
+    """Regression: das Dokument nannte `RegisterUserResponse` an der Wurzel.
+
+    Ein daraus erzeugter Client haette `user` dort gesucht und `data` gefunden.
     """
     schema = _register_responses()["201"]["content"]["application/json"]["schema"]
 
@@ -57,8 +58,10 @@ def test_die_erfolgsantwort_wird_als_umschlag_beschrieben() -> None:
 
 
 def test_fehlerkoerper_werden_als_problem_json_beschrieben() -> None:
-    """`application/json` daneben behauptete, der Aufrufer duerfe sich einen
-    Media-Type aussuchen; diese API bietet nur den einen an.
+    """Regression: `application/json` stand daneben.
+
+    Das behauptete, der Aufrufer duerfe sich einen Media-Type aussuchen; diese
+    API bietet nur den einen an.
     """
     for code in ("409", "422"):
         content = _register_responses()[code]["content"]

@@ -23,9 +23,9 @@ gets its own run under its own provider name.
 import asyncio
 import contextlib
 import threading
-from enum import Enum
 from collections.abc import AsyncGenerator, Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Self, assert_never, final
 
@@ -45,7 +45,7 @@ land somewhere. Where is up to the test's fixture, not this toolkit.
 """
 
 
-class Phase(str, Enum):
+class Phase(StrEnum):
     """The two halves Pact calls a state handler with."""
 
     setup = "setup"
@@ -97,7 +97,7 @@ class Interaction:
     raw: Mapping[str, object]
 
     @classmethod
-    def from_raw(cls, raw: Mapping[str, object]) -> "Interaction":
+    def from_raw(cls, raw: Mapping[str, object]) -> Interaction:
         request = _as(raw["request"], Mapping, "request")
         return cls(PurePosixPath(_as(request["path"], str, "request.path")), raw)
 
@@ -114,7 +114,7 @@ class Pact:
     interactions: tuple[Interaction, ...]
 
     @classmethod
-    def from_raw(cls, raw: Mapping[str, object]) -> "Pact":
+    def from_raw(cls, raw: Mapping[str, object]) -> Pact:
         """Interpret the parsed contents of a pact file.
 
         The single place that knows a pact's shape - from here on everything
@@ -128,7 +128,7 @@ class Pact:
             ),
         )
 
-    def only_on(self, paths: Collection[PurePosixPath]) -> "Pact":
+    def only_on(self, paths: Collection[PurePosixPath]) -> Pact:
         return Pact(self.head, tuple(i for i in self.interactions if i.targets(paths)))
 
     @property
@@ -236,9 +236,14 @@ def _handler(state: State, loop: asyncio.AbstractEventLoop) -> Callable[..., Non
     # argument, and the run aborts with "state change handlers has failed" -
     # measured. The name belongs to Pact, not this repo's glossary.
     def handler(action: Phase) -> None:
-        asyncio.run_coroutine_threadsafe(state.pick(action)(), loop).result()
+        asyncio.run_coroutine_threadsafe(_awaited(state.pick(action)), loop).result()
 
     return handler
+
+
+async def _awaited(hook: Hook) -> None:
+    """`run_coroutine_threadsafe` takes a coroutine; a hook only promises an awaitable."""
+    await hook()
 
 
 @contextlib.asynccontextmanager

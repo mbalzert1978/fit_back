@@ -2,7 +2,7 @@
 
 import logging
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
+from uuid import uuid7
 
 import pytest
 from fastapi.responses import JSONResponse
@@ -107,7 +107,7 @@ class TestIdempotencyKeyMiddleware:
         mock_app = MagicMock()
         middleware = IdempotencyKeyMiddleware(mock_app, time_provider=FakeTimeProvider())
 
-        key = uuid4()
+        key = uuid7()
         mock_request = AsyncMock()
         mock_request.method = "POST"
         mock_request.headers = {"Idempotency-Key": str(key)}
@@ -129,7 +129,7 @@ class TestIdempotencyKeyMiddleware:
         mock_request = AsyncMock()
         mock_request.method = "POST"
         mock_request.headers = {"Idempotency-Key": "not-a-uuid"}
-        mock_request.state.user_id = uuid4()
+        mock_request.state.user_id = uuid7()
 
         mock_call_next = AsyncMock()
         mock_response = JSONResponse({"status": "created"}, status_code=201)

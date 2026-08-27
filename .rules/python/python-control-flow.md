@@ -2,10 +2,15 @@
 
 > Uebersetzt `csharp-control-flow.md` sinngemaess.
 
-## Pattern Matching statt if/elif-Ketten
+## Pattern Matching statt if/elif- und `isinstance`-Ketten
 
 Bevorzuge `match`/`case` (PEP 634) gegenueber langen `if`/`elif`-Ketten. Es ist kompakter und
 komponierbar.
+
+**Die Regel gilt fuer zwei Formen, nicht nur fuer eine.** Die zweite ist die haeufigere und wurde
+lange uebersehen, weil die Ueberschrift nur die erste nannte: eine von Hand geschriebene
+Struktur-Pruefung aus verschachtelten `if` plus `isinstance` plus Attributvergleich. Genau dafuer
+ist `case` da — die Form steht im Muster, die Bedingung im Guard.
 
 Do:
 ```python
@@ -28,6 +33,89 @@ def calculate_discount(customer: Customer) -> float:
         return 0.1
     return 0.0
 ```
+
+### Die zweite Form: verschachtelte `isinstance`-Pruefungen
+
+Aus `tests/test_architecture_datetime.py`, wo ein AST nach `datetime.now()` ohne `tz`-Argument
+durchsucht wird. Die alte Fassung hatte kognitive Komplexitaet **46** bei einer Schwelle von 15.
+
+Don't:
+```python
+if isinstance(node, ast.Call):
+    if (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "now"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "datetime"
+    ):
+        has_tzinfo = False
+        for keyword in node.keywords:
+            if keyword.arg in ("tz", "tzinfo"):
+                has_tzinfo = True
+                break
+        if not has_tzinfo:
+            errors.append(...)
+```
+
+Do:
+```python
+match node:
+    case ast.Call(
+        lineno=int() as line,
+        func=ast.Attribute(attr="now", value=ast.Name(id="datetime")),
+        keywords=keywords,
+    ) if not any(keyword.arg in _TZ_KEYWORDS for keyword in keywords):
+        yield line, "datetime.now() ohne tz-Argument - nutze TimeProvider.utc_now()"
+```
+
+Vier `isinstance`, zwei Attributvergleiche und eine Flag-Schleife werden ein `case`. Das Muster
+beschreibt die **Form**, der Guard die **Bedingung**, und die Zeilennummer faellt beim Zerlegen
+gleich mit ab.
+
+## Sammeln als Ausdruck, nicht als Akkumulator
+
+Eine leere Liste, eine Schleife mit `.append()`, danach `if liste: ...` — das ist dieselbe
+Handarbeit wie eine `isinstance`-Kette, nur fuer Daten statt fuer Verzweigungen.
+
+Der Abschnitt „Collection-Literale statt Aufbau per Schleife" weiter unten deckt diesen Fall
+**nicht** ab: er gilt nur, wenn die Werte im Voraus bekannt sind. Gerade wenn sie es nicht sind,
+gehoert das Sammeln in einen Generator oder eine Comprehension.
+
+Don't:
+```python
+errors: list[tuple[Path, int, str]] = []
+for py_file in root.rglob("*.py"):
+    for node in ast.walk(ast.parse(py_file.read_text())):
+        if _ist_befund(node):
+            errors.append((py_file, node.lineno, "..."))
+
+if errors:
+    msg = "Verletzung:\n"
+    for file_path, line_no, error_msg in errors:
+        msg += f"  {file_path}:{line_no}: {error_msg}\n"
+    raise AssertionError(msg)
+```
+
+Do:
+```python
+def _befunde(tree: ast.Module) -> Iterator[tuple[int, str]]:
+    """Jede Fundstelle des Moduls."""
+    ...
+
+
+_kein_befund(
+    (
+        _Befund(py_file, line, reason)
+        for py_file, tree in _modules(keep)
+        for line, reason in _befunde(tree)
+    ),
+    "Verletzung:",
+)
+```
+
+Drei Dinge fallen dabei weg: die veraenderliche Liste, die zweite Schleife fuer die Meldung, und
+die Wiederholung des Ganzen im naechsten Test. Wie die Fundstelle aussieht, weiss `_Befund.__str__`
+— an genau einer Stelle.
 
 ## Exhaustive Matches ueber geschlossene Unions
 
