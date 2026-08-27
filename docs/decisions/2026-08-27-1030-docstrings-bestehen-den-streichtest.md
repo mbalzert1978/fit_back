@@ -57,7 +57,22 @@ Vorbedingung ist richtig, ein kurzer über einer Selbstverständlichkeit falsch.
 Getragen wird die Regel deshalb vom Review, gestützt auf den `verifier-comments`-Check aus der
 Skill-Bibliothek.
 
-## Was offen bleibt
+## Der Durchgang über den Bestand
 
-Der Bestand ist noch nicht nachgezogen. `src/contexts/shared_kernel/result.py` ist der dichteste
-Fall, aber nicht der einzige. Ein Durchgang über das Repo steht aus.
+Nachgezogen in `4bab149`: 61 Dateien, 501 gestrichene gegen 129 neue Zeilen. Je ein Agent pro
+Ordner, rekursiv von oben.
+
+Was dabei zutage kam, schärft die Regel:
+
+- **Refactoring-Geschichte war der häufigste Befund.** Sätze wie „vorher stand das im Router" oder
+  „waren acht Argumente, bevor …" erzählen einem Aufrufer nichts. Sie stehen im Log.
+- **Sieben Fehler-Dateien in `identity` trugen denselben Satz wortgleich.** Genau die zweite Kopie,
+  vor der der Abschnitt oben warnt — nur eben siebenfach.
+- **`src/contexts/shared_kernel/result.py` war wie erwartet der dichteste Fall** und verlor allein
+  91 Zeilen.
+- **`alembic/versions/` blieb unberührt.** In einer Migration ist der Kommentar oft das einzige
+  Zeugnis einer Umzugsentscheidung; der Kopf-Docstring gehört ohnehin Alembic.
+
+Ein Verweis ersetzt die gestrichene Begründung nur dort, wo ihr Verlust den Code gefährdet — etwa
+bei `AsyncResult.zip_all`, wo das freie `V` wie eine überflüssige Verkomplizierung aussieht und eine
+„Vereinfachung" zu `T` den Typcheck bräche.
