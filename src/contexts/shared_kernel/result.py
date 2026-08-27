@@ -47,9 +47,10 @@ class Ok[T]:
     def zip_all[U, E](self, other: Result[U, list[E]], /) -> Result[tuple[T, U], list[E]]:
         """Wie `zip`, aber der zweite Fehler geht nicht verloren.
 
-        Das `all_of` aus `validation.py` fuer Ausgaenge, die auch einen Wert tragen.
+        Auf dem Erfolgs-Zweig ist Sammeln dasselbe wie Paaren; getrennt sind die
+        beiden nur im Fehlerkanal, und der steht in der Signatur.
         """
-        return other.map(lambda value: (self.value, value))
+        return self.zip(other)
 
     def bind[U, E](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         """Verkette eine Funktion, die selbst Result[U, E] zurückgibt."""
