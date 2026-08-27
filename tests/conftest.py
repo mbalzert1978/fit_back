@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from testcontainers.community.postgres import PostgresContainer
 
-from src.settings import get_settings
+from src.settings import get_api_version, get_settings
 
 
 @pytest.fixture(autouse=True)
@@ -36,8 +36,10 @@ def _frische_settings() -> Generator[None]:
     # loest das Leeren hier ein zweites Problem, das DI nicht anfasst: der Cache lebt
     # prozessweit. Beides haengt an Ticket #98.
     get_settings.cache_clear()
+    get_api_version.cache_clear()
     yield
     get_settings.cache_clear()
+    get_api_version.cache_clear()
 
 
 @pytest_asyncio.fixture(scope="session")

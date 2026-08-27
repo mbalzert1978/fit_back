@@ -23,7 +23,8 @@ from src.api.identity import register_user_router
 from src.api.openapi import ResponseMeta, document_middleware_effects
 from src.api.problem_details import PROBLEM_JSON_MEDIA_TYPE
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
-from src.middleware.response_envelope import API_VERSION, ResponseEnvelopeMiddleware
+from src.middleware.response_envelope import ResponseEnvelopeMiddleware
+from src.settings import DEFAULT_API_VERSION
 
 _REGISTER = "/api/v1/identity/register"
 
@@ -33,11 +34,14 @@ def _document() -> dict[str, Any]:
 
     Ohne Middleware und ohne Lifespan: das Dokument entsteht aus den Routen,
     nicht aus einem laufenden Host.
+
+    `FastAPI()` **ohne** `version=`: so ist der Nachtrag die einzige Quelle von
+    `info.version`, und der Test darunter prueft ihn statt sich selbst.
     """
-    app = FastAPI(version=API_VERSION)
+    app = FastAPI()
     app.include_router(health_router)
     app.include_router(register_user_router)
-    document_middleware_effects(app)
+    document_middleware_effects(app, DEFAULT_API_VERSION)
     return app.openapi()
 
 
@@ -85,19 +89,24 @@ def test_die_201_nennt_ihre_eigenen_kopfzeilen() -> None:
     assert set(headers) >= {"Location", "Content-Language"}
 
 
-def test_die_dokumentversion_ist_die_version_dieser_api() -> None:
+def test_der_nachtrag_setzt_die_dokumentversion_selbst() -> None:
     """`info.version` nennt die API und nicht das Python-Paket.
 
     Es stand auf `0.1.0` - der Versionsnummer aus `pyproject.toml`. Der Pfad
     sagt `/api/v1`, `meta.apiVersion` sagt `1`; drei Angaben, von denen eine
     etwas anderes behauptete.
 
-    Geprueft am echten `src/main.py`: dass der Nachtrag dort auch verdrahtet
-    ist, steht sonst nirgends.
+    Die App in `_document` uebergibt keine `version` an `FastAPI`. Traegt der
+    Nachtrag sie nicht selbst ein, steht hier `0.1.0`.
     """
+    assert _document()["info"]["version"] == DEFAULT_API_VERSION
+
+
+def test_der_nachtrag_ist_im_einstiegspunkt_verdrahtet() -> None:
+    """Dass `src/main.py` ihn wirklich aufruft, steht sonst nirgends."""
     from src.main import app  # noqa: PLC0415 -- der Einstiegspunkt gehoert nicht in den Modulkopf
 
-    assert app.openapi()["info"]["version"] == API_VERSION
+    assert app.openapi()["info"]["version"] == DEFAULT_API_VERSION
 
 
 @pytest.mark.asyncio
@@ -109,7 +118,11 @@ async def test_das_meta_modell_nennt_dieselben_felder_wie_die_middleware() -> No
     verschweigen.
     """
     app = FastAPI()
-    app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
+    app.add_middleware(
+        ResponseEnvelopeMiddleware,
+        time_provider=SystemTimeProvider(),
+        api_version=DEFAULT_API_VERSION,
+    )
 
     @app.get("/etwas")
     async def etwas() -> dict[str, bool]:

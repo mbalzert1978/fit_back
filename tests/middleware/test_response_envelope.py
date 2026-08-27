@@ -13,13 +13,18 @@ from httpx import Response as HttpxResponse
 
 from src.contexts.shared_kernel.time_provider import SystemTimeProvider
 from src.middleware.response_envelope import ResponseEnvelopeMiddleware
+from src.settings import DEFAULT_API_VERSION
 
 pytestmark = pytest.mark.asyncio
 
 
 def _app() -> FastAPI:
     app = FastAPI()
-    app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
+    app.add_middleware(
+        ResponseEnvelopeMiddleware,
+        time_provider=SystemTimeProvider(),
+        api_version=DEFAULT_API_VERSION,
+    )
 
     @app.get("/zwei-kekse")
     async def zwei_kekse() -> JSONResponse:
@@ -78,3 +83,16 @@ async def test_eine_antwort_ohne_koerper_bekommt_keinen_umschlag() -> None:
     assert antwort.status_code == 204
     assert antwort.content == b""
     assert antwort.headers["X-Request-Id"]
+
+
+@pytest.mark.parametrize("pfad", ["/zwei-kekse", "/nichts", "/openapi.json"])
+async def test_jede_antwort_traegt_no_store(pfad: str) -> None:
+    """Der Nachtrag an der Beschreibung sagt "immer `no-store`" - auch ohne Umschlag.
+
+    Vorher setzte nur der eingepackte Zweig die Kopfzeile. Eine 204 und das
+    Dokument selbst bekamen sie nie, obwohl `src/api/openapi.py` sie an jeder
+    Antwort auswies.
+    """
+    antwort = await _get(pfad)
+
+    assert antwort.headers["Cache-Control"] == "no-store"

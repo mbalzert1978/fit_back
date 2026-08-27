@@ -28,7 +28,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from src.api.problem_details import PROBLEM_JSON_MEDIA_TYPE
-from src.middleware.response_envelope import API_VERSION, REQUEST_ID_HEADER
+from src.middleware.response_envelope import REQUEST_ID_HEADER
+from src.settings import DEFAULT_API_VERSION
 
 __all__ = ["ResponseMeta", "document_middleware_effects"]
 
@@ -59,7 +60,7 @@ class ResponseMeta(BaseModel):
     api_version: str = Field(
         alias="apiVersion",
         description="Die Version dieser API - dieselbe wie im Pfadpraefix.",
-        examples=[API_VERSION],
+        examples=[DEFAULT_API_VERSION],
     )
     request_id: str = Field(
         alias="requestId",
@@ -71,11 +72,15 @@ class ResponseMeta(BaseModel):
     )
 
 
-def document_middleware_effects(app: FastAPI) -> None:
+def document_middleware_effects(app: FastAPI, api_version: str) -> None:
     """Haenge den Nachtrag an die Beschreibung dieser App.
 
     Aufzurufen, **nachdem** alle Router eingehaengt sind: der Nachtrag laeuft
     ueber die Pfade des fertigen Dokuments.
+
+    `api_version` steht hier und nicht nur an `FastAPI(version=...)`: sonst
+    traegt der Nachtrag drei der vier Angaben, und die vierte haengt daran, dass
+    der Aufrufer sie selbst gesetzt hat.
 
     `app.openapi()` erzeugt das Dokument und legt es in `app.openapi_schema` ab;
     dort wird es hier ergaenzt. Jeder spaetere Aufruf - auch der von
@@ -87,11 +92,13 @@ def document_middleware_effects(app: FastAPI) -> None:
     Ersetzen von `app.openapi` - eine gewoehnliche Funktion ist an dieser Stelle
     keine Methode, und das Repo laesst dafuer kein `type: ignore` zu.
     """
-    app.openapi_schema = _amended(app.openapi())
+    app.openapi_schema = _amended(app.openapi(), api_version)
 
 
-def _amended(document: dict[str, Any]) -> dict[str, Any]:
+def _amended(document: dict[str, Any], api_version: str) -> dict[str, Any]:
     """Trage in jede Antwort des Dokuments ein, was die Middleware an ihr aendert."""
+    document.setdefault("info", {})["version"] = api_version
+
     schemas = document.setdefault("components", {}).setdefault("schemas", {})
     schemas["ResponseMeta"] = ResponseMeta.model_json_schema(by_alias=True)
 
@@ -107,9 +114,8 @@ def _amended(document: dict[str, Any]) -> dict[str, Any]:
 def _amend_response(code: str, response: dict[str, Any]) -> None:
     """Trage Kopfzeilen, Umschlag und Media-Type in eine einzelne Antwort ein.
 
-    Die beiden Kopfzeilen gelten fuer **jede** Antwort: `X-Request-Id` setzt die
-    Umschlag-Middleware auf beiden Wegen, `Cache-Control: no-store` setzt sie
-    auf dem Erfolgsweg und `problem()` auf dem Fehlerweg.
+    Die beiden Kopfzeilen gelten fuer **jede** Antwort: die Umschlag-Middleware
+    setzt sie auf beiden Wegen, eingepackt wie nicht eingepackt.
 
     `setdefault` und nicht `=`: was eine Route selbst ueber eine Kopfzeile sagt,
     weiss mehr als dieser Nachtrag und bleibt stehen.

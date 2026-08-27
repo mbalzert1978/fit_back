@@ -12,7 +12,13 @@ um jeden Test herum.
 
 import pytest
 
-from src.settings import JWT_SECRET_MINIMUM_LENGTH, Settings, get_settings
+from src.settings import (
+    DEFAULT_API_VERSION,
+    JWT_SECRET_MINIMUM_LENGTH,
+    Settings,
+    get_api_version,
+    get_settings,
+)
 
 GUELTIGES_GEHEIMNIS = "g" * JWT_SECRET_MINIMUM_LENGTH
 """Ein Signaturgeheimnis, das lang genug ist - die Tests hier pruefen anderes."""
@@ -109,6 +115,31 @@ def test_die_werte_kommen_aus_der_umgebung(monkeypatch: pytest.MonkeyPatch) -> N
     assert settings.db_port == 6543
     assert settings.db_name == "eigene_db"
     assert settings.db_user == "eigener_nutzer"
+
+
+def test_die_api_version_kommt_aus_der_umgebung(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ohne `API_VERSION` gilt der Default, mit ihr gewinnt sie."""
+    monkeypatch.delenv("API_VERSION", raising=False)
+    assert get_api_version() == DEFAULT_API_VERSION
+
+    get_api_version.cache_clear()
+    monkeypatch.setenv("API_VERSION", "7")
+
+    assert get_api_version() == "7"
+
+
+def test_die_api_version_braucht_keine_vollstaendige_umgebung(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Der Einstiegspunkt liest sie beim Import - da gibt es noch kein DB-Passwort.
+
+    Deshalb hat sie einen eigenen Weg herein und laeuft nicht ueber
+    `get_settings`, das ohne `DB_PASSWORD` und `JWT_SECRET` scheitert.
+    """
+    monkeypatch.delenv("DB_PASSWORD", raising=False)
+    monkeypatch.delenv("JWT_SECRET", raising=False)
+
+    assert get_api_version() == DEFAULT_API_VERSION
 
 
 def test_die_url_faehrt_asyncpg_ueber_sqlalchemy() -> None:

@@ -3,10 +3,12 @@
 Die `X-Request-Id` entsteht hier und wird nicht vom Aufrufer uebernommen - ein Wert aus
 der Anfrage waere in Laenge und Zeichenvorrat fremdbestimmt.
 
-Fehlerkoerper (`application/problem+json`) laufen an dieser Middleware vorbei; ihr
-`Cache-Control: no-store` setzt `problem()` (`src/api/problem_details.py`) selbst.
+`X-Request-Id` und `Cache-Control: no-store` bekommt **jede** Antwort, eingepackt
+oder nicht - sonst verspraeche der Nachtrag an der Beschreibung
+(`src/api/openapi.py`) mehr, als die Leitung liefert.
 
-Das OpenAPI-Dokument laeuft ebenfalls vorbei - siehe `_is_the_api_description`.
+Ohne Umschlag bleiben Fehlerkoerper (`application/problem+json`), Antworten ohne
+JSON-Koerper und das OpenAPI-Dokument selbst - siehe `_is_the_api_description`.
 """
 
 import json
@@ -22,10 +24,7 @@ from starlette.types import ASGIApp
 from src.contexts.shared_kernel.time_provider import TimeProvider
 from src.middleware.streamed_body import read_streamed_body
 
-__all__ = ["API_VERSION", "REQUEST_ID_HEADER", "ResponseEnvelopeMiddleware"]
-
-API_VERSION: Final = "1"
-"""Die Version, die `meta.apiVersion` nennt - dieselbe wie im Pfadpraefix `/api/v1`."""
+__all__ = ["REQUEST_ID_HEADER", "ResponseEnvelopeMiddleware"]
 
 REQUEST_ID_HEADER: Final = "X-Request-Id"
 
@@ -39,10 +38,11 @@ _BODY_HEADERS = frozenset({b"content-length", b"content-type"})
 class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
     """Legt `{data, meta}` um jede erfolgreiche JSON-Antwort."""
 
-    def __init__(self, app: ASGIApp, time_provider: TimeProvider) -> None:
-        """Nimm die Zeitquelle entgegen - `meta.timestamp` kommt aus ihr, nicht aus `utcnow`."""
+    def __init__(self, app: ASGIApp, time_provider: TimeProvider, api_version: str) -> None:
+        """Nimm Zeitquelle und API-Version entgegen - beide gehoeren in `meta`, nicht ins Modul."""
         super().__init__(app)
         self._clock = time_provider
+        self._api_version = api_version
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -52,6 +52,7 @@ class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         if not _is_enveloped(request, response):
             response.headers[REQUEST_ID_HEADER] = request_id
+            response.headers["Cache-Control"] = "no-store"
             return response
 
         body = json.loads(await read_streamed_body(response))
@@ -72,7 +73,7 @@ class ResponseEnvelopeMiddleware(BaseHTTPMiddleware):
     def _meta(self, request_id: str) -> dict[str, str]:
         """Baue den `meta`-Block der Antwort."""
         return {
-            "apiVersion": API_VERSION,
+            "apiVersion": self._api_version,
             "requestId": request_id,
             # `Z` statt `+00:00`: die kurze Form ist die, die der Pact zeigt.
             "timestamp": self._clock.utc_now().isoformat().replace("+00:00", "Z"),

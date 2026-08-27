@@ -32,7 +32,7 @@ from src.middleware.idempotency import (
     calculate_request_hash,
 )
 from src.middleware.response_envelope import ResponseEnvelopeMiddleware
-from src.settings import Settings, get_settings
+from src.settings import DEFAULT_API_VERSION, Settings, get_settings
 
 pytestmark = pytest.mark.asyncio
 
@@ -518,7 +518,11 @@ async def test_der_umschlag_entsteht_beim_replay_nicht_doppelt(
     einer Anfrage, die laengst vorbei ist.
     """
     app = _build_app(clean_idempotency_keys, user_id=uuid7())
-    app.add_middleware(ResponseEnvelopeMiddleware, time_provider=FakeTimeProvider())
+    app.add_middleware(
+        ResponseEnvelopeMiddleware,
+        time_provider=FakeTimeProvider(),
+        api_version=DEFAULT_API_VERSION,
+    )
     key = str(uuid7())
 
     async with await _client(app) as client:
@@ -554,7 +558,11 @@ async def register_client(
     )
     # Reihenfolge wie in `src/main.py`: der Umschlag liegt ausserhalb der Idempotenz.
     app.add_middleware(IdempotencyKeyMiddleware, time_provider=FakeTimeProvider())
-    app.add_middleware(ResponseEnvelopeMiddleware, time_provider=SystemTimeProvider())
+    app.add_middleware(
+        ResponseEnvelopeMiddleware,
+        time_provider=SystemTimeProvider(),
+        api_version=DEFAULT_API_VERSION,
+    )
     register_exception_handlers(app)
     app.include_router(register_user_router)
     app.state.engine = clean_idempotency_keys
