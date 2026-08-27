@@ -49,6 +49,7 @@ from src.contexts.identity.domain.password_errors import (
 from src.contexts.identity.domain.password_hash_errors import PasswordHashError, PasswordHashIsEmpty
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder, IdnEncoderError
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
+from src.contexts.identity.domain.ports.session_issuer import SessionIssuer
 from src.contexts.identity.domain.ports.user_registry import UserRegistry, UserRegistryError
 from src.contexts.identity.domain.user_creation_errors import (
     DisplayNameRejected,
@@ -85,6 +86,7 @@ from src.contexts.identity.domain.value_objects.locale import (
 )
 from src.contexts.identity.domain.value_objects.password import Password
 from src.contexts.identity.domain.value_objects.password_hash import PasswordHash
+from src.contexts.identity.domain.value_objects.session import Session
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import (
     DEFAULT_TIME_ZONE_ID,
@@ -140,6 +142,8 @@ __all__ = [
     "PasswordTooLong",
     "PasswordTooShort",
     "PendingDeletion",
+    "Session",
+    "SessionIssuer",
     "Suspended",
     "TimeZoneRejected",
     "UnencodableDomainLabel",

@@ -20,7 +20,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.contexts.identity.application.register_user.abstractions import IssuedSession
 from src.contexts.identity.application.register_user.adapters import (
     IdnEncoderAdapter,
     PasswordHasherAdapter,
@@ -39,7 +38,13 @@ from src.contexts.identity.application.register_user.response import (
     RegistrationAccepted,
     RegistrationInvalid,
 )
-from src.contexts.identity.domain import Email, EmailAlreadyRegistered, User, UserFactory
+from src.contexts.identity.domain import (
+    Email,
+    EmailAlreadyRegistered,
+    Session,
+    User,
+    UserFactory,
+)
 from src.contexts.shared_kernel import Err, FakeTimeProvider, Ok
 from src.contexts.shared_kernel.validation import FieldError
 
@@ -83,7 +88,7 @@ async def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
     """Der Erfolgsfall traegt Stammdaten und Sitzung als Primitive nach aussen."""
     user = await _user()
 
-    session = IssuedSession(
+    session = Session.hydrate(
         access_token="ein-access-token",
         expires_in=900,
         refresh_token="ein-refresh-token",

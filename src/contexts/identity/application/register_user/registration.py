@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from typing import final
 
-from src.contexts.identity.application.register_user.abstractions import IssuedSession
-from src.contexts.identity.domain import User
+from src.contexts.identity.domain import Session, User
 
 __all__ = ["Registration"]
 
@@ -18,7 +17,10 @@ class Registration:
     die Sitzung, mit der er sofort weiterarbeiten kann. Die Sitzung gehoert
     nicht ins Aggregat - `User` weiss nichts von Tokens - und auch nicht erst an
     den HTTP-Rand, der sie sonst selbst ausstellen muesste.
+
+    Beide Felder sind Domaenentypen: was hier steht, hat die public Naht bereits
+    hinter sich (`SessionIssuerAdapter`).
     """
 
     user: User
-    session: IssuedSession
+    session: Session

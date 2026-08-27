@@ -29,6 +29,7 @@ from src.contexts.identity.application.register_user.adapters import (
     EventPublisherAdapter,
     IdnEncoderAdapter,
     PasswordHasherAdapter,
+    SessionIssuerAdapter,
     UserRegistryAdapter,
 )
 from src.contexts.identity.application.register_user.errors import (
@@ -47,10 +48,8 @@ from src.contexts.identity.application.register_user.mappers import (
 from src.contexts.identity.application.register_user.registration import Registration
 from src.contexts.identity.application.register_user.request import RegisterUserRequest
 from src.contexts.identity.application.register_user.response import RegisterUserResponse
-from src.contexts.identity.application.register_user.session_step import issuing_session
 from src.contexts.identity.domain import (
     EmailAlreadyRegistered,
-    User,
     UserFactory,
     UserRejected,
 )
@@ -92,25 +91,25 @@ def build_register_user_pipeline(  # noqa: PLR0913, PLR0917 -- Fabrik: je Naht e
             clock=clock,
         ),
         registry=UserRegistryAdapter(store),
+        sessions=SessionIssuerAdapter(sessions),
         events=EventPublisherAdapter(events),
     )
-    return RegisterUserPipeline(build_pipeline(issuing_session(_dispatch(handler), sessions)))
+    return RegisterUserPipeline(build_pipeline(_dispatch(handler)))
 
 
 def _dispatch(
     handler: RegisterUserHandler,
-) -> Handler[RegisterUserRequest, User, RegisterUserError]:
+) -> Handler[RegisterUserRequest, Registration, RegisterUserError]:
     """Baue den innersten Schritt: Request-Mapper, Handler und ein Fehler-Kanal.
 
     `to_command` steht hier und nicht im Handler, weil der Kern-Handler das
     Request-DTO nicht kennen darf (.rules/python/python-feature-slices.md).
 
-    Die Sitzung kommt eine Schicht weiter aussen dazu
-    ([`session_step.py`](./session_step.py)) - sie ist Fachablauf und steht
-    deshalb nicht in diesem Verdrahtungs-Modul.
+    Der Fachablauf steht vollstaendig im Handler - auch die Ausstellung der
+    Sitzung. Dieses Modul verdrahtet nur.
     """
 
-    def run(request: RegisterUserRequest) -> AsyncResult[User, RegisterUserError]:
+    def run(request: RegisterUserRequest) -> AsyncResult[Registration, RegisterUserError]:
         return handler(to_command(request)).map_err(_as_use_case_error)
 
     return run

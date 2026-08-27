@@ -74,10 +74,14 @@ _Avoid_: Envelope, Wrapper, Response-Hülle
 → [Der Antwort-Umschlag ist Middleware](docs/decisions/2026-08-21-2215-antwort-umschlag-als-middleware-und-tag-fehlertypen.md)
 
 **Sitzung**:
-Das Paar aus Access- und Refresh-Token samt ihren Lebensdauern, das ein Use Case ausstellt. Sie
-gehört keinem Aggregat: `User` weiß nichts von Tokens.
+Das Paar aus Access- und Refresh-Token samt ihren Lebensdauern, das ein Use Case ausstellt. Sie ist
+**nicht Teil des `User`-Aggregats** — `User` weiß nichts von Tokens — und verweist über die
+Nutzer-Id auf ihn. Der Refresh-Token dahinter ist ein **eigenes Aggregat** (BACKEND.md Abschnitt 1),
+heute noch nicht modelliert: `register_user` lässt ihn nur ausstellen und lädt oder ändert keinen.
+Auf der Innenseite heißt sie `Session`, auf der public Naht `IssuedSession`.
 _Avoid_: Session-DTO, Token-Paar, Credentials
 → [`pyjwt` hinter der Naht](docs/decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md)
+→ [Die Sitzung entsteht im Handler](docs/decisions/2026-08-27-1630-die-sitzung-entsteht-im-handler.md)
 
 **Ereignis**:
 Eine Tatsache, die ein Context veröffentlicht, nachdem sie eingetreten ist. Es existiert genau
