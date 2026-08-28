@@ -7,10 +7,12 @@ trägt. Der Aufrufer sagt, was er bauen will, und bekommt die Werte gereicht.
 
 ```python
 # vorher
-access_token=credentials.access.token,
-expires_in=credentials.access.lifetime.seconds,
-refresh_token=credentials.refresh.token,
-refresh_expires_in=credentials.refresh.lifetime.seconds,
+return RegistrationAccepted(
+    access_token=credentials.access.token,
+    expires_in=credentials.access.lifetime.seconds,
+    refresh_token=credentials.refresh.token,
+    refresh_expires_in=credentials.refresh.lifetime.seconds,
+)
 
 # jetzt
 return registration.credentials.fold(partial(_with_user, registration.user))
