@@ -20,16 +20,15 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.contexts.identity.application.register_user.abstractions import IssuedSession
 from src.contexts.identity.application.register_user.adapters import (
     IdnEncoderAdapter,
     PasswordHasherAdapter,
 )
-from src.contexts.identity.application.register_user.errors import request_invalid
-from src.contexts.identity.application.register_user.fakes import (
+from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
     DeterministicPasswordHasher,
     PassthroughIdnLabels,
 )
+from src.contexts.identity.application.register_user.errors import request_invalid
 from src.contexts.identity.application.register_user.mappers.register_user_response_mapper import (
     to_response,
 )
@@ -39,7 +38,15 @@ from src.contexts.identity.application.register_user.response import (
     RegistrationAccepted,
     RegistrationInvalid,
 )
-from src.contexts.identity.domain import Email, EmailAlreadyRegistered, User, UserFactory
+from src.contexts.identity.domain import (
+    Email,
+    EmailAlreadyRegistered,
+    Grant,
+    IssuedCredentials,
+    TokenLifetime,
+    User,
+    UserFactory,
+)
 from src.contexts.shared_kernel import Err, FakeTimeProvider, Ok
 from src.contexts.shared_kernel.validation import FieldError
 
@@ -83,14 +90,12 @@ async def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
     """Der Erfolgsfall traegt Stammdaten und Sitzung als Primitive nach aussen."""
     user = await _user()
 
-    session = IssuedSession(
-        access_token="ein-access-token",
-        expires_in=900,
-        refresh_token="ein-refresh-token",
-        refresh_expires_in=5_184_000,
+    credentials = IssuedCredentials.hydrate(
+        access=Grant.hydrate("ein-access-token", TokenLifetime.hydrate(900)),
+        refresh=Grant.hydrate("ein-refresh-token", TokenLifetime.hydrate(5_184_000)),
     )
 
-    antwort = to_response(Ok(Registration(user, session)))
+    antwort = to_response(Ok(Registration(user, credentials)))
 
     assert antwort == RegistrationAccepted(
         user_id=str(user.id),

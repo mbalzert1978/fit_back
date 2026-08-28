@@ -33,10 +33,10 @@ src/
           response.py            # Außengrenze raus, als Union aller Ausgänge
           abstractions/          # Ports, die dieser Use Case selbst definiert
           adapters/              # deren Umsetzung auf Domäne bzw. Infrastruktur
+            test_api/            # öffentliche Test-API — selbst ein Adapter auf die Naht
+              fakes/             # Doubles, die nur die Test-API einsetzt
           mappers/               # einer je Richtung
           validators/            # Regeln des Use Case
-          fakes/                 # Doubles für die Test-API
-          test_api/              # öffentliche Test-API des Use Case
       infrastructure/            # SQLAlchemy-Modelle/Repositories, externe Adapter
       contracts/                 # veröffentlichtes Vokabular für andere Contexts — nur Primitive
       specs/<use_case>/          # Tests ausschließlich über die Test-API des Use Case

@@ -12,6 +12,7 @@ import pytest
 
 from src.contexts.identity.application.register_user import (
     EmailAlreadyTaken,
+    IssuedRefreshToken,
     RegisterUserRequest,
     RegisterUserTestApi,
     RegistrationAccepted,
@@ -332,7 +333,9 @@ async def test_der_ausgegebene_refresh_token_ist_abgelegt() -> None:
     result = await api.run(_request())
 
     assert isinstance(result, RegistrationAccepted)
-    assert api.issued_refresh_tokens == ((result.user_id, result.refresh_token),)
+    assert api.issued_refresh_tokens == (
+        IssuedRefreshToken(user_id=result.user_id, token=result.refresh_token),
+    )
 
 
 @pytest.mark.asyncio

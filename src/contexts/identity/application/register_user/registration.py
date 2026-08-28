@@ -1,10 +1,9 @@
-"""Was am Ende der Kette steht: der aufgenommene User und seine Sitzung."""
+"""Was am Ende der Kette steht: der aufgenommene User und seine Zugangsdaten."""
 
 from dataclasses import dataclass
 from typing import final
 
-from src.contexts.identity.application.register_user.abstractions import IssuedSession
-from src.contexts.identity.domain import User
+from src.contexts.identity.domain import IssuedCredentials, User
 
 __all__ = ["Registration"]
 
@@ -14,11 +13,10 @@ __all__ = ["Registration"]
 class Registration:
     """Das Erfolgsergebnis des Use Case, bevor es zur Antwort gefaltet wird.
 
-    Zwei Dinge statt eines, weil die Registrierung zwei erzeugt: den Nutzer und
-    die Sitzung, mit der er sofort weiterarbeiten kann. Die Sitzung gehoert
-    nicht ins Aggregat - `User` weiss nichts von Tokens - und auch nicht erst an
-    den HTTP-Rand, der sie sonst selbst ausstellen muesste.
+    Nur, was der Nutzer zu sehen bekommt: der abgelegte Refresh-Token ist ein
+    eigenes Aggregat und steht hier nicht
+    (docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md).
     """
 
     user: User
-    session: IssuedSession
+    credentials: IssuedCredentials

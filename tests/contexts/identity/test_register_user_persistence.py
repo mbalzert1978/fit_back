@@ -28,6 +28,9 @@ from src.contexts.identity.application.register_user import (
     RegisterUserRequest,
     RegistrationAccepted,
 )
+from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
+    FixedTokenOptions,
+)
 from src.contexts.identity.application.register_user.pipeline import build_register_user_pipeline
 from src.contexts.identity.contracts import UserRegistered
 from src.contexts.identity.infrastructure.hashing import Argon2PasswordHasher
@@ -84,8 +87,10 @@ async def _register(connection: AsyncConnection, request: RegisterUserRequest) -
         hasher=Argon2PasswordHasher(),
         labels=IdnaLabels(),
         events=RegisterUserOutbox(connection),
-        sessions=PostgresSessionTokens(connection, JwtAccessTokens("t" * 32)),
+        sessions=PostgresSessionTokens(connection),
+        access_tokens=JwtAccessTokens("t" * 32),
         clock=FakeTimeProvider(Timestamp(_REGISTERED_AT).to_datetime()),
+        tokens=FixedTokenOptions(),
     )
     return await pipeline.run(request)
 

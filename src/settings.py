@@ -8,9 +8,12 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import URL
 
 __all__ = [
+    "ACCESS_TOKEN_MAXIMUM_SECONDS",
     "DEFAULT_API_VERSION",
     "JWT_SECRET_MINIMUM_LENGTH",
+    "REFRESH_TOKEN_MAXIMUM_SECONDS",
     "Settings",
+    "TokenSettings",
     "get_api_version",
     "get_settings",
 ]
@@ -20,6 +23,38 @@ JWT_SECRET_MINIMUM_LENGTH = 32
 
 DEFAULT_API_VERSION = "1"
 """Die Version dieser API, wenn die Umgebung keine nennt - dieselbe wie im Pfadpraefix `/api/v1`."""
+
+ACCESS_TOKEN_MAXIMUM_SECONDS = 900
+"""15 Minuten in Sekunden - die Zusage aus BACKEND.md Abschnitt 0, Punkt 8.
+
+Zugleich Vorgabe **und** Obergrenze: die Umgebung darf die Geltungsdauer
+verkuerzen, nie verlaengern. Eine Zahl und nicht zwei - so kann keine Vorgabe
+ausserhalb ihrer eigenen Grenze liegen.
+"""
+
+REFRESH_TOKEN_MAXIMUM_SECONDS = 5_184_000
+"""60 Tage in Sekunden - dieselbe Zusage, dieselbe Doppelrolle."""
+
+
+@final
+class TokenSettings(BaseModel):
+    """Die Geltungsdauern der beiden Token, in Sekunden.
+
+    Erfuellt `RegisterUserTokenOptions` - die Feldnamen sind deshalb die des
+    Vertrags und nicht die der Umgebungsvariablen.
+
+    **Hier** wird geprueft und sonst nirgends: eine unbrauchbare Geltungsdauer
+    ist eine Fehlbedienung des Prozesses und keine Fachentscheidung. Der Prozess
+    startet damit gar nicht erst, statt bei der ersten Anfrage umzufallen
+    (docs/decisions/2026-08-27-1930-geltungsdauern-sind-konfiguration-nicht-domaene.md).
+    """
+
+    access_token_seconds: int = Field(
+        default=ACCESS_TOKEN_MAXIMUM_SECONDS, gt=0, le=ACCESS_TOKEN_MAXIMUM_SECONDS
+    )
+    refresh_token_seconds: int = Field(
+        default=REFRESH_TOKEN_MAXIMUM_SECONDS, gt=0, le=REFRESH_TOKEN_MAXIMUM_SECONDS
+    )
 
 
 @final
@@ -43,6 +78,9 @@ class Settings(BaseModel):
     eine Hintertuer waere
     (`docs/decisions/2026-08-05-1130-security-gate-triage-ticket-0002-und-agent-integritaets-incident.md`).
     """
+
+    tokens: TokenSettings = Field(default_factory=TokenSettings)
+    """Eigene Sektion, weil die beiden Werte zusammen gehoert und zusammen gereicht werden."""
 
     @property
     def database_url(self) -> URL:
@@ -104,6 +142,14 @@ def get_settings() -> Settings:
             db_user=os.getenv("DB_USER", "fit_user"),
             db_password=_required_from_environment("DB_PASSWORD"),
             jwt_secret=_required_from_environment("JWT_SECRET"),
+            tokens=TokenSettings(
+                access_token_seconds=int(
+                    os.getenv("ACCESS_TOKEN_SECONDS", str(ACCESS_TOKEN_MAXIMUM_SECONDS))
+                ),
+                refresh_token_seconds=int(
+                    os.getenv("REFRESH_TOKEN_SECONDS", str(REFRESH_TOKEN_MAXIMUM_SECONDS))
+                ),
+            ),
         )
     except (ValidationError, ValueError) as e:
         msg = "Configuration validation failed: invalid environment variables"

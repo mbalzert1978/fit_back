@@ -10,7 +10,6 @@ import jwt
 import pytest
 
 from src.contexts.identity.infrastructure.tokens.jwt_access_tokens import (
-    ACCESS_TOKEN_LIFETIME,
     ALGORITHM,
     JwtAccessTokens,
 )
@@ -21,9 +20,12 @@ AUSGESTELLT_AM = 1700000000
 Zukunft lehnt `pyjwt` als "not yet valid" ab, und das waere hier nicht der Punkt.
 """
 
+GELTUNGSDAUER = 900
+"""Sekunden - hier eine Vorgabe des Tests, keine Konstante der Produktion."""
+
 
 def _token(user_id: str = "01920000-0000-7000-8000-000000000001") -> str:
-    return JwtAccessTokens(GEHEIMNIS).sign(user_id, AUSGESTELLT_AM)
+    return JwtAccessTokens(GEHEIMNIS).sign(user_id, AUSGESTELLT_AM, AUSGESTELLT_AM + GELTUNGSDAUER)
 
 
 def test_das_token_nennt_den_nutzer_und_seinen_ablauf() -> None:
@@ -32,7 +34,7 @@ def test_das_token_nennt_den_nutzer_und_seinen_ablauf() -> None:
 
     assert claims["sub"] == "01920000-0000-7000-8000-000000000001"
     assert claims["iat"] == AUSGESTELLT_AM
-    assert claims["exp"] - claims["iat"] == ACCESS_TOKEN_LIFETIME
+    assert claims["exp"] - claims["iat"] == GELTUNGSDAUER
 
 
 def test_ein_fremdes_geheimnis_oeffnet_das_token_nicht() -> None:

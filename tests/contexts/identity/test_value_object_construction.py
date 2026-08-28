@@ -14,7 +14,9 @@ from uuid import uuid7
 import pytest
 
 from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
-from src.contexts.identity.application.register_user.fakes import PassthroughIdnLabels
+from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
+    PassthroughIdnLabels,
+)
 from src.contexts.identity.domain import (
     DisplayName,
     Email,

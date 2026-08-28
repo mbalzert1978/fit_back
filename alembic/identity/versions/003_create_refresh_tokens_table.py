@@ -29,7 +29,7 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("user_id", sa.UUID(), nullable=False),
         # Der Hash, nie der Token selbst: wer die Tabelle liest, koennte sich
-        # sonst als jeder Nutzer ausgeben. Zum Einloesen (#52) reicht der Hash,
+        # sonst als jeder Nutzer ausgeben. Zum Einloesen (#53) reicht der Hash,
         # den Klartext bringt der Aufrufer mit.
         sa.Column("token_hash", sa.Text(), nullable=False),
         sa.Column("issued_at", sa.BigInteger(), nullable=False),

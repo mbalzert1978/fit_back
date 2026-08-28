@@ -78,10 +78,10 @@ Innerhalb eines Use Case gliedert sich `application/<use_case>/` weiter:
 application/<use_case>/
   abstractions/   public Naht: Protocols + Ergebnis-Unions
   adapters/       Port-Adapter (ACL nach unten)
+    test_api/     Test-API — selbst ein Adapter auf die Naht
+      fakes/      In-Memory-Implementierungen der Naht, die sie einsetzt
   mappers/        Request-Mapper und Response-Mapper
   validators/     Collect-all-Regeln gegen das Request-DTO
-  fakes/          In-Memory-Implementierungen der Naht
-  test_api/       Test-API
   command.py errors.py handler.py pipeline.py request.py response.py
 ```
 
@@ -434,10 +434,15 @@ Cancellation-Token daneben — `asyncio` propagiert den Abbruch ueber `Cancelled
 
 ## Die Test-API ist Teil des Slice, nicht des Testprojekts
 
-**Je Use Case eine Test-API**, ausgeliefert unter `application/<use_case>/test_api/`, die
-In-Memory-Fakes daneben unter `application/<use_case>/fakes/`. Sie ist **kein** Testcode und
-**kein** Mock-Gerüst, sondern die oeffentliche Bedien-Oberflaeche des Slice fuer alles, was ihn
-verhaltensseitig pruefen will.
+**Je Use Case eine Test-API**, ausgeliefert unter `application/<use_case>/adapters/test_api/`, die
+In-Memory-Fakes darin unter `application/<use_case>/adapters/test_api/fakes/`. Sie ist **kein**
+Testcode und **kein** Mock-Gerüst, sondern die oeffentliche Bedien-Oberflaeche des Slice fuer
+alles, was ihn verhaltensseitig pruefen will.
+
+Sie liegt unter `adapters/`, **weil sie selbst ein Adapter ist**: sie bedient dieselbe Naht wie die
+Produktions-Adapter, nur mit Fakes dahinter. Die Fakes liegen **in** ihr und nicht daneben, weil
+sie ausserhalb der Test-API keinen Abnehmer haben — ein `fakes/` als Geschwister der Test-API
+suggeriert eine Benutzbarkeit, die es nicht gibt.
 
 Sie verdrahtet **dieselbe Pipeline wie die Produktion** — Request-Mapper → Handler →
 Response-Mapper, inklusive Validierungsregeln — und tauscht **ausschliesslich an der aeussersten
@@ -533,7 +538,7 @@ Deklarativer, zeitgemaesser Stil gilt unveraendert auch in Handlern
 - [ ] **Die Naht gehoert dem Use Case**: eigener, schmaler Vertrag statt geteiltem Gateway; nur die Operationen, die dieser Use Case braucht.
 - [ ] **Ueber die public Naht wandern nur Primitive** — kein VO, keine Entitaet, kein Aggregat.
 - [ ] **Die public Naht liefert eine eigene, einfache Tagged Union**, nie `Result[T, E]` — der bleibt domaenenseitig.
-- [ ] **Test-API je Use Case** unter `application/<use_case>/test_api/`, In-Memory-Fakes unter `application/<use_case>/fakes/` — Teil des ausgelieferten Slice, nicht des Testprojekts.
+- [ ] **Test-API je Use Case** unter `application/<use_case>/adapters/test_api/`, In-Memory-Fakes darin unter `application/<use_case>/adapters/test_api/fakes/` — Teil des ausgelieferten Slice, nicht des Testprojekts.
 - [ ] **Test-API verdrahtet die echte Pipeline** (Request-Mapper → Handler → Response-Mapper + Validierung) und tauscht nur an der aeussersten Naht den Fake ein; nichts dazwischen wird gemockt.
 - [ ] **Specs: Arrange ueber die Test-API, Act ueber das echte Request-DTO, Assert gegen die echte Response-Union** — kein Test greift auf Handler, Domaene oder Fake direkt zu.
 - [ ] **Der Slice ist ohne Infrastruktur vollstaendig gruen** (keine DB, kein HTTP, kein Container); Integrations-/E2E-Tests sind eine eigene, aeusserste Ebene.

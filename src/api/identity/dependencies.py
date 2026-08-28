@@ -48,8 +48,10 @@ def _register_user(
         hasher=Argon2PasswordHasher(),
         labels=IdnaLabels(),
         events=RegisterUserOutbox(connection),
-        sessions=PostgresSessionTokens(connection, JwtAccessTokens(settings.jwt_secret)),
+        sessions=PostgresSessionTokens(connection),
+        access_tokens=JwtAccessTokens(settings.jwt_secret),
         clock=SystemTimeProvider(),
+        tokens=settings.tokens,
     )
 
 

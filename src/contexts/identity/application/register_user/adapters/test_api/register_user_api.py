@@ -20,11 +20,14 @@ from datetime import UTC, datetime
 from typing import Self, final
 
 from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
-from src.contexts.identity.application.register_user.fakes import (
+from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
+    DeterministicAccessTokens,
     DeterministicPasswordHasher,
+    FixedTokenOptions,
     InMemoryEventLog,
     InMemorySessionTokens,
     InMemoryUserStore,
+    IssuedRefreshToken,
     PassthroughIdnLabels,
     RecordedEvent,
 )
@@ -50,6 +53,8 @@ class RegisterUserTestApi:
         self._labels = PassthroughIdnLabels()
         self._events = InMemoryEventLog()
         self._sessions = InMemorySessionTokens()
+        self._access_tokens = DeterministicAccessTokens()
+        self._tokens = FixedTokenOptions()
         self._clock = FakeTimeProvider(_DEFAULT_NOW)
 
     # --- Arrange ---
@@ -69,15 +74,22 @@ class RegisterUserTestApi:
     async def run(self, request: RegisterUserRequest) -> RegisterUserResponse:
         """Fuehre das echte Request-DTO durch die echte Pipeline."""
         pipeline = build_register_user_pipeline(
-            self._store, self._hasher, self._labels, self._events, self._sessions, self._clock
+            self._store,
+            self._hasher,
+            self._labels,
+            self._events,
+            self._sessions,
+            self._access_tokens,
+            self._clock,
+            self._tokens,
         )
         return await pipeline.run(request)
 
     # --- Assert ---
 
     @property
-    def issued_refresh_tokens(self) -> Sequence[tuple[str, str]]:
-        """Welche Refresh-Token abgelegt wurden - je Eintrag `(user_id, token)`.
+    def issued_refresh_tokens(self) -> Sequence[IssuedRefreshToken]:
+        """Welche Refresh-Token abgelegt wurden, in der Reihenfolge des Ausstellens.
 
         Der dritte beobachtbare Ausgang: ein herausgegebener Refresh-Token, den
         niemand abgelegt hat, waere eine Zusage, die der naechste Aufruf nicht

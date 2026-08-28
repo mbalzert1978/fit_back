@@ -8,6 +8,9 @@ fangen dabei nichts ab - erwartete Fehlschlaege sind bereits Ergebnistypen der
 Naht.
 """
 
+from src.contexts.identity.application.register_user.adapters.access_tokens_adapter import (
+    AccessTokensAdapter,
+)
 from src.contexts.identity.application.register_user.adapters.event_publisher_adapter import (
     EventPublisherAdapter,
 )
@@ -17,13 +20,22 @@ from src.contexts.identity.application.register_user.adapters.idn_encoder_adapte
 from src.contexts.identity.application.register_user.adapters.password_hasher_adapter import (
     PasswordHasherAdapter,
 )
+from src.contexts.identity.application.register_user.adapters.refresh_tokens_adapter import (
+    RefreshTokensAdapter,
+)
+from src.contexts.identity.application.register_user.adapters.token_secrets_adapter import (
+    TokenSecretsAdapter,
+)
 from src.contexts.identity.application.register_user.adapters.user_registry_adapter import (
     UserRegistryAdapter,
 )
 
 __all__ = [
+    "AccessTokensAdapter",
     "EventPublisherAdapter",
     "IdnEncoderAdapter",
     "PasswordHasherAdapter",
+    "RefreshTokensAdapter",
+    "TokenSecretsAdapter",
     "UserRegistryAdapter",
 ]

@@ -4,5 +4,5 @@
     ".rules/python"
   ],
   "reference_implementation": "src/contexts/identity",
-  "_note": "reference_implementation zeigt auf den Identity-Context mit dem Use Case register_user (Ticket 0011, Stufe 1) - der erste vollstaendig gebaute Feature-Slice dieses Repos und damit die verbindliche Zielform: domain/ (nur stdlib), application/register_user/ (Command, Handler, beide Mapper, Validatoren, Port-Adapter, use-case-eigene public Naht), test_api.py + fakes/, Specs unter tests/register_user/. Reviewer vergleichen die Form eines Diffs hiermit, statt sie aus der Prosa in .rules/python/python-feature-slices.md zu rekonstruieren."
+  "_note": "reference_implementation zeigt auf den Identity-Context mit dem Use Case register_user (Ticket 0011, Stufe 1) - der erste vollstaendig gebaute Feature-Slice dieses Repos und damit die verbindliche Zielform: domain/ (nur stdlib), application/register_user/ (Command, Handler, beide Mapper, Validatoren, Port-Adapter, use-case-eigene public Naht), adapters/test_api/ mit fakes/ darin, Specs unter src/contexts/identity/specs/register_user/. Reviewer vergleichen die Form eines Diffs hiermit, statt sie aus der Prosa in .rules/python/python-feature-slices.md zu rekonstruieren."
 }
