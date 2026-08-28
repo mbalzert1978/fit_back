@@ -33,8 +33,8 @@ from src.contexts.identity.domain.email_errors import (
     EmailNeedsExactlyOneAtSign,
     UnencodableDomainLabel,
 )
-from src.contexts.identity.domain.entities.refresh_token import RefreshToken
-from src.contexts.identity.domain.entities.user import User, UserFactory
+from src.contexts.identity.domain.entities.refresh_token import RefreshToken, RefreshTokenIssuance
+from src.contexts.identity.domain.entities.user import CredentialIssuance, User, UserFactory
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.events import user_registered
 from src.contexts.identity.domain.locale_errors import (
@@ -48,9 +48,11 @@ from src.contexts.identity.domain.password_errors import (
     PasswordTooShort,
 )
 from src.contexts.identity.domain.password_hash_errors import PasswordHashError, PasswordHashIsEmpty
+from src.contexts.identity.domain.ports.access_tokens import AccessTokens
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder, IdnEncoderError
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
-from src.contexts.identity.domain.ports.session_issuer import SessionIssuer
+from src.contexts.identity.domain.ports.refresh_tokens import RefreshTokens
+from src.contexts.identity.domain.ports.token_secrets import TokenSecrets
 from src.contexts.identity.domain.ports.user_registry import UserRegistry, UserRegistryError
 from src.contexts.identity.domain.user_creation_errors import (
     DisplayNameRejected,
@@ -74,9 +76,9 @@ from src.contexts.identity.domain.value_objects.account_status import (
     Suspended,
     account_status_tag,
 )
+from src.contexts.identity.domain.value_objects.credentials import Grant, IssuedCredentials
 from src.contexts.identity.domain.value_objects.display_name import DisplayName
 from src.contexts.identity.domain.value_objects.email import Email
-from src.contexts.identity.domain.value_objects.issued_credentials import IssuedCredentials
 from src.contexts.identity.domain.value_objects.locale import (
     DEFAULT_LOCALE,
     English,
@@ -91,6 +93,7 @@ from src.contexts.identity.domain.value_objects.password_hash import PasswordHas
 from src.contexts.identity.domain.value_objects.refresh_token_id import RefreshTokenId
 from src.contexts.identity.domain.value_objects.token_hash import TokenHash
 from src.contexts.identity.domain.value_objects.token_lifetime import TokenLifetime
+from src.contexts.identity.domain.value_objects.token_secret import TokenSecret
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import (
     DEFAULT_TIME_ZONE_ID,
@@ -100,8 +103,10 @@ from src.contexts.identity.domain.value_objects.user_time_zone import (
 __all__ = [
     "DEFAULT_LOCALE",
     "DEFAULT_TIME_ZONE_ID",
+    "AccessTokens",
     "AccountStatus",
     "Active",
+    "CredentialIssuance",
     "DisplayName",
     "DisplayNameError",
     "DisplayNameIsEmpty",
@@ -129,6 +134,7 @@ __all__ = [
     "EmailRejected",
     "English",
     "German",
+    "Grant",
     "IdnEncoder",
     "IdnEncoderError",
     "IssuedCredentials",
@@ -149,11 +155,14 @@ __all__ = [
     "PendingDeletion",
     "RefreshToken",
     "RefreshTokenId",
-    "SessionIssuer",
+    "RefreshTokenIssuance",
+    "RefreshTokens",
     "Suspended",
     "TimeZoneRejected",
     "TokenHash",
     "TokenLifetime",
+    "TokenSecret",
+    "TokenSecrets",
     "UnencodableDomainLabel",
     "User",
     "UserCreationError",

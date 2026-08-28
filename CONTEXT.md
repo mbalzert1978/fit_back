@@ -76,10 +76,25 @@ _Avoid_: Envelope, Wrapper, Response-Hülle
 **Zugangsdaten**:
 Das Paar aus Access- und Refresh-Token samt ihren Lebensdauern, das ein Use Case **ausgibt**. Der
 Refresh-Token steht darin im **Klartext**, deshalb werden Zugangsdaten nie abgelegt. Sie heißen
-innen `IssuedCredentials`; über die public Naht wandern sie nicht mehr als Ganzes.
+innen `IssuedCredentials` und bestehen aus zwei → Ausgaben, nicht aus vier losen Feldern. Gebaut
+werden sie von der Wurzel selbst (`User.issue_credentials`) — deshalb stehen sie in der Domäne.
+Über die public Naht wandern sie nicht als Ganzes.
 _Avoid_: Sitzung, Session, Session-DTO, Token-Paar
-→ [Die Sitzung entsteht im Handler](docs/decisions/2026-08-27-1630-die-sitzung-entsteht-im-handler.md)
-→ [Das Aggregat `RefreshToken`](docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md)
+→ [Die Wurzel stellt ihre Zugangsdaten aus](docs/decisions/2026-08-28-1045-die-wurzel-stellt-ihre-zugangsdaten-aus.md)
+
+**Ausgabe**:
+Ein ausgegebener Token samt seiner → Geltungsdauer — innen `Grant`. Die beiden gehören zusammen:
+ein Token ohne seine Dauer ist für den Aufrufer unbrauchbar. Es gibt genau zwei je Aufnahme, die
+Access- und die Refresh-Ausgabe.
+_Avoid_: Token-Feld, Credential, Token-Paar
+→ [Die Wurzel stellt ihre Zugangsdaten aus](docs/decisions/2026-08-28-1045-die-wurzel-stellt-ihre-zugangsdaten-aus.md)
+
+**Geheimnis**:
+Der rohe Zufallswert hinter einem Refresh-Token, in seinen **beiden** Gestalten — Klartext und
+Abdruck — als ein Wert: innen `TokenSecret`. Gezogen wird es außen (Zufall, SHA-256), gepaart und
+geteilt ausschließlich in `RefreshToken.issue`. Kein Aufrufer sieht es vor dem Aggregat.
+_Avoid_: Token-Klartext, Secret-Paar, `MintedSecret` (das ist die Naht-Form davon)
+→ [Das Aggregat zieht sein Geheimnis selbst](docs/decisions/2026-08-28-0930-das-aggregat-zieht-sein-geheimnis-selbst.md)
 
 **Refresh-Token**:
 Der abgelegte Anspruch, eine Sitzung zu verlängern — ein **eigenes Aggregat** neben `User`

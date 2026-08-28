@@ -5,7 +5,8 @@ from typing import final
 from src.contexts.identity.application.register_user.command import RegisterUserCommand
 from src.contexts.identity.application.register_user.registration import Registration
 from src.contexts.identity.domain import (
-    SessionIssuer,
+    AccessTokens,
+    RefreshTokens,
     TokenLifetime,
     User,
     UserFactory,
@@ -41,19 +42,21 @@ class RegisterUserHandler:
         self,
         users: UserFactory,
         registry: UserRegistry,
-        sessions: SessionIssuer,
+        refresh_tokens: RefreshTokens,
+        access_tokens: AccessTokens,
         events: EventPublisher,
         access_lifetime: TokenLifetime,
         refresh_lifetime: TokenLifetime,
     ) -> None:
-        """Nimm Fabrik, Bestand, Aussteller, Ereignis-Naht und die beiden Geltungsdauern entgegen.
+        """Nimm Fabrik, Bestand, die zwei Token-Mitspieler, Ereignis-Naht und Dauern entgegen.
 
         Die Dauern kommen bereits als Domaenentyp herein - umgewandelt wird in
         der Fabrik (`pipeline.py`), an der aeusseren Naht.
         """
         self._users = users
         self._registry = registry
-        self._sessions = sessions
+        self._refresh_tokens = refresh_tokens
+        self._access_tokens = access_tokens
         self._events = events
         self._access_lifetime = access_lifetime
         self._refresh_lifetime = refresh_lifetime
@@ -84,10 +87,21 @@ class RegisterUserHandler:
         await self._events.publish(user_registered(registration.user))
 
     async def _with_credentials(self, user: User) -> Registration:
-        """Stelle die Zugangsdaten aus und binde sie an den aufgenommenen User."""
-        credentials = await self._sessions.issue(
-            user,
+        """Lass den Nutzer seine Zugangsdaten ausstellen und lege den Token ab.
+
+        Der Handler holt hier keine Werte aus dem `User` heraus - er fragt ihn.
+        Was ausgestellt wird und woraus, entscheidet die Wurzel; was abgelegt
+        wird, reicht sie fertig heraus
+        (docs/decisions/2026-08-28-1045-die-wurzel-stellt-ihre-zugangsdaten-aus.md).
+
+        Das Ablegen bleibt hier: ein Aggregat, das sich selbst speichert, waere
+        ein Active Record.
+        """
+        issuance = user.issue_credentials(
+            self._refresh_tokens,
+            self._access_tokens,
             self._access_lifetime,
             self._refresh_lifetime,
         )
-        return Registration(user, credentials)
+        await self._refresh_tokens.store(issuance.refresh_token)
+        return Registration(user, issuance.credentials)
