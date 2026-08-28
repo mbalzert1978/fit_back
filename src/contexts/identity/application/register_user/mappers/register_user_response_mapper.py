@@ -43,9 +43,9 @@ def _accepted(registration: Registration) -> RegisterUserResponse:
         time_zone_id=user.time_zone.value,
         registered_at_unix=user.registered_at.unix_seconds,
         access_token=credentials.access_token,
-        expires_in=credentials.expires_in,
+        expires_in=credentials.access_lifetime.seconds,
         refresh_token=credentials.refresh_token,
-        refresh_expires_in=credentials.refresh_expires_in,
+        refresh_expires_in=credentials.refresh_lifetime.seconds,
     )
 
 

@@ -8,10 +8,10 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import URL
 
 __all__ = [
-    "DEFAULT_ACCESS_TOKEN_LIFETIME",
+    "ACCESS_TOKEN_MAXIMUM_SECONDS",
     "DEFAULT_API_VERSION",
-    "DEFAULT_REFRESH_TOKEN_LIFETIME",
     "JWT_SECRET_MINIMUM_LENGTH",
+    "REFRESH_TOKEN_MAXIMUM_SECONDS",
     "Settings",
     "TokenSettings",
     "get_api_version",
@@ -24,11 +24,16 @@ JWT_SECRET_MINIMUM_LENGTH = 32
 DEFAULT_API_VERSION = "1"
 """Die Version dieser API, wenn die Umgebung keine nennt - dieselbe wie im Pfadpraefix `/api/v1`."""
 
-DEFAULT_ACCESS_TOKEN_LIFETIME = 900
-"""15 Minuten in Sekunden - die Zusage aus BACKEND.md Abschnitt 0, Punkt 8."""
+ACCESS_TOKEN_MAXIMUM_SECONDS = 900
+"""15 Minuten in Sekunden - die Zusage aus BACKEND.md Abschnitt 0, Punkt 8.
 
-DEFAULT_REFRESH_TOKEN_LIFETIME = 5_184_000
-"""60 Tage in Sekunden - dieselbe Zusage."""
+Zugleich Vorgabe **und** Obergrenze: die Umgebung darf die Geltungsdauer
+verkuerzen, nie verlaengern. Eine Zahl und nicht zwei - so kann keine Vorgabe
+ausserhalb ihrer eigenen Grenze liegen.
+"""
+
+REFRESH_TOKEN_MAXIMUM_SECONDS = 5_184_000
+"""60 Tage in Sekunden - dieselbe Zusage, dieselbe Doppelrolle."""
 
 
 @final
@@ -38,13 +43,18 @@ class TokenSettings(BaseModel):
     Erfuellt `RegisterUserTokenOptions` - die Feldnamen sind deshalb die des
     Vertrags und nicht die der Umgebungsvariablen.
 
-    Ohne eigene Grenzen: welche Dauer zulaessig ist, entscheidet `TokenLifetime`
-    in der Domaene und sonst niemand
-    (docs/decisions/2026-08-27-2115-die-obergrenze-der-geltungsdauer-steht-in-der-domaene.md).
+    **Hier** wird geprueft und sonst nirgends: eine unbrauchbare Geltungsdauer
+    ist eine Fehlbedienung des Prozesses und keine Fachentscheidung. Der Prozess
+    startet damit gar nicht erst, statt bei der ersten Anfrage umzufallen
+    (docs/decisions/2026-08-27-1930-geltungsdauern-sind-konfiguration-nicht-domaene.md).
     """
 
-    access_token_seconds: int = DEFAULT_ACCESS_TOKEN_LIFETIME
-    refresh_token_seconds: int = DEFAULT_REFRESH_TOKEN_LIFETIME
+    access_token_seconds: int = Field(
+        default=ACCESS_TOKEN_MAXIMUM_SECONDS, gt=0, le=ACCESS_TOKEN_MAXIMUM_SECONDS
+    )
+    refresh_token_seconds: int = Field(
+        default=REFRESH_TOKEN_MAXIMUM_SECONDS, gt=0, le=REFRESH_TOKEN_MAXIMUM_SECONDS
+    )
 
 
 @final
@@ -134,10 +144,10 @@ def get_settings() -> Settings:
             jwt_secret=_required_from_environment("JWT_SECRET"),
             tokens=TokenSettings(
                 access_token_seconds=int(
-                    os.getenv("ACCESS_TOKEN_LIFETIME", str(DEFAULT_ACCESS_TOKEN_LIFETIME))
+                    os.getenv("ACCESS_TOKEN_SECONDS", str(ACCESS_TOKEN_MAXIMUM_SECONDS))
                 ),
                 refresh_token_seconds=int(
-                    os.getenv("REFRESH_TOKEN_LIFETIME", str(DEFAULT_REFRESH_TOKEN_LIFETIME))
+                    os.getenv("REFRESH_TOKEN_SECONDS", str(REFRESH_TOKEN_MAXIMUM_SECONDS))
                 ),
             ),
         )

@@ -20,9 +20,15 @@ noch nicht gab: „ein Nutzer ist registriert", während der Refresh-Token noch 
 Schlug die Ablage fehl, war die Meldung bereits geschrieben.
 
 Der Fake zeigte genau das: `InMemoryEventLog` hielt das Ereignis fest, obwohl der Vorgang danach
-abbrach. Belegt wird die neue Reihenfolge jetzt vom Spec
-`test_wer_keinen_token_ablegen_konnte_wird_auch_nicht_gemeldet` — über
-`RegisterUserTestApi.with_unavailable_token_store`.
+abbrach.
+
+**Nicht belegt durch einen Spec.** Der Versuch dazu ließ die Ablage des Fake eine `RuntimeError`
+werfen — einen Fehler, den kein Naht-Vertrag nennt und den nur der Fake kannte. Ein Spec, der eine
+Erfindung des Fake prüft, prüft die Spezifikation gegen sich selbst; er ist entfernt, mit ihm
+`with_unavailable_token_store` und `fail_on_store`. Die Reihenfolge steht damit im Handler und ist
+dort lesbar, aber ohne eigenen Test. Ein echter Beleg braucht einen **erwarteten** Fehlschlag im
+Vertrag der Ablage — den gibt es heute nicht, weil eine tote Datenbank ein Betriebsfall ist
+([Die Sitzung entsteht im Handler](2026-08-27-1630-die-sitzung-entsteht-im-handler.md)).
 
 ## Was sich in der Produktion **nicht** ändert
 

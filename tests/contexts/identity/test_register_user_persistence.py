@@ -87,7 +87,8 @@ async def _register(connection: AsyncConnection, request: RegisterUserRequest) -
         hasher=Argon2PasswordHasher(),
         labels=IdnaLabels(),
         events=RegisterUserOutbox(connection),
-        sessions=PostgresSessionTokens(connection, JwtAccessTokens("t" * 32)),
+        sessions=PostgresSessionTokens(connection),
+        access_tokens=JwtAccessTokens("t" * 32),
         clock=FakeTimeProvider(Timestamp(_REGISTERED_AT).to_datetime()),
         tokens=FixedTokenOptions(),
     )

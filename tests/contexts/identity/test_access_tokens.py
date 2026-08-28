@@ -16,11 +16,12 @@ from src.contexts.identity.infrastructure.tokens.jwt_access_tokens import (
 
 GEHEIMNIS = "ein-geheimnis-mit-mindestens-32-zeichen"
 AUSGESTELLT_AM = 1700000000
-GELTUNGSDAUER = 900
-"""Sekunden - hier eine Vorgabe des Tests, keine Konstante der Produktion."""
 """Unix-Sekunden, 2023-11-14 - bewusst in der Vergangenheit: ein `iat` in der
 Zukunft lehnt `pyjwt` als "not yet valid" ab, und das waere hier nicht der Punkt.
 """
+
+GELTUNGSDAUER = 900
+"""Sekunden - hier eine Vorgabe des Tests, keine Konstante der Produktion."""
 
 
 def _token(user_id: str = "01920000-0000-7000-8000-000000000001") -> str:

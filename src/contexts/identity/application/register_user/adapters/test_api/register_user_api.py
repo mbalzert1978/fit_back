@@ -21,11 +21,13 @@ from typing import Self, final
 
 from src.contexts.identity.application.register_user.adapters import IdnEncoderAdapter
 from src.contexts.identity.application.register_user.adapters.test_api.fakes import (
+    DeterministicAccessTokens,
     DeterministicPasswordHasher,
     FixedTokenOptions,
     InMemoryEventLog,
     InMemorySessionTokens,
     InMemoryUserStore,
+    IssuedRefreshToken,
     PassthroughIdnLabels,
     RecordedEvent,
 )
@@ -51,6 +53,7 @@ class RegisterUserTestApi:
         self._labels = PassthroughIdnLabels()
         self._events = InMemoryEventLog()
         self._sessions = InMemorySessionTokens()
+        self._access_tokens = DeterministicAccessTokens()
         self._tokens = FixedTokenOptions()
         self._clock = FakeTimeProvider(_DEFAULT_NOW)
 
@@ -59,11 +62,6 @@ class RegisterUserTestApi:
     def with_registered_user(self, email: str) -> Self:
         """Es gibt bereits ein Konto zu dieser E-Mail."""
         self._store.register(_normalized(email))
-        return self
-
-    def with_unavailable_token_store(self) -> Self:
-        """Die Ablage des Refresh-Token antwortet nicht."""
-        self._sessions.fail_on_store()
         return self
 
     def at_unix_time(self, unix_seconds: int) -> Self:
@@ -81,6 +79,7 @@ class RegisterUserTestApi:
             self._labels,
             self._events,
             self._sessions,
+            self._access_tokens,
             self._clock,
             self._tokens,
         )
@@ -89,8 +88,8 @@ class RegisterUserTestApi:
     # --- Assert ---
 
     @property
-    def issued_refresh_tokens(self) -> Sequence[tuple[str, str]]:
-        """Welche Refresh-Token abgelegt wurden - je Eintrag `(user_id, token)`.
+    def issued_refresh_tokens(self) -> Sequence[IssuedRefreshToken]:
+        """Welche Refresh-Token abgelegt wurden, in der Reihenfolge des Ausstellens.
 
         Der dritte beobachtbare Ausgang: ein herausgegebener Refresh-Token, den
         niemand abgelegt hat, waere eine Zusage, die der naechste Aufruf nicht

@@ -1,9 +1,8 @@
 """Signiert Access-Token als JWT (HS256) - ueber `pyjwt`, nicht von Hand.
 
 Kennt die Domaene nicht: Nutzer-Id und Zeitfenster hinein, ein Token-String
-heraus - der Aufrufer bringt den Ablauf mit. Die Naht
-`RegisterUserSessionTokens` erfuellt `postgres_session_tokens.py`, das dieses
-Modul benutzt.
+heraus - der Aufrufer bringt den Ablauf mit. Erfuellt damit die Naht
+`RegisterUserAccessTokens` unmittelbar, ohne Zwischenstueck.
 """
 
 from typing import final

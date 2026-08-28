@@ -12,7 +12,7 @@ Konstante im Code und wird beim Prüfen (#52, #55) als erlaubte Liste übergeben
 Header des Tokens gelesen — wer ihn von dort nimmt, lässt den Aufrufer ihn wählen, `none`
 eingeschlossen.
 
-Sie steckt hinter der Naht `RegisterUserSessionTokens`, genau wie `argon2-cffi` hinter
+Sie steckt hinter der Naht `RegisterUserAccessTokens`, genau wie `argon2-cffi` hinter
 `RegisterUserPasswordHasher`: der Slice kennt Primitive, nicht das Verfahren. Ein selbst gebautes
 HS256 wäre machbar gewesen, aber die Prüfseite — Algorithmus-Verwechslung, Ablauf, Leeway — ist der
 Teil, an dem man sich schneidet, und sie kommt in #52 und #55 ohnehin.

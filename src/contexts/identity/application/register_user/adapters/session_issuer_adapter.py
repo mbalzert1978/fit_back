@@ -4,6 +4,7 @@ from typing import final
 
 from src.contexts.identity.application.register_user.abstractions import (
     RefreshTokenRecord,
+    RegisterUserAccessTokens,
     RegisterUserSessionTokens,
 )
 from src.contexts.identity.domain import (
@@ -21,13 +22,22 @@ __all__ = ["SessionIssuerAdapter"]
 class SessionIssuerAdapter:
     """Uebersetzt zwischen Aggregat und Naht - in beide Richtungen.
 
+    Rechnet selbst nichts aus: den Ablauf beantwortet `TokenLifetime`, die
+    Felder der Zeile das Aggregat. Der Adapter fragt beide und wickelt ihre
+    Antworten auf Primitive ab - mehr ist seine Rolle nicht
+    (.rules/python/python-feature-slices.md, "Handler, Adapter, Mapper sind
+    verschiedene Dinge").
+
     Der Klartext des Geheimnisses geht an der Domaene vorbei direkt in die
     Zugangsdaten - er wird nie abgelegt.
     """
 
-    def __init__(self, sessions: RegisterUserSessionTokens) -> None:
-        """Nimm die Naht-Implementierung entgegen (Fake oder Aussteller)."""
+    def __init__(
+        self, sessions: RegisterUserSessionTokens, access_tokens: RegisterUserAccessTokens
+    ) -> None:
+        """Nimm Ablage und Signierer entgegen (Fakes oder Produktion)."""
         self._sessions = sessions
+        self._access_tokens = access_tokens
 
     async def issue(
         self, user: User, access_lifetime: TokenLifetime, refresh_lifetime: TokenLifetime
@@ -46,14 +56,14 @@ class SessionIssuerAdapter:
         )
         await self._sessions.store(_as_record(token))
         return IssuedCredentials.hydrate(
-            access_token=self._sessions.sign_access_token(
+            access_token=self._access_tokens.sign(
                 str(user.id),
                 user.registered_at.unix_seconds,
                 access_lifetime.expires_from(user.registered_at).unix_seconds,
             ),
-            expires_in=access_lifetime.seconds,
+            access_lifetime=access_lifetime,
             refresh_token=secret.plaintext,
-            refresh_expires_in=token.lifetime_seconds,
+            refresh_lifetime=refresh_lifetime,
         )
 
 

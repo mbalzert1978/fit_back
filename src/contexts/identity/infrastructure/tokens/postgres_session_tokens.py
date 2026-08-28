@@ -1,14 +1,15 @@
-"""Erfuellt die Naht `RegisterUserSessionTokens`: Geheimnis, Ablage, Signatur.
+"""Erfuellt die Naht `RegisterUserSessionTokens`: Geheimnis und Ablage.
 
 Was hier passiert, ist ausschliesslich Handwerk: Zufall ziehen, Abdruck bilden,
-eine **fertige** Zeile schreiben, ein Token signieren. Welche Felder die Zeile
-traegt und wie lange ein Token gilt, entscheidet die Domaene
-(`domain/entities/refresh_token.py`, `domain/value_objects/token_lifetime.py`).
+eine **fertige** Zeile schreiben. Welche Felder die Zeile traegt und wie lange
+ein Token gilt, entscheidet die Domaene (`domain/entities/refresh_token.py`,
+`domain/value_objects/token_lifetime.py`). Signiert wird nebenan, in
+`jwt_access_tokens.py` - ein anderer Mitspieler, ein anderer Vertrag.
 
 Der Refresh-Token verlaesst dieses Modul im Klartext nach **aussen** und geht im
 **Hash** in die Datenbank. Der Klartext ist ein Geheimnis wie ein Passwort: wer
 die Tabelle liest, koennte sich sonst als jeder Nutzer ausgeben. Zum Einloesen
-(#52) reicht der Hash - der Aufrufer bringt den Klartext mit.
+(#53) reicht der Hash - der Aufrufer bringt den Klartext mit.
 
 SHA-256 und nicht Argon2id: anders als ein Passwort ist dieser Token 256 Bit
 Zufall aus `secrets`, es gibt also nichts zu erraten, wogegen ein langsames
@@ -26,7 +27,6 @@ from src.contexts.identity.application.register_user.abstractions import (
     RefreshTokenRecord,
 )
 from src.contexts.identity.infrastructure.persistence.user_store import UserStoreTransaction
-from src.contexts.identity.infrastructure.tokens.jwt_access_tokens import JwtAccessTokens
 
 __all__ = ["PostgresSessionTokens"]
 
@@ -43,15 +43,14 @@ _INSERT_REFRESH_TOKEN: TextClause = text("""
 class PostgresSessionTokens:
     """Stellt Geheimnisse aus und legt Refresh-Token nach `identity.refresh_tokens`."""
 
-    def __init__(self, transaction: UserStoreTransaction, access_tokens: JwtAccessTokens) -> None:
-        """Nimm die laufende Transaktion des Vorgangs und den Signierer entgegen.
+    def __init__(self, transaction: UserStoreTransaction) -> None:
+        """Nimm die laufende Transaktion des Vorgangs entgegen.
 
         **Dieselbe** Transaktion wie der Nutzer-Bestand: Nutzer-Zeile und
         Refresh-Token werden gemeinsam sichtbar oder gar nicht. Ein Token zu
         einem Konto, das es nicht gibt, waere sonst ein moeglicher Zustand.
         """
         self._transaction = transaction
-        self._access_tokens = access_tokens
 
     def mint_secret(self) -> MintedSecret:
         """Ziehe 256 Bit Zufall und bilde seinen SHA-256-Abdruck."""
@@ -73,7 +72,3 @@ class PostgresSessionTokens:
                 "expires_at": record.expires_at,
             },
         )
-
-    def sign_access_token(self, user_id: str, issued_at: int, expires_at: int) -> str:
-        """Reiche das Zeitfenster an den Signierer durch."""
-        return self._access_tokens.sign(user_id, issued_at, expires_at)

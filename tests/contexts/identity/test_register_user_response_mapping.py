@@ -42,6 +42,7 @@ from src.contexts.identity.domain import (
     Email,
     EmailAlreadyRegistered,
     IssuedCredentials,
+    TokenLifetime,
     User,
     UserFactory,
 )
@@ -90,9 +91,9 @@ async def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
 
     credentials = IssuedCredentials.hydrate(
         access_token="ein-access-token",
-        expires_in=900,
+        access_lifetime=TokenLifetime.hydrate(900),
         refresh_token="ein-refresh-token",
-        refresh_expires_in=5_184_000,
+        refresh_lifetime=TokenLifetime.hydrate(5_184_000),
     )
 
     antwort = to_response(Ok(Registration(user, credentials)))

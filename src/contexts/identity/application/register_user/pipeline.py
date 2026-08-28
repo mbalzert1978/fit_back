@@ -20,6 +20,7 @@ from typing import assert_never, final
 
 from src.contexts.identity.application.register_user.abstractions import (
     IdnLabels,
+    RegisterUserAccessTokens,
     RegisterUserEventLog,
     RegisterUserPasswordHasher,
     RegisterUserSessionTokens,
@@ -83,6 +84,7 @@ def build_register_user_pipeline(  # noqa: PLR0913, PLR0917 -- Fabrik: je Naht e
     labels: IdnLabels,
     events: RegisterUserEventLog,
     sessions: RegisterUserSessionTokens,
+    access_tokens: RegisterUserAccessTokens,
     clock: TimeProvider,
     tokens: RegisterUserTokenOptions,
 ) -> RegisterUserPipeline:
@@ -94,10 +96,10 @@ def build_register_user_pipeline(  # noqa: PLR0913, PLR0917 -- Fabrik: je Naht e
             clock=clock,
         ),
         registry=UserRegistryAdapter(store),
-        sessions=SessionIssuerAdapter(sessions),
+        sessions=SessionIssuerAdapter(sessions, access_tokens),
         events=EventPublisherAdapter(events),
-        access_lifetime=TokenLifetime.access(tokens.access_token_seconds),
-        refresh_lifetime=TokenLifetime.refresh(tokens.refresh_token_seconds),
+        access_lifetime=TokenLifetime.hydrate(tokens.access_token_seconds),
+        refresh_lifetime=TokenLifetime.hydrate(tokens.refresh_token_seconds),
     )
     return RegisterUserPipeline(build_pipeline(_dispatch(handler)))
 

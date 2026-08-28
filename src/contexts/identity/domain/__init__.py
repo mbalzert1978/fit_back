@@ -90,11 +90,7 @@ from src.contexts.identity.domain.value_objects.password import Password
 from src.contexts.identity.domain.value_objects.password_hash import PasswordHash
 from src.contexts.identity.domain.value_objects.refresh_token_id import RefreshTokenId
 from src.contexts.identity.domain.value_objects.token_hash import TokenHash
-from src.contexts.identity.domain.value_objects.token_lifetime import (
-    ACCESS_TOKEN_MAXIMUM_SECONDS,
-    REFRESH_TOKEN_MAXIMUM_SECONDS,
-    TokenLifetime,
-)
+from src.contexts.identity.domain.value_objects.token_lifetime import TokenLifetime
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import (
     DEFAULT_TIME_ZONE_ID,
@@ -102,10 +98,8 @@ from src.contexts.identity.domain.value_objects.user_time_zone import (
 )
 
 __all__ = [
-    "ACCESS_TOKEN_MAXIMUM_SECONDS",
     "DEFAULT_LOCALE",
     "DEFAULT_TIME_ZONE_ID",
-    "REFRESH_TOKEN_MAXIMUM_SECONDS",
     "AccountStatus",
     "Active",
     "DisplayName",

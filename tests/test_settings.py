@@ -13,8 +13,10 @@ um jeden Test herum.
 import pytest
 
 from src.settings import (
+    ACCESS_TOKEN_MAXIMUM_SECONDS,
     DEFAULT_API_VERSION,
     JWT_SECRET_MINIMUM_LENGTH,
+    REFRESH_TOKEN_MAXIMUM_SECONDS,
     Settings,
     get_api_version,
     get_settings,
@@ -198,3 +200,57 @@ def test_die_url_zeigt_das_passwort_nicht() -> None:
     )
 
     assert "streng-geheim" not in str(settings.database_url)
+
+
+def test_die_ausgelieferten_geltungsdauern_sind_die_zusage_aus_backend_md() -> None:
+    """15 Minuten und 60 Tage - BACKEND.md Abschnitt 0, Punkt 8.
+
+    Der Wert, der ohne Umgebungsvariable gilt, ist der ausgelieferte. Ohne diesen
+    Test koennte er von der Zusage wegdriften, ohne dass etwas rot wird: die
+    Specs fahren `FixedTokenOptions` und sehen ihn nie.
+    """
+    settings = Settings(db_password="geheim", jwt_secret=GUELTIGES_GEHEIMNIS)
+
+    assert settings.tokens.access_token_seconds == 900
+    assert settings.tokens.refresh_token_seconds == 5_184_000
+
+
+@pytest.mark.parametrize(
+    ("variable", "grenze"),
+    [
+        ("ACCESS_TOKEN_SECONDS", ACCESS_TOKEN_MAXIMUM_SECONDS),
+        ("REFRESH_TOKEN_SECONDS", REFRESH_TOKEN_MAXIMUM_SECONDS),
+    ],
+)
+def test_eine_zu_lange_geltungsdauer_faellt_beim_start_auf(
+    monkeypatch: pytest.MonkeyPatch, variable: str, grenze: int
+) -> None:
+    """Die Umgebung darf verkuerzen, nie verlaengern - sonst waere die Zusage keine."""
+    monkeypatch.setenv("DB_PASSWORD", "geheim")
+    monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
+    monkeypatch.setenv(variable, str(grenze + 1))
+
+    with pytest.raises(RuntimeError, match="Configuration validation failed"):
+        get_settings()
+
+
+@pytest.mark.parametrize("variable", ["ACCESS_TOKEN_SECONDS", "REFRESH_TOKEN_SECONDS"])
+def test_eine_geltungsdauer_ohne_dauer_faellt_beim_start_auf(
+    monkeypatch: pytest.MonkeyPatch, variable: str
+) -> None:
+    """Ein Token, der im selben Augenblick ablaeuft, in dem er entsteht, ist keiner."""
+    monkeypatch.setenv("DB_PASSWORD", "geheim")
+    monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
+    monkeypatch.setenv(variable, "0")
+
+    with pytest.raises(RuntimeError, match="Configuration validation failed"):
+        get_settings()
+
+
+def test_eine_kuerzere_geltungsdauer_ist_erlaubt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kuerzer ist strenger - dagegen spricht nichts."""
+    monkeypatch.setenv("DB_PASSWORD", "geheim")
+    monkeypatch.setenv("JWT_SECRET", GUELTIGES_GEHEIMNIS)
+    monkeypatch.setenv("ACCESS_TOKEN_SECONDS", "60")
+
+    assert get_settings().tokens.access_token_seconds == 60

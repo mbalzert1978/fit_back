@@ -73,10 +73,9 @@ so wie BACKEND.md Abschnitt 1 es für `RefreshToken` bereits festlegt: ein **eig
 Die Glossar-Zeile in [`CONTEXT.md`](../../CONTEXT.md) sagte dazu „gehört keinem Aggregat" und war
 damit irreführend. Sie ist nachgezogen.
 
-## Offener Nebenbefund
+## Nebenbefund — inzwischen aufgelöst
 
-Die Lebensdauern stehen in der Infrastruktur: `REFRESH_TOKEN_LIFETIME` in
-[`postgres_session_tokens.py`](../../src/contexts/identity/infrastructure/tokens/postgres_session_tokens.py)
-und `ACCESS_TOKEN_LIFETIME` in `jwt_access_tokens.py`, beide mit Verweis auf BACKEND.md
-Abschnitt 8. 60 Tage und 15 Minuten sind fachliche Regeln, keine technischen. Sie gehören auf die
-Innenseite. Nicht Teil dieser Entscheidung.
+Die Geltungsdauern standen zum Zeitpunkt dieser Entscheidung als Konstanten in der Infrastruktur,
+je einmal in der Ablage und im Signierer. Sie sind es nicht mehr:
+[Die Geltungsdauern sind Konfiguration](2026-08-27-1930-geltungsdauern-sind-konfiguration-nicht-domaene.md)
+holt sie in `TokenSettings` und lässt sie als `TokenLifetime` durch den Fachablauf laufen.

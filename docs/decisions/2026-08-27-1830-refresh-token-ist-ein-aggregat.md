@@ -16,9 +16,9 @@ er stand für zwei verschiedene Dinge.
 
 Gelöscht: `domain/value_objects/session.py` und der Naht-Typ `IssuedSession`.
 
-Umgeformt: die public Naht `abstractions/session_tokens.py` hat jetzt drei Operationen
-(`mint_secret`, `store`, `sign_access_token`) und zwei Datensätze (`MintedSecret`,
-`RefreshTokenRecord`) statt einer Operation, die alles zugleich tat.
+Umgeformt: statt **einer** Operation, die alles zugleich tat, stehen jetzt zwei Nähte —
+`abstractions/session_tokens.py` mit `mint_secret` und `store` samt den beiden Datensätzen
+(`MintedSecret`, `RefreshTokenRecord`), und `abstractions/access_tokens.py` mit `sign`.
 
 Nachgezogen: `SessionIssuerAdapter`, `Registration` (`credentials` statt `session`), der
 Response-Mapper, der Fake, `PostgresSessionTokens`, `JwtAccessTokens`.
@@ -55,34 +55,43 @@ und nach einem Logout zeigte `User` auf einen toten Token. Die Datenbank modelli
 
 ## Warum nur die heutigen Spalten
 
-Kein `revoked_at`, kein `replaced_by` — obwohl BACKEND.md sie nennt. Beide bekommen mit Ticket #52
-(Einlösen und Rotation) ihren ersten Aufrufer. Vorher wären sie Felder, die niemand liest und
+Kein `revoked_at`, kein `replaced_by` — obwohl BACKEND.md sie nennt. Beide bekommen mit Ticket
+[#53](https://github.com/mbalzert1978/fit_back/issues/53) (RefreshSession, Rotation und
+Reuse-Detection) ihren ersten Aufrufer. Vorher wären sie Felder, die niemand liest und
 niemand schreibt: Spekulation, die das Aggregat mit einem Zustand belastet, den keine Regel prüft.
 Dieselbe Begründung für `RefreshTokenId`: nur `generate`, kein `parse` und kein `hydrate`, weil
 heute niemand einen Token aus der Ablage zurückholt.
 
-## Warum eine Naht mit drei Operationen und nicht drei Nähte
+## Warum zwei Nähte und nicht eine
 
-Die Regel „je Mitspieler ein eigener Vertrag" zählt Mitspieler, nicht Operationen. Hier ist es
-**einer**: der Aussteller — in der Produktion `PostgresSessionTokens`, in Specs
-`InMemorySessionTokens`. Er zieht den Zufall, bildet den Abdruck, schreibt die Zeile und signiert.
-Drei Verträge hießen drei Verdrahtungs-Parameter und drei Fakes für ein Ding.
+Die Regel „je Mitspieler ein eigener Vertrag" zählt Mitspieler, nicht Operationen — und es sind
+**zwei**: die Ablage (`PostgresSessionTokens`) und der Signierer (`JwtAccessTokens`). Sie teilen
+nichts: die eine hält die laufende Transaktion, der andere das Signaturgeheimnis.
 
-Ausschlaggebend ist außerdem die Transaktion: Nutzer-Zeile, Refresh-Token und Ereignis hängen in
-**derselben** (`src/api/composition.py`, `request_transaction`). Nur wer die laufende Transaktion
-hält, kann `store` erfüllen — und das ist derselbe Mitspieler.
+Zunächst standen beide in **einem** Vertrag, erfüllt von `PostgresSessionTokens`, das `sign` nur
+an `JwtAccessTokens` weiterreichte. Genau das ist der Middle Man, den die Regel verhindern soll:
+eine Methode, die nichts beiträgt, nur damit die Zählung „ein Mitspieler" aufgeht.
+
+Also zwei Verträge: `RegisterUserSessionTokens` (Geheimnis ziehen, Zeile schreiben) und
+`RegisterUserAccessTokens` (signieren). Der Signierer erfüllt seinen unmittelbar, die Weitergabe
+entfällt. Die Transaktions-Zusage bleibt davon unberührt — sie hängt an der Ablage, und die ist
+weiterhin ein Mitspieler mit einem Vertrag.
 
 ## Was der Adapter jetzt tut — und warum das kein Orchestrieren ist
 
-`SessionIssuerAdapter.issue` ruft drei Naht-Operationen und dazwischen `RefreshToken.issue`. Das
+`SessionIssuerAdapter.issue` ruft drei Naht-Operationen — zwei an der Ablage, eine am Signierer —
+und dazwischen `RefreshToken.issue`. Das
 sieht nach Ablauf aus, ist aber die Übersetzung **einer** fachlichen Handlung: „stelle diesem
 Nutzer Zugangsdaten aus". Der Fachablauf des Use Case steht weiterhin vollständig im Handler
 ([Die Sitzung entsteht im Handler](2026-08-27-1630-die-sitzung-entsteht-im-handler.md)); für ihn
 ist die Ausstellung genau ein Schritt hinter genau einem Port.
 
 Der Preis ist bewusst gewählt: der Adapter ist damit dicker als die anderen vier. Die Alternative
-wäre, drei Domain-Ports in den Handler zu hängen — dann kennte der Fachablauf die Reihenfolge von
-Zufall, Ablage und Signatur, also lauter Handwerk. Das wäre der schlechtere Tausch.
+wäre, mehrere Domain-Ports in den Handler zu hängen — dann kennte der Fachablauf die Reihenfolge
+von Zufall, Ablage und Signatur, also lauter Handwerk. Das wäre der schlechtere Tausch.
+
+Ausgerechnet wird dabei nichts: den Ablauf beantwortet `TokenLifetime.expires_from`, die Felder
+der Zeile das Aggregat. Der Adapter fragt beide und wickelt die Antworten auf Primitive ab.
 
 ## Was der Klartext nie berührt
 

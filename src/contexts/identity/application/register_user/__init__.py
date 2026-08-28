@@ -16,14 +16,19 @@ from src.contexts.identity.application.register_user.abstractions import (
     MintedSecret,
     NewUserRecord,
     RefreshTokenRecord,
+    RegisterUserAccessTokens,
     RegisterUserEventLog,
     RegisterUserPasswordHasher,
     RegisterUserSessionTokens,
+    RegisterUserTokenOptions,
     RegisterUserUserStore,
     UserInsertion,
     UserStored,
 )
-from src.contexts.identity.application.register_user.adapters.test_api import RegisterUserTestApi
+from src.contexts.identity.application.register_user.adapters.test_api import (
+    IssuedRefreshToken,
+    RegisterUserTestApi,
+)
 from src.contexts.identity.application.register_user.pipeline import (
     RegisterUserPipeline,
     build_register_user_pipeline,
@@ -42,11 +47,13 @@ __all__ = [
     "EmailAlreadyTaken",
     "EmailTaken",
     "IdnLabels",
+    "IssuedRefreshToken",
     "LabelEncoding",
     "LabelRejected",
     "MintedSecret",
     "NewUserRecord",
     "RefreshTokenRecord",
+    "RegisterUserAccessTokens",
     "RegisterUserEventLog",
     "RegisterUserFailure",
     "RegisterUserPasswordHasher",
@@ -55,6 +62,7 @@ __all__ = [
     "RegisterUserResponse",
     "RegisterUserSessionTokens",
     "RegisterUserTestApi",
+    "RegisterUserTokenOptions",
     "RegisterUserUserStore",
     "RegistrationAccepted",
     "RegistrationInvalid",

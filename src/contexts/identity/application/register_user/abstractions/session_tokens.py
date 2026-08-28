@@ -1,18 +1,18 @@
-"""Naht zur Sitzungsausstellung - drei Operationen, weil drei Dinge draussen sind.
+"""Naht zur Refresh-Token-Ablage - zwei Operationen, weil zwei Dinge draussen sind.
 
 Draussen bleibt genau das, was die Domaene nicht entscheiden kann: woher der
-Zufall kommt, wie ein Abdruck gebildet wird, wohin die Zeile geht und wie
-signiert wird. **Wie lange** ein Token gilt und **welche Felder** er traegt,
-entscheidet die Domaene (`domain/value_objects/token_lifetime.py`,
-`domain/entities/refresh_token.py`); die Gegenseite bekommt eine fertige Zeile
-und schreibt sie.
+Zufall kommt, wie ein Abdruck gebildet wird und wohin die Zeile geht. **Wie
+lange** ein Token gilt und **welche Felder** er traegt, entscheidet die Domaene
+(`domain/value_objects/token_lifetime.py`, `domain/entities/refresh_token.py`);
+die Gegenseite bekommt eine fertige Zeile und schreibt sie.
 
-Ein Vertrag und nicht drei, obwohl es drei Operationen sind: sie werden von
-**einem** Mitspieler erfuellt - dem Aussteller. In der Produktion ist das
-`PostgresSessionTokens`, in Specs `InMemorySessionTokens`.
+Ein Vertrag und nicht zwei, obwohl es zwei Operationen sind: sie werden von
+**einem** Mitspieler erfuellt - der Ablage. In der Produktion ist das
+`PostgresSessionTokens`, in Specs `InMemorySessionTokens`. Das Signieren gehoert
+einem anderen Mitspieler und steht deshalb in `access_tokens.py`.
 
-Ueber die Naht wandern ausschliesslich Primitive: welches Verfahren signiert
-(HS256) und welches den Abdruck bildet (SHA-256), geht den Slice nichts an.
+Ueber die Naht wandern ausschliesslich Primitive: welches Verfahren den Abdruck
+bildet (SHA-256), geht den Slice nichts an.
 """
 
 from dataclasses import dataclass, field
@@ -55,7 +55,7 @@ class RefreshTokenRecord:
 
 
 class RegisterUserSessionTokens(Protocol):
-    """Naht zur Sitzungsausstellung."""
+    """Naht zur Refresh-Token-Ablage."""
 
     def mint_secret(self) -> MintedSecret:
         """Erzeuge ein frisches Geheimnis und bilde seinen Abdruck."""
@@ -67,12 +67,5 @@ class RegisterUserSessionTokens(Protocol):
         Kein Ergebnistyp: es gibt keinen *erwarteten* Fehlschlag. Die Id ist
         frisch, der Abdruck ist eindeutig - was hier schiefgeht, ist ein
         Betriebsfall und faellt bis zur Middleware durch.
-        """
-        ...
-
-    def sign_access_token(self, user_id: str, issued_at: int, expires_at: int) -> str:
-        """Signiere den Access-Token fuer dieses Zeitfenster.
-
-        Beide Zeitpunkte kommen herein und werden nicht drueben ausgerechnet.
         """
         ...

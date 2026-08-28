@@ -5,7 +5,7 @@ docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md.
 
 Was hier steht, sind genau die Spalten von `identity.refresh_tokens`
 (alembic/identity/versions/003_create_refresh_tokens_table.py). Widerruf und
-Rotation (`revoked_at`, `replaced_by`) bekommen mit #52 ihren ersten Aufrufer
+Rotation (`revoked_at`, `replaced_by`) bekommen mit #53 ihren ersten Aufrufer
 und werden erst dort modelliert.
 """
 
@@ -71,11 +71,6 @@ class RefreshToken:
             lifetime.expires_from(issued_at),
             key=_KEY,
         )
-
-    @property
-    def lifetime_seconds(self) -> int:
-        """Wie lange dieser Token gilt - die Differenz, nicht die Konstante."""
-        return self.expires_at.unix_seconds - self.issued_at.unix_seconds
 
     def __eq__(self, other: object) -> bool:
         """Vergleiche ueber die Identitaet, nicht ueber die Attribute."""

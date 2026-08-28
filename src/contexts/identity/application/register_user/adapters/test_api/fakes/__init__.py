@@ -5,6 +5,9 @@ Sie stecken hinter der aeussersten Naht und nirgends sonst: alles davor
 echte Produktions-Zusammenspiel.
 """
 
+from src.contexts.identity.application.register_user.adapters.test_api.fakes.access_tokens import (
+    DeterministicAccessTokens,
+)
 from src.contexts.identity.application.register_user.adapters.test_api.fakes.event_log import (
     InMemoryEventLog,
     RecordedEvent,
@@ -17,6 +20,7 @@ from src.contexts.identity.application.register_user.adapters.test_api.fakes.idn
 )
 from src.contexts.identity.application.register_user.adapters.test_api.fakes.session_tokens import (
     InMemorySessionTokens,
+    IssuedRefreshToken,
 )
 from src.contexts.identity.application.register_user.adapters.test_api.fakes.token_options import (
     FixedTokenOptions,
@@ -26,11 +30,13 @@ from src.contexts.identity.application.register_user.adapters.test_api.fakes.use
 )
 
 __all__ = [
+    "DeterministicAccessTokens",
     "DeterministicPasswordHasher",
     "FixedTokenOptions",
     "InMemoryEventLog",
     "InMemorySessionTokens",
     "InMemoryUserStore",
+    "IssuedRefreshToken",
     "PassthroughIdnLabels",
     "RecordedEvent",
 ]

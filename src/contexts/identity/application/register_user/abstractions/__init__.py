@@ -10,6 +10,9 @@ IDN-Umwandlung haben nichts miteinander zu tun und werden von verschiedenen
 Dingen erfuellt.
 """
 
+from src.contexts.identity.application.register_user.abstractions.access_tokens import (
+    RegisterUserAccessTokens,
+)
 from src.contexts.identity.application.register_user.abstractions.event_log import (
     RegisterUserEventLog,
 )
@@ -47,6 +50,7 @@ __all__ = [
     "MintedSecret",
     "NewUserRecord",
     "RefreshTokenRecord",
+    "RegisterUserAccessTokens",
     "RegisterUserEventLog",
     "RegisterUserPasswordHasher",
     "RegisterUserSessionTokens",

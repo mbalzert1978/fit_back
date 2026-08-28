@@ -91,11 +91,12 @@ _Avoid_: Session-Zeile, Token-Record, Sitzungs-Aggregat
 → [Das Aggregat `RefreshToken`](docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md)
 
 **Geltungsdauer**:
-Wie lange ein ausgegebener Token gilt, in Sekunden — innen `TokenLifetime`. *Welcher* Wert gilt,
-entscheidet die Umgebung; *ob* er zulässig ist, entscheidet die Domäne: über null und höchstens so
-lang wie die Zusage aus BACKEND.md Abschnitt 0, Punkt 8. Kürzer ist erlaubt, länger nicht.
+Wie lange ein ausgegebener Token gilt, in Sekunden — innen `TokenLifetime`. Sie ist eine
+**Einstellung des Prozesses**, keine Geschäftsinvariante: *welcher* Wert gilt und *ob* er zulässig
+ist, entscheidet beides die Konfiguration (`TokenSettings`) — über null und höchstens so lang wie
+die Zusage aus BACKEND.md Abschnitt 0, Punkt 8. Kürzer ist erlaubt, länger nicht. Die Domäne nimmt
+den geprüften Wert an und beantwortet damit nur noch, **wann** ein Token abläuft.
 _Avoid_: Lebensdauer, TTL, Ablauf, `lifetime_seconds`
-→ [Die Obergrenze der Geltungsdauer steht in der Domäne](docs/decisions/2026-08-27-2115-die-obergrenze-der-geltungsdauer-steht-in-der-domaene.md)
 → [Die Geltungsdauern sind Konfiguration](docs/decisions/2026-08-27-1930-geltungsdauern-sind-konfiguration-nicht-domaene.md)
 
 **Ereignis**:

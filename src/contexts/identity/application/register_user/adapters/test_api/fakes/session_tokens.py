@@ -1,5 +1,6 @@
-"""In-Memory-Sitzungsausstellung: deterministisch, ohne Signaturverfahren."""
+"""In-Memory-Ablage der Refresh-Token: deterministisch, ohne Hash-Verfahren."""
 
+from dataclasses import dataclass, field
 from typing import Final, final
 
 from src.contexts.identity.application.register_user.abstractions import (
@@ -7,7 +8,7 @@ from src.contexts.identity.application.register_user.abstractions import (
     RefreshTokenRecord,
 )
 
-__all__ = ["InMemorySessionTokens"]
+__all__ = ["InMemorySessionTokens", "IssuedRefreshToken"]
 
 _HASH_PREFIX: Final = "fake-hash-of-"
 """Ein umkehrbarer "Abdruck" - genau deshalb erkennbar unecht.
@@ -16,6 +17,19 @@ Die Produktion legt SHA-256 ab und kaeme nie an den Klartext zurueck. Der Fake
 muss es koennen: die Test-API zeigt den abgelegten Token, damit ein Spec ihn
 gegen den ausgegebenen halten kann.
 """
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class IssuedRefreshToken:
+    """Ein abgelegter Refresh-Token, wie ein Spec ihn zu sehen bekommt.
+
+    Ein eigener Typ und kein `tuple[str, str]`: wer die beiden Werte vertauscht,
+    soll es am Namen merken und nicht an einem roten Test drei Zeilen spaeter.
+    """
+
+    user_id: str
+    token: str = field(repr=False)
 
 
 @final
@@ -28,18 +42,11 @@ class InMemorySessionTokens:
 
     def __init__(self) -> None:
         """Starte ohne ausgestellten Token."""
-        self.issued: list[tuple[str, str]] = []
-        """Je Ablage `(user_id, token)` - in der Reihenfolge des Ausstellens."""
+        self.issued: list[IssuedRefreshToken] = []
+        """Je Ablage ein Eintrag - in der Reihenfolge des Ausstellens."""
 
         self._minted = 0
         """Wie viele Geheimnisse schon herausgegeben wurden - haelt sie unterscheidbar."""
-
-        self._store_available = True
-        """Ob die Ablage antwortet - `fail_on_store` schaltet sie ab."""
-
-    def fail_on_store(self) -> None:
-        """Lass jede Ablage fehlschlagen, wie es eine tote Datenbank taete."""
-        self._store_available = False
 
     def mint_secret(self) -> MintedSecret:
         """Gib ein erkennbar unechtes Geheimnis heraus."""
@@ -49,11 +56,9 @@ class InMemorySessionTokens:
 
     async def store(self, record: RefreshTokenRecord) -> None:
         """Lege die Zeile ab - festgehalten wird der Klartext hinter dem Abdruck."""
-        if not self._store_available:
-            msg = "Refresh token store is unavailable"
-            raise RuntimeError(msg)
-        self.issued.append((record.user_id, record.token_hash.removeprefix(_HASH_PREFIX)))
-
-    def sign_access_token(self, user_id: str, issued_at: int, expires_at: int) -> str:
-        """Gib ein erkennbar unechtes Access-Token heraus."""
-        return f"fake-access-{user_id}-{issued_at}-{expires_at}"
+        self.issued.append(
+            IssuedRefreshToken(
+                user_id=record.user_id,
+                token=record.token_hash.removeprefix(_HASH_PREFIX),
+            )
+        )
