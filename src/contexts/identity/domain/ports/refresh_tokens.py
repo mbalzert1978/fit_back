@@ -1,25 +1,22 @@
-"""Domain-Port RefreshTokens - Geheimnis-Quelle und Ablage des Aggregats.
+"""Domain-Port RefreshTokens - die Ablage ausgestellter Refresh-Token.
 
-Erbt `TokenSecrets`, weil es **ein** Mitspieler ist: in der Produktion
-`PostgresSessionTokens`, in Specs `InMemorySessionTokens`. Zwei Vertraege waeren
-zwei Mitspieler, und der zweite existiert nicht
-(.rules/python/python-feature-slices.md).
-
-Getrennt gelesen wird trotzdem: `RefreshToken.issue` verlangt nur `TokenSecrets`
-und bekommt damit kein `store` in die Hand
-(docs/decisions/2026-08-28-0930-das-aggregat-zieht-sein-geheimnis-selbst.md).
+Genau eine Operation. `TokenSecrets` steht daneben und **nicht** darueber: die
+beiden Vertraege werden zwar von demselben Mitspieler erfuellt, aber von
+verschiedenen Aufrufern verlangt - `RefreshToken.issue` will ziehen, der Handler
+will ablegen. Ein Protocol ist strukturell; dieselbe Ablage erfuellt beide, ohne
+dass einer vom anderen erbt
+(docs/decisions/2026-08-28-1450-der-handler-orchestriert-die-ausstellung.md).
 """
 
 from typing import Protocol
 
 from src.contexts.identity.domain.entities.refresh_token import RefreshToken
-from src.contexts.identity.domain.ports.token_secrets import TokenSecrets
 
 __all__ = ["RefreshTokens"]
 
 
-class RefreshTokens(TokenSecrets, Protocol):
-    """Stellt Geheimnisse aus und legt ausgestellte Token ab."""
+class RefreshTokens(Protocol):
+    """Legt ausgestellte Refresh-Token ab."""
 
     async def store(self, token: RefreshToken) -> None:
         """Lege das ausgestellte Aggregat ab.

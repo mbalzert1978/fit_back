@@ -1,5 +1,9 @@
 # Die Wurzel stellt ihre Zugangsdaten aus — der Handler fragt, statt herauszunehmen
 
+> **Teilweise zurückgenommen** durch [1450](2026-08-28-1450-der-handler-orchestriert-die-ausstellung.md):
+> `User.issue_credentials` und `CredentialIssuance` sind gelöscht, der Handler führt die Ausstellung
+> wieder selbst. Was bleibt, ist der Ort von `Grant` und `IssuedCredentials` — die Domäne.
+
 ## Was entschieden wurde
 
 `User.issue_credentials(secrets, access_tokens, access_lifetime, refresh_lifetime)` ist die eine

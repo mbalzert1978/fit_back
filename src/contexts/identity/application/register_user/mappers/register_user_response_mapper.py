@@ -24,28 +24,21 @@ __all__ = ["to_response"]
 def to_response(outcome: Result[Registration, RegisterUserError]) -> RegisterUserResponse:
     """Uebersetze den Ausgang der Pipeline in die public Antwort.
 
-    Ein Fold, kein Zweig - `Result.fold` ist der Eliminator, der den
-    `Ok`/`Err`-Split ein einziges Mal in `result.py` aufloest statt hier. Die
-    beiden Arme unten sind seine Faelle, nicht ein zweiter Fold: es bleibt bei
-    **einem** Aufruf, der die eine Response-Union erzeugt
-    (`docs/decisions/2026-08-26-1130-result-fold-als-eliminator.md`).
+    Ein Fold, kein Zweig
+    (docs/decisions/2026-08-26-1130-result-fold-als-eliminator.md).
     """
     return outcome.fold(_accepted, _rejected)
 
 
 def _accepted(registration: Registration) -> RegisterUserResponse:
-    """Der erfolgreiche Ausgang - eine Registrierung wird zur Bestaetigung.
-
-    Die Zugangsdaten werden **gefragt**, nicht ausgelesen: der Mapper sagt, was
-    er bauen will, und bekommt die vier Werte gereicht. Vorher stand hier viermal
-    eine Kette durch zwei fremde Objekte
-    (docs/decisions/2026-08-28-1120-die-zugangsdaten-geben-heraus-was-sie-wissen.md).
-    """
+    """Der erfolgreiche Ausgang - eine Registrierung wird zur Bestaetigung."""
     return registration.credentials.fold(partial(_with_user, registration.user))
 
 
 def _with_user(
     user: User,
+    /,
+    *,
     access_token: str,
     expires_in: int,
     refresh_token: str,

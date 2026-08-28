@@ -3,11 +3,8 @@
 from dataclasses import dataclass
 from typing import Final, final
 
-from src.contexts.identity.domain.entities.refresh_token import RefreshToken
-from src.contexts.identity.domain.ports.access_tokens import AccessTokens
 from src.contexts.identity.domain.ports.idn_encoder import IdnEncoder
 from src.contexts.identity.domain.ports.password_hasher import PasswordHasher
-from src.contexts.identity.domain.ports.token_secrets import TokenSecrets
 from src.contexts.identity.domain.user_creation_errors import (
     DisplayNameRejected,
     EmailRejected,
@@ -19,13 +16,11 @@ from src.contexts.identity.domain.user_creation_errors import (
     user_rejected,
 )
 from src.contexts.identity.domain.value_objects.account_status import AccountStatus, Active
-from src.contexts.identity.domain.value_objects.credentials import Grant, IssuedCredentials
 from src.contexts.identity.domain.value_objects.display_name import DisplayName
 from src.contexts.identity.domain.value_objects.email import Email
 from src.contexts.identity.domain.value_objects.locale import Locale, parse_locale
 from src.contexts.identity.domain.value_objects.password import Password
 from src.contexts.identity.domain.value_objects.password_hash import PasswordHash
-from src.contexts.identity.domain.value_objects.token_lifetime import TokenLifetime
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import UserTimeZone
 from src.contexts.shared_kernel import (
@@ -38,7 +33,7 @@ from src.contexts.shared_kernel import (
     deny_foreign_key,
 )
 
-__all__ = ["CredentialIssuance", "User", "UserFactory"]
+__all__ = ["User", "UserFactory"]
 
 _KEY: Final = ConstructionKey()
 """Der modul-private Schluessel - nur `UserFactory` unten hat ihn."""
@@ -102,41 +97,6 @@ class User:
         self.status = status
         self.registered_at = registered_at
 
-    def issue_credentials(
-        self,
-        secrets: TokenSecrets,
-        access_tokens: AccessTokens,
-        access_lifetime: TokenLifetime,
-        refresh_lifetime: TokenLifetime,
-    ) -> CredentialIssuance:
-        """Stelle diesem Nutzer seine Zugangsdaten aus.
-
-        Die Wurzel tut das selbst, statt sich `id` und `registered_at`
-        herausnehmen zu lassen: wer beide Werte braucht, fragt den Nutzer, und
-        der antwortet mit dem fertigen Ergebnis
-        (docs/decisions/2026-08-28-1045-die-wurzel-stellt-ihre-zugangsdaten-aus.md).
-
-        Beide Mitspieler kommen **in die Methode** herein und nie in ein Feld.
-        Abgelegt wird hier nichts - das Aggregat gibt heraus, was abzulegen ist,
-        und der Handler legt es ab.
-        """
-        issuance = RefreshToken.issue(
-            user_id=self.id,
-            secrets=secrets,
-            issued_at=self.registered_at,
-            lifetime=refresh_lifetime,
-        )
-        return CredentialIssuance(
-            issuance.refresh_token,
-            IssuedCredentials(
-                access=Grant.hydrate(
-                    access_tokens.sign(self.id, self.registered_at, access_lifetime),
-                    access_lifetime,
-                ),
-                refresh=issuance.grant,
-            ),
-        )
-
     def __eq__(self, other: object) -> bool:
         """Vergleiche ueber die Identitaet, nicht ueber die Attribute."""
         return isinstance(other, User) and self.id == other.id
@@ -148,19 +108,6 @@ class User:
     def __repr__(self) -> str:
         """Zeige Identitaet und E-Mail - nie den Passwort-Hash."""
         return f"User(id={self.id}, email={self.email.value!r})"
-
-
-@final
-@dataclass(frozen=True, slots=True)
-class CredentialIssuance:
-    """Was eine Ausstellung hinterlaesst: eine Zeile zum Ablegen und eine Antwort.
-
-    Ein eigener Typ, damit die Wurzel beides in einem Zug herausgeben kann, ohne
-    selbst abzulegen. Ein Aggregat, das sich speichert, waere ein Active Record.
-    """
-
-    refresh_token: RefreshToken
-    credentials: IssuedCredentials
 
 
 @final

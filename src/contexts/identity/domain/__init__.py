@@ -34,7 +34,7 @@ from src.contexts.identity.domain.email_errors import (
     UnencodableDomainLabel,
 )
 from src.contexts.identity.domain.entities.refresh_token import RefreshToken, RefreshTokenIssuance
-from src.contexts.identity.domain.entities.user import CredentialIssuance, User, UserFactory
+from src.contexts.identity.domain.entities.user import User, UserFactory
 from src.contexts.identity.domain.errors import DomainError, EmailAlreadyRegistered
 from src.contexts.identity.domain.events import user_registered
 from src.contexts.identity.domain.locale_errors import (
@@ -76,7 +76,11 @@ from src.contexts.identity.domain.value_objects.account_status import (
     Suspended,
     account_status_tag,
 )
-from src.contexts.identity.domain.value_objects.credentials import Grant, IssuedCredentials
+from src.contexts.identity.domain.value_objects.credentials import (
+    CredentialsPresenter,
+    Grant,
+    IssuedCredentials,
+)
 from src.contexts.identity.domain.value_objects.display_name import DisplayName
 from src.contexts.identity.domain.value_objects.email import Email
 from src.contexts.identity.domain.value_objects.locale import (
@@ -93,6 +97,7 @@ from src.contexts.identity.domain.value_objects.password_hash import PasswordHas
 from src.contexts.identity.domain.value_objects.refresh_token_id import RefreshTokenId
 from src.contexts.identity.domain.value_objects.token_hash import TokenHash
 from src.contexts.identity.domain.value_objects.token_lifetime import TokenLifetime
+from src.contexts.identity.domain.value_objects.token_lifetimes import TokenLifetimes
 from src.contexts.identity.domain.value_objects.token_secret import TokenSecret
 from src.contexts.identity.domain.value_objects.user_id import UserId
 from src.contexts.identity.domain.value_objects.user_time_zone import (
@@ -106,7 +111,7 @@ __all__ = [
     "AccessTokens",
     "AccountStatus",
     "Active",
-    "CredentialIssuance",
+    "CredentialsPresenter",
     "DisplayName",
     "DisplayNameError",
     "DisplayNameIsEmpty",
@@ -161,6 +166,7 @@ __all__ = [
     "TimeZoneRejected",
     "TokenHash",
     "TokenLifetime",
+    "TokenLifetimes",
     "TokenSecret",
     "TokenSecrets",
     "UnencodableDomainLabel",

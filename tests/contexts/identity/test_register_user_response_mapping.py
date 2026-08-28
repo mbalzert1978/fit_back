@@ -90,7 +90,7 @@ async def test_ein_ok_wird_zur_angenommenen_registrierung() -> None:
     """Der Erfolgsfall traegt Stammdaten und Sitzung als Primitive nach aussen."""
     user = await _user()
 
-    credentials = IssuedCredentials(
+    credentials = IssuedCredentials.hydrate(
         access=Grant.hydrate("ein-access-token", TokenLifetime.hydrate(900)),
         refresh=Grant.hydrate("ein-refresh-token", TokenLifetime.hydrate(5_184_000)),
     )

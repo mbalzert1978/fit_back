@@ -1,13 +1,9 @@
 """Aggregat RefreshToken - der abgelegte Anspruch, eine Sitzung zu verlaengern.
 
 Warum ein eigenes Aggregat neben `User`:
-docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md.
-
-Ausgestellt wird ausschliesslich hier: `issue` bekommt die Geheimnis-Quelle
-hereingereicht, zieht sein Geheimnis selbst, behaelt dessen Abdruck und gibt
-dessen Klartext zurueck. Kein Aufrufer sieht das Geheimnis vor dem Aggregat, und
-keiner kann einen Abdruck ablegen und einen anderen Klartext ausgeben
-(docs/decisions/2026-08-28-0930-das-aggregat-zieht-sein-geheimnis-selbst.md).
+docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md. Warum es sein
+Geheimnis selbst zieht:
+docs/decisions/2026-08-28-0930-das-aggregat-zieht-sein-geheimnis-selbst.md.
 
 Was hier steht, sind genau die Spalten von `identity.refresh_tokens`
 (alembic/identity/versions/003_create_refresh_tokens_table.py). Widerruf und
@@ -72,14 +68,9 @@ class RefreshToken:
     ) -> RefreshTokenIssuance:
         """Stelle einen Token fuer diesen Nutzer aus - Aggregat und Klartext in einem.
 
-        Die Quelle des Geheimnisses wird **in die Methode** hereingereicht, nie
-        in ein Feld: ein Aggregat, das seine Mitspieler behaelt, ist keines mehr.
-        Gezogen wird hier, geteilt auch: der Abdruck bleibt im Aggregat, der
-        Klartext geht als `Grant` an den Aufrufer, und beide verlassen die
-        Ausstellung nur gemeinsam.
-
-        `issued_at` kommt herein und wird nicht von einer Uhr gelesen: es ist
-        dieselbe Ablesung, aus der die Nutzer-Zeile entsteht.
+        Der Abdruck bleibt im Aggregat, der Klartext geht als `Grant` an den
+        Aufrufer; beide verlassen die Ausstellung nur gemeinsam. `secrets` wird
+        hereingereicht und nie in ein Feld gelegt.
         """
         secret = secrets.mint()
         return RefreshTokenIssuance(
@@ -113,9 +104,9 @@ class RefreshToken:
 class RefreshTokenIssuance:
     """Was eine Ausstellung hergibt: das abzulegende Aggregat und die Ausgabe.
 
-    Ein eigener Typ und kein `tuple`: die beiden gehoeren zusammen, und nur
-    `RefreshToken.issue` darf sie paaren. Wer die Ausgabe will, bekommt damit
-    zwangslaeufig das Aggregat, dessen Abdruck zu ihrem Klartext passt.
+    Nur `RefreshToken.issue` darf die beiden paaren. Wer die Ausgabe will,
+    bekommt damit zwangslaeufig das Aggregat, dessen Abdruck zu ihrem Klartext
+    passt.
     """
 
     refresh_token: RefreshToken

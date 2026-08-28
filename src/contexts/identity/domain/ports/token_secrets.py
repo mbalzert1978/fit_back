@@ -4,9 +4,6 @@ Bewusst **schmal**: genau eine Operation, weil genau sie in eine Aggregat-
 Methode hineingereicht wird. `RefreshToken.issue` bekommt diesen Port und zieht
 sich sein Geheimnis selbst
 (docs/decisions/2026-08-28-0930-das-aggregat-zieht-sein-geheimnis-selbst.md).
-
-Der breitere Port `RefreshTokens` erbt davon; das Aggregat sieht trotzdem nur
-diese Haelfte und kann sich damit nicht selbst ablegen.
 """
 
 from typing import Protocol

@@ -10,7 +10,7 @@ from typing import final
 from src.contexts.identity.application.register_user.abstractions import (
     RegisterUserAccessTokens,
 )
-from src.contexts.identity.domain import TokenLifetime, UserId
+from src.contexts.identity.domain import Grant, TokenLifetime, UserId
 from src.contexts.shared_kernel import Timestamp
 
 __all__ = ["AccessTokensAdapter"]
@@ -24,10 +24,13 @@ class AccessTokensAdapter:
         """Nimm den Signierer entgegen (Fake oder Produktion)."""
         self._access_tokens = access_tokens
 
-    def sign(self, user_id: UserId, issued_at: Timestamp, lifetime: TokenLifetime) -> str:
-        """Signiere den Token fuer das Fenster, das diese Dauer aufspannt."""
-        return self._access_tokens.sign(
-            str(user_id),
-            issued_at.unix_seconds,
-            lifetime.expires_from(issued_at).unix_seconds,
+    def sign(self, user_id: UserId, issued_at: Timestamp, lifetime: TokenLifetime) -> Grant:
+        """Signiere den Token und paare ihn mit der Dauer, die das Fenster aufspannt."""
+        return Grant.hydrate(
+            self._access_tokens.sign(
+                str(user_id),
+                issued_at.unix_seconds,
+                lifetime.expires_from(issued_at).unix_seconds,
+            ),
+            lifetime,
         )

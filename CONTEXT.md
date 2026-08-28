@@ -76,18 +76,21 @@ _Avoid_: Envelope, Wrapper, Response-Hülle
 **Zugangsdaten**:
 Das Paar aus Access- und Refresh-Token samt ihren Lebensdauern, das ein Use Case **ausgibt**. Der
 Refresh-Token steht darin im **Klartext**, deshalb werden Zugangsdaten nie abgelegt. Sie heißen
-innen `IssuedCredentials` und bestehen aus zwei → Ausgaben, nicht aus vier losen Feldern. Gebaut
-werden sie von der Wurzel selbst (`User.issue_credentials`) — deshalb stehen sie in der Domäne.
-Über die public Naht wandern sie nicht als Ganzes.
+innen `IssuedCredentials` und bestehen aus zwei → Ausgaben, nicht aus vier losen Feldern. Jede
+Ausgabe stellt der Mitspieler aus, dem sie gehört; gepaart werden die beiden vom Handler, der die
+Ausstellung führt. Über die public Naht wandern sie nicht als Ganzes.
 _Avoid_: Sitzung, Session, Session-DTO, Token-Paar
-→ [Die Wurzel stellt ihre Zugangsdaten aus](docs/decisions/2026-08-28-1045-die-wurzel-stellt-ihre-zugangsdaten-aus.md)
+→ [Die Sitzung entsteht im Handler](docs/decisions/2026-08-27-1630-die-sitzung-entsteht-im-handler.md)
+→ [Das Aggregat `RefreshToken`](docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md)
+→ [Der Handler orchestriert die Ausstellung](docs/decisions/2026-08-28-1450-der-handler-orchestriert-die-ausstellung.md)
 
 **Ausgabe**:
 Ein ausgegebener Token samt seiner → Geltungsdauer — innen `Grant`. Die beiden gehören zusammen:
-ein Token ohne seine Dauer ist für den Aufrufer unbrauchbar. Es gibt genau zwei je Aufnahme, die
-Access- und die Refresh-Ausgabe.
+ein Token ohne seine Dauer ist für den Aufrufer unbrauchbar. Es gibt genau zwei je Aufnahme: die
+Refresh-Ausgabe stellt `RefreshToken.issue` aus, die Access-Ausgabe der Port `AccessTokens`.
 _Avoid_: Token-Feld, Credential, Token-Paar
-→ [Die Wurzel stellt ihre Zugangsdaten aus](docs/decisions/2026-08-28-1045-die-wurzel-stellt-ihre-zugangsdaten-aus.md)
+→ [Die Zugangsdaten geben heraus, was sie wissen](docs/decisions/2026-08-28-1120-die-zugangsdaten-geben-heraus-was-sie-wissen.md)
+→ [Der Handler orchestriert die Ausstellung](docs/decisions/2026-08-28-1450-der-handler-orchestriert-die-ausstellung.md)
 
 **Geheimnis**:
 Der rohe Zufallswert hinter einem Refresh-Token, in seinen **beiden** Gestalten — Klartext und
@@ -100,7 +103,8 @@ _Avoid_: Token-Klartext, Secret-Paar, `MintedSecret` (das ist die Naht-Form davo
 Der abgelegte Anspruch, eine Sitzung zu verlängern — ein **eigenes Aggregat** neben `User`
 (BACKEND.md Abschnitt 1): `RefreshTokenId`, `UserId`, `TokenHash`, `issued_at`, `expires_at`. Es
 verweist über die Nutzer-Id auf den `User`; der `User` kennt keinen Token. Abgelegt wird nur der
-**Abdruck**, nie der Klartext — der lebt allein in den → Zugangsdaten.
+**Abdruck**. Der Klartext reist durch die Domäne — als → Geheimnis in die Ausstellung hinein, als
+→ Ausgabe wieder heraus —, aber nie in eine Zeile.
 _Avoid_: Session-Zeile, Token-Record, Sitzungs-Aggregat
 → [`pyjwt` hinter der Naht](docs/decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md)
 → [Das Aggregat `RefreshToken`](docs/decisions/2026-08-27-1830-refresh-token-ist-ein-aggregat.md)
@@ -110,9 +114,12 @@ Wie lange ein ausgegebener Token gilt, in Sekunden — innen `TokenLifetime`. Si
 **Einstellung des Prozesses**, keine Geschäftsinvariante: *welcher* Wert gilt und *ob* er zulässig
 ist, entscheidet beides die Konfiguration (`TokenSettings`) — über null und höchstens so lang wie
 die Zusage aus BACKEND.md Abschnitt 0, Punkt 8. Kürzer ist erlaubt, länger nicht. Die Domäne nimmt
-den geprüften Wert an und beantwortet damit nur noch, **wann** ein Token abläuft.
+den geprüften Wert an und beantwortet damit nur noch, **wann** ein Token abläuft. Die beiden
+Dauern eines Use Case reisen als *ein* Wert, `TokenLifetimes`, und nie als zwei Parameter
+nebeneinander.
 _Avoid_: Lebensdauer, TTL, Ablauf, `lifetime_seconds`
 → [Die Geltungsdauern sind Konfiguration](docs/decisions/2026-08-27-1930-geltungsdauern-sind-konfiguration-nicht-domaene.md)
+→ [Der Handler orchestriert die Ausstellung](docs/decisions/2026-08-28-1450-der-handler-orchestriert-die-ausstellung.md)
 
 **Ereignis**:
 Eine Tatsache, die ein Context veröffentlicht, nachdem sie eingetreten ist. Es existiert genau

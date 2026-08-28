@@ -6,8 +6,11 @@ from src.contexts.identity.application.register_user.command import RegisterUser
 from src.contexts.identity.application.register_user.registration import Registration
 from src.contexts.identity.domain import (
     AccessTokens,
+    IssuedCredentials,
+    RefreshToken,
     RefreshTokens,
-    TokenLifetime,
+    TokenLifetimes,
+    TokenSecrets,
     User,
     UserFactory,
     UserRegistry,
@@ -15,7 +18,7 @@ from src.contexts.identity.domain import (
     UserRejected,
     user_registered,
 )
-from src.contexts.shared_kernel import AsyncResult
+from src.contexts.shared_kernel import AsyncResult, TimeProvider
 from src.contexts.shared_kernel.events import EventPublisher
 
 __all__ = ["RegisterUserFailure", "RegisterUserHandler"]
@@ -35,31 +38,34 @@ class RegisterUserHandler:
 
     Kennt weder Request- noch Response-DTO - beides lebt in den Mappern. Der
     **ganze** Ablauf steht hier, auch die Ausstellung der Sitzung
-    (docs/decisions/2026-08-27-1630-die-sitzung-entsteht-im-handler.md).
+    (docs/decisions/2026-08-27-1630-die-sitzung-entsteht-im-handler.md,
+    docs/decisions/2026-08-28-1450-der-handler-orchestriert-die-ausstellung.md).
     """
 
-    def __init__(  # noqa: PLR0913, PLR0917 -- je Mitspieler ein Parameter, plus die zwei Dauern
+    def __init__(  # noqa: PLR0913, PLR0917 -- je Mitspieler ein Parameter, nicht mehr
         self,
         users: UserFactory,
         registry: UserRegistry,
+        secrets: TokenSecrets,
         refresh_tokens: RefreshTokens,
         access_tokens: AccessTokens,
         events: EventPublisher,
-        access_lifetime: TokenLifetime,
-        refresh_lifetime: TokenLifetime,
+        clock: TimeProvider,
+        lifetimes: TokenLifetimes,
     ) -> None:
-        """Nimm Fabrik, Bestand, die zwei Token-Mitspieler, Ereignis-Naht und Dauern entgegen.
+        """Nimm Fabrik, Bestand, die drei Token-Mitspieler, Ereignis-Naht, Uhr und Dauern entgegen.
 
         Die Dauern kommen bereits als Domaenentyp herein - umgewandelt wird in
         der Fabrik (`pipeline.py`), an der aeusseren Naht.
         """
         self._users = users
         self._registry = registry
+        self._secrets = secrets
         self._refresh_tokens = refresh_tokens
         self._access_tokens = access_tokens
         self._events = events
-        self._access_lifetime = access_lifetime
-        self._refresh_lifetime = refresh_lifetime
+        self._clock = clock
+        self._lifetimes = lifetimes
 
     def __call__(
         self, command: RegisterUserCommand
@@ -87,21 +93,24 @@ class RegisterUserHandler:
         await self._events.publish(user_registered(registration.user))
 
     async def _with_credentials(self, user: User) -> Registration:
-        """Lass den Nutzer seine Zugangsdaten ausstellen und lege den Token ab.
+        """Stelle beide Token aus, lege den Refresh-Token ab und paare die Ausgaben.
 
-        Der Handler holt hier keine Werte aus dem `User` heraus - er fragt ihn.
-        Was ausgestellt wird und woraus, entscheidet die Wurzel; was abgelegt
-        wird, reicht sie fertig heraus
-        (docs/decisions/2026-08-28-1045-die-wurzel-stellt-ihre-zugangsdaten-aus.md).
-
-        Das Ablegen bleibt hier: ein Aggregat, das sich selbst speichert, waere
-        ein Active Record.
+        Vom `User` wird ausschliesslich die Identitaet gebraucht; ausgestellt
+        wird von den beiden Mitspielern selbst. `issued_at` ist **eine**
+        Ablesung fuer beide Token.
         """
-        issuance = user.issue_credentials(
-            self._refresh_tokens,
-            self._access_tokens,
-            self._access_lifetime,
-            self._refresh_lifetime,
+        issued_at = self._clock.now()
+        issuance = RefreshToken.issue(
+            user_id=user.id,
+            secrets=self._secrets,
+            issued_at=issued_at,
+            lifetime=self._lifetimes.refresh,
         )
         await self._refresh_tokens.store(issuance.refresh_token)
-        return Registration(user, issuance.credentials)
+        return Registration(
+            user,
+            IssuedCredentials.hydrate(
+                self._access_tokens.sign(user.id, issued_at, self._lifetimes.access),
+                issuance.grant,
+            ),
+        )

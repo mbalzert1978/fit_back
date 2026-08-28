@@ -1,5 +1,9 @@
 # Das Aggregat zieht sein Geheimnis selbst — der Ablauf zieht in den Handler
 
+> **Teilweise nachgezogen** durch [1450](2026-08-28-1450-der-handler-orchestriert-die-ausstellung.md):
+> `RefreshTokens` erbt nicht mehr von `TokenSecrets` — es sind zwei getrennte Ports mit je einem
+> Adapter. Und `issued_at` kommt aus der Uhr des Handlers, nicht mehr aus `User.registered_at`.
+
 ## Was entschieden wurde
 
 Drei Dinge auf einmal, weil sie dieselbe Ursache hatten:

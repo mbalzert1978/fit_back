@@ -23,6 +23,9 @@ from src.contexts.identity.application.register_user.adapters.password_hasher_ad
 from src.contexts.identity.application.register_user.adapters.refresh_tokens_adapter import (
     RefreshTokensAdapter,
 )
+from src.contexts.identity.application.register_user.adapters.token_secrets_adapter import (
+    TokenSecretsAdapter,
+)
 from src.contexts.identity.application.register_user.adapters.user_registry_adapter import (
     UserRegistryAdapter,
 )
@@ -33,5 +36,6 @@ __all__ = [
     "IdnEncoderAdapter",
     "PasswordHasherAdapter",
     "RefreshTokensAdapter",
+    "TokenSecretsAdapter",
     "UserRegistryAdapter",
 ]

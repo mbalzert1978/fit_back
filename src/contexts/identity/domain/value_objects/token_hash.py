@@ -1,9 +1,9 @@
 """Value Object TokenHash - der Ablage-Wert eines Refresh-Token.
 
-Der Klartext des Token kommt hier nie an. Er geht vom Aussteller direkt nach
-aussen und in die Antwort; abgelegt wird ausschliesslich sein Hash
-(docs/decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md).
-Die Domaene kennt deshalb nur diese Haelfte.
+Der Klartext reist durch die Domaene (`TokenSecret`, `Grant`), aber nie in eine
+Zeile: abgelegt wird ausschliesslich dieser Abdruck
+(docs/decisions/2026-08-21-2230-pyjwt-hinter-der-naht-refresh-token-als-hash.md,
+docs/decisions/2026-08-28-0807-das-aggregat-stellt-sich-selbst-aus.md).
 """
 
 from dataclasses import dataclass, field
